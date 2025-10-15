@@ -1,0 +1,103 @@
+/* Import Google Font */
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap");
+
+/* 🌍 Global Variables (Light mode defaults) */
+:root {
+  --font-family: "Montserrat", sans-serif;
+  --bg: #ffffff;
+  --text: #222222;
+  --card-bg: #ffffff;
+  --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --radius: 10px;
+  --accent-1: #0077b6;
+  --accent-2: #00b4d8;
+}
+
+/* Dark Mode Variables */
+.app-container.dark {
+  --bg: #121212; /* dark background */
+  --text: #e4e4e4; /* light text */
+  --card-bg: #1e1e1e; /* dark card background */
+}
+
+/* Basic Reset */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-family);
+}
+
+/* Full height layout */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  transition: background 0.4s ease, color 0.4s ease;
+}
+
+/* Headings */
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+
+a {
+  font-weight: 500;
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Main App Container */
+.app-container {
+  display: flex;
+  flex-direction: column; /* stack header, content, footer */
+  min-height: 100vh; /* full screen height */
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Main Content */
+.main-content {
+  flex: 1; /* grows to fill available space, pushes footer down */
+  padding: 2rem;
+}
+
+/* Footer */
+.footer {
+  background: #1e90ff;
+  color: white;
+  text-align: center;
+  padding: 1rem;
+}
+
+.app-container.dark .footer {
+  background: #222;
+}
+
+/* Dark Mode Toggle Button */
+.dark-toggle {
+  margin-top: 2rem;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  background: #1e90ff;
+  color: white;
+  transition: background-color 0.3s, color 0.3s ease;
+}
+
+.dark-toggle:hover {
+  background: #0d6efd;
+}

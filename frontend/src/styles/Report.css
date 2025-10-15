@@ -1,0 +1,145 @@
+/* 🌗 Reports Page Styles */
+.reports-page {
+  padding: 2rem;
+  background: var(--bg);
+  color: var(--text);
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.reports-page h2 {
+  margin-bottom: 1.5rem;
+  font-size: 1.8rem;
+}
+
+/* Filters */
+.report-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.report-filters label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.report-filters input {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--table-border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.filter-btn {
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.3s ease;
+}
+
+.filter-btn:hover {
+  background: var(--btn-hover);
+}
+
+/* Summary Cards */
+.report-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.summary-card {
+  background: var(--card-bg);
+  border-radius: 8px;
+  padding: 1.2rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  text-align: center;
+}
+
+.summary-card h3 {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+}
+
+.summary-card p {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+/* Table */
+.report-table-container {
+  overflow-x: auto;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--card-bg);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+.report-table th,
+.report-table td {
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid var(--table-border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.report-table th {
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  font-weight: 600;
+}
+
+.report-table tbody tr:hover {
+  background: rgba(0, 119, 182, 0.05);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .reports-page {
+    padding: 1rem;
+  }
+
+  .reports-page h2 {
+    font-size: 1.5rem;
+  }
+
+  .report-filters {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .report-filters label {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .filter-btn {
+    align-self: flex-start;
+  }
+
+  .summary-card p {
+    font-size: 1rem;
+  }
+
+  .report-table th,
+  .report-table td {
+    font-size: 0.85rem;
+    padding: 0.6rem;
+  }
+}

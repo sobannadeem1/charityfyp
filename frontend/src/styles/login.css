@@ -1,0 +1,112 @@
+/* ✨ Modern & Clean Login Page */
+
+.login-page {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f5f7fa; /* soft light gray */
+  color: #333;
+  font-family: "Poppins", sans-serif;
+}
+
+/* 🩵 Elegant Card */
+.login-card {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 380px;
+  transition: all 0.3s ease;
+  animation: fadeIn 0.5s ease;
+}
+
+.login-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.15);
+}
+
+.login-card h2 {
+  text-align: center;
+  color: #1a1a1a;
+  font-weight: 600;
+  margin-bottom: 1.8rem;
+  letter-spacing: 0.5px;
+}
+
+/* 🧾 Input Fields */
+.login-form label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.login-form input {
+  width: 100%;
+  padding: 0.8rem;
+  margin-bottom: 1.2rem;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  background: #fff;
+  color: #333;
+  font-size: 1rem;
+  transition: border 0.3s ease, box-shadow 0.3s ease;
+}
+
+.login-form input:focus {
+  outline: none;
+  border-color: #4f46e5; /* Indigo focus */
+  box-shadow: 0 0 6px rgba(79, 70, 229, 0.3);
+}
+
+/* 🌈 Beautiful Gradient Button */
+.login-btn {
+  width: 100%;
+  padding: 0.9rem;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.login-btn:hover {
+  background: linear-gradient(135deg, #4338ca, #4f46e5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+}
+
+/* ✨ Subtle fade animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 📱 Responsive */
+@media (max-width: 600px) {
+  .login-card {
+    padding: 1.8rem;
+    margin: 0 1rem;
+  }
+
+  .login-form input {
+    padding: 0.7rem;
+    font-size: 0.95rem;
+  }
+
+  .login-btn {
+    padding: 0.8rem;
+    font-size: 0.95rem;
+  }
+}
