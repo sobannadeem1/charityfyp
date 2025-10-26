@@ -1,4 +1,3 @@
-// models/Medicine.js
 import mongoose from "mongoose";
 
 const medicineSchema = new mongoose.Schema(
@@ -28,7 +27,11 @@ const medicineSchema = new mongoose.Schema(
       min: 0,
     },
     photo: {
-      type: String, // will store image URL (Cloudinary or local upload later)
+      type: String,
+      default: "",
+    },
+    cloudinary_id: {
+      type: String,
       default: "",
     },
   },

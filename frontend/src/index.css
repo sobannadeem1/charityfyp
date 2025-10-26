@@ -11,6 +11,8 @@
   --radius: 10px;
   --accent-1: #0077b6;
   --accent-2: #00b4d8;
+  --toast-bg: #fff;
+  --toast-text: #111;
 }
 
 /* Dark Mode Variables */
@@ -68,6 +70,7 @@ a {
 }
 
 /* Main Content */
+
 .main-content {
   flex: 1; /* grows to fill available space, pushes footer down */
   padding: 2rem;

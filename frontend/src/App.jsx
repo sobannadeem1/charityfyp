@@ -9,6 +9,7 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 
 import "./index.css";
+import { Toaster } from "sonner";
 
 const App = () => {
   const [darkMode, setDarkMode] = useState(false);
@@ -48,7 +49,7 @@ const App = () => {
           />
         )}
 
-        <main className="main-content">
+        <main className={`main-content ${darkMode ? "dark" : ""}`}>
           {!isAuthenticated ? (
             <Login setIsAuthenticated={setIsAuthenticated} />
           ) : (
