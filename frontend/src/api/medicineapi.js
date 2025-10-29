@@ -1,16 +1,14 @@
 import axios from "axios";
 
-const BASE_URL = "http://localhost:5000/api/medicines"; // your backend route
+const BASE_URL = "http://localhost:5000/api/medicines";
 
-// Automatically include cookies (for authMiddleware)
+// Always include cookies (for authMiddleware)
 axios.defaults.withCredentials = true;
 
-// ✅ Add new medicine (with image)
-export const addMedicine = async (formData) => {
+// ✅ Add new medicine
+export const addMedicine = async (data) => {
   try {
-    const response = await axios.post(BASE_URL, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const response = await axios.post(BASE_URL, data);
     return response.data;
   } catch (error) {
     console.error("Error adding medicine:", error);
@@ -40,12 +38,10 @@ export const getMedicineById = async (id) => {
   }
 };
 
-// ✅ Update existing medicine (with optional new image)
-export const updateMedicine = async (id, formData) => {
+// ✅ Update medicine
+export const updateMedicine = async (id, data) => {
   try {
-    const response = await axios.put(`${BASE_URL}/${id}`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const response = await axios.put(`${BASE_URL}/${id}`, data);
     return response.data;
   } catch (error) {
     console.error("Error updating medicine:", error);
@@ -63,11 +59,14 @@ export const deleteMedicine = async (id) => {
     throw error;
   }
 };
-// ✅ Sell medicine (decrease quantity)
+
+// ✅ Sell medicine (reduce quantity)
 export const sellMedicine = async (id, quantitySold) => {
   try {
-    const res = await axios.patch(`${BASE_URL}/${id}/sell`, { quantitySold });
-    return res.data;
+    const response = await axios.patch(`${BASE_URL}/${id}/sell`, {
+      quantitySold,
+    });
+    return response.data;
   } catch (error) {
     console.error("Error selling medicine:", error);
     throw error;

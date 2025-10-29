@@ -1,530 +1,645 @@
-// src/components/Medicines.jsx
 import React, { useEffect, useState } from "react";
-import "../styles/medicine.css";
-import { toast } from "sonner";
 import {
   getAllMedicines,
   addMedicine,
   updateMedicine,
-  deleteMedicine,
   sellMedicine,
-} from "../api/medicineapi";
+} from "../api/medicineapi"; // keep your path
+import "../styles/medicine.css";
+import { toast } from "sonner";
 
 export default function Medicines() {
   const [medicines, setMedicines] = useState([]);
-  const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [processingId, setProcessingId] = useState(null);
+
+  // modal (popup) controls
+  const [showModal, setShowModal] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editId, setEditId] = useState(null);
-  const [selectMode, setSelectMode] = useState(false);
-  const [selectedMeds, setSelectedMeds] = useState([]);
 
-  const [formData, setFormData] = useState({
+  // sell inline box
+  const [activeSellId, setActiveSellId] = useState(null);
+  const [sellQty, setSellQty] = useState("");
+
+  // form state (matches your enhanced model)
+  const emptyForm = {
     name: "",
+    genericName: "",
     category: "",
+    packSize: "",
+    dosageForm: "",
+    strength: "",
+    batchNumber: "",
     expiry: "",
     quantity: "",
-    price: "",
-    photo: null,
-  });
+    purchasePrice: "",
+    salePrice: "",
+    discount: "",
+    manufacturer: "",
+    supplier: "",
+    storageCondition: "",
+    isExpired: false,
+    isActive: true,
+  };
+  const [form, setForm] = useState(emptyForm);
 
+  // helpful datalists (common suggestions)
+  const genericSuggestions = [
+    "Paracetamol",
+    "Ibuprofen",
+    "Amoxicillin",
+    "Cetirizine",
+    "Metformin",
+    "Amlodipine",
+  ];
+  const dosageSuggestions = [
+    "Oral",
+    "Topical",
+    "Injection",
+    "Inhaler",
+    "Nasal",
+  ];
+  const categoryOptions = [
+    "Tablet",
+    "Capsule",
+    "Syrup",
+    "Injection",
+    "Cream",
+    "Ointment",
+    "Drops",
+    "Inhaler",
+    "Powder",
+    "Suppository",
+    "Spray",
+    "Gel",
+    "Solution",
+    "Other",
+  ];
+  const storageOptions = [
+    "Room Temperature",
+    "Refrigerated",
+    "Cool & Dry Place",
+    "Other",
+  ];
+
+  // fetch medicines
   useEffect(() => {
     fetchMedicines();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchMedicines = async () => {
     try {
       setLoading(true);
       const res = await getAllMedicines();
-      const finalList = res?.data?.data ?? res?.data ?? res;
-      setMedicines(Array.isArray(finalList) ? finalList : []);
+      const list = Array.isArray(res?.data?.data)
+        ? res.data.data
+        : Array.isArray(res?.data)
+        ? res.data
+        : Array.isArray(res)
+        ? res
+        : res?.data ?? [];
+      // FILTER OUT ZERO QTY MEDICINES
+      setMedicines(list.filter((m) => Number(m.quantity) > 0));
     } catch (err) {
-      console.error("Error fetching medicines:", err);
+      console.error("fetchMedicines:", err);
       toast.error?.("Failed to load medicines");
+      setMedicines([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value, files } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: files ? files[0] : value,
-    }));
-  };
-
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      category: "",
-      expiry: "",
-      quantity: "",
-      price: "",
-      photo: null,
-    });
+  // form helpers
+  const openAddModal = () => {
+    setForm(emptyForm);
     setIsEditMode(false);
     setEditId(null);
+    setShowModal(true);
+  };
+
+  const openEditModal = (med) => {
+    // normalize numbers -> strings for inputs
+    const f = {
+      name: med.name ?? "",
+      genericName: med.genericName ?? "",
+      category: med.category ?? "",
+      packSize: med.packSize ?? "",
+      dosageForm: med.dosageForm ?? "",
+      strength: med.strength ?? "",
+      batchNumber: med.batchNumber ?? "",
+      expiry: med.expiry ? med.expiry.slice(0, 10) : "",
+      quantity: med.quantity ?? "",
+      purchasePrice: med.purchasePrice ?? "",
+      salePrice: med.salePrice ?? med.salePrice ?? "",
+      discount: med.discount ?? 0,
+      manufacturer: med.manufacturer ?? "",
+      supplier: med.supplier ?? "",
+      storageCondition: med.storageCondition ?? "",
+      isExpired: Boolean(med.isExpired),
+      isActive: med.isActive ?? true,
+    };
+    setForm(f);
+    setIsEditMode(true);
+    setEditId(med._id);
+    setShowModal(true);
+  };
+
+  const handleFormChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      setSubmitting(true);
-      const fd = new FormData();
-      fd.append("name", formData.name);
-      fd.append("category", formData.category);
-      fd.append("expiry", formData.expiry);
-      fd.append("quantity", formData.quantity);
-      fd.append("price", formData.price);
-      if (formData.photo) fd.append("image", formData.photo);
-
-      if (isEditMode && editId) {
-        setProcessingId(editId);
-        const res = await updateMedicine(editId, fd);
-        const updated = res?.data?.data ?? res?.data ?? res;
-        // update the list and remove if quantity 0
-        setMedicines((prev) => {
-          const updatedList = prev.map((m) => (m._id === editId ? updated : m));
-          // If updated item is out of stock, remove it
-          return updatedList.filter((m) => Number(m.quantity) > 0);
-        });
-        // if edited item was selected for printing and removed, remove from selection
-        if (selectedMeds.includes(editId) && Number(updated.quantity) === 0) {
-          setSelectedMeds((s) => s.filter((id) => id !== editId));
-        }
-      } else {
-        const res = await addMedicine(fd);
-        const added = res?.data?.data ?? res?.data ?? res;
-        // backend may return wrapper { success, data: medicine }
-        const newMed = added?.data ?? added;
-        // push created medicine into list (defensive)
-        setMedicines((prev) => [...prev, newMed]);
+      // basic validation
+      if (!form.name || !form.category || !form.expiry || !form.quantity) {
+        toast.error?.(
+          "Please fill required fields (name, category, expiry, qty)"
+        );
+        return;
       }
 
-      setShowForm(false);
-      resetForm();
-      toast.success?.("Saved successfully");
+      if (isEditMode && editId) {
+        // update (re-use your updateMedicine API) — here we assume updateMedicine exists
+        const res = await updateMedicine(editId, form); // updateMedicine imported? if not, add it
+        const updated = res?.data ?? res;
+        setMedicines((prev) =>
+          prev.map((m) => (m._id === editId ? updated : m))
+        );
+        toast.success?.("Medicine updated");
+      } else {
+        const res = await addMedicine(form);
+        // new item could be at res.data.data or res.data etc
+        const added = res?.data?.data ?? res?.data ?? res;
+        // final fallback: if added wrapped in success->data
+        const newItem = added?.data ?? added;
+        // push to list
+        setMedicines((prev) => [newItem, ...prev]);
+        toast.success?.("Medicine added");
+      }
+
+      setShowModal(false);
+      setIsEditMode(false);
+      setEditId(null);
+      setForm(emptyForm);
     } catch (err) {
-      console.error("Error submitting medicine:", err);
-      toast.error?.("Failed to save medicine");
-    } finally {
-      setSubmitting(false);
-      setProcessingId(null);
+      console.error("handleSubmit:", err);
+      toast.error?.("Save failed");
     }
   };
 
-  const handleEdit = (med) => {
-    setFormData({
-      name: med.name ?? "",
-      category: med.category ?? "",
-      expiry: med.expiry ? med.expiry.slice(0, 10) : "",
-      quantity: med.quantity ?? "",
-      price: med.price ?? "",
-      photo: null,
-    });
-    setIsEditMode(true);
-    setEditId(med._id);
-    setShowForm(true);
-  };
-
-  const handleSell = (med) => {
-    toast.custom((t) => (
-      <div
-        style={{
-          background: "var(--toast-bg, #fff)",
-          color: "var(--toast-text, #222)",
-          padding: "1rem",
-          borderRadius: "12px",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-          width: "18rem",
-          display: "flex",
-          flexDirection: "column",
-          gap: "0.6rem",
-        }}
-      >
-        <h4 style={{ margin: 0 }}>Sell {med.name}</h4>
-
-        <input
-          id={`qty-${t.id}`}
-          type="number"
-          placeholder={`Max: ${med.quantity}`}
-          min="1"
-          max={med.quantity}
-          defaultValue={1}
-          style={{
-            padding: "0.5rem",
-            borderRadius: "6px",
-            border: "1px solid #ccc",
-          }}
-        />
-
-        <div
-          style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem" }}
-        >
-          <button
-            onClick={() => toast.dismiss(t.id)}
-            style={{
-              background: "#ccc",
-              color: "#000",
-              padding: "0.45rem 0.9rem",
-              borderRadius: "6px",
-              cursor: "pointer",
-            }}
-          >
-            Cancel
-          </button>
-
-          <button
-            onClick={async () => {
-              const input = document.getElementById(`qty-${t.id}`);
-              const quantityToSell = Number(input?.value ?? 0);
-
-              if (!quantityToSell || quantityToSell <= 0) {
-                toast.error?.("Invalid quantity entered.");
-                return;
-              }
-              if (quantityToSell > Number(med.quantity)) {
-                toast.error?.("You can’t sell more than available stock!");
-                return;
-              }
-
-              try {
-                setProcessingId(med._id);
-                const res = await sellMedicine(med._id, quantityToSell);
-                const updatedMed = res?.data?.data ?? res?.data ?? res;
-
-                setMedicines((prev) => {
-                  // map update, then filter out zero-quantity items
-                  const mapped = prev.map((m) =>
-                    m._id === med._id ? updatedMed : m
-                  );
-                  return mapped.filter((m) => Number(m.quantity) > 0);
-                });
-
-                // if removed (qty 0), ensure it's removed from selectedMeds
-                if (Number(updatedMed.quantity) === 0) {
-                  setSelectedMeds((s) => s.filter((id) => id !== med._id));
-                  toast.success?.(
-                    `${med.name} is now out of stock and removed 🧾`
-                  );
-                } else {
-                  toast.success?.(
-                    `${quantityToSell} ${med.name} sold successfully 💊`
-                  );
-                }
-              } catch (err) {
-                console.error("Error selling medicine:", err);
-                toast.error?.("Failed to update stock 😢");
-              } finally {
-                setProcessingId(null);
-                // allow small delay so user sees result toast before dismissing input toast
-                setTimeout(() => toast.dismiss(t.id), 600);
-              }
-            }}
-            style={{
-              background: "#0d6efd",
-              color: "#fff",
-              padding: "0.45rem 0.9rem",
-              borderRadius: "6px",
-              cursor: "pointer",
-            }}
-          >
-            Confirm
-          </button>
-        </div>
-      </div>
-    ));
-  };
-
-  const toggleSelectMode = () => {
-    setSelectMode((prev) => !prev);
-    setSelectedMeds([]);
-  };
-
-  const toggleSelect = (id) => {
-    setSelectedMeds((prev) =>
-      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
-    );
-  };
-
-  const handlePrintSelected = () => {
-    if (selectedMeds.length === 0) {
-      toast.error?.("Select at least one medicine to print!");
+  const handleConfirmSell = async (med) => {
+    const qty = Number(sellQty);
+    if (!qty || qty <= 0) {
+      toast.error?.("Enter a valid quantity");
+      return;
+    }
+    if (qty > Number(med.quantity)) {
+      toast.error?.("Cannot sell more than available stock");
       return;
     }
 
-    const medsToPrint = medicines.filter((m) => selectedMeds.includes(m._id));
+    try {
+      // call backend: sellMedicine(id, qty)
+      const res = await sellMedicine(med._id, qty);
+      // normalize returned updated medicine
+      const updated = res?.data?.data ?? res?.data ?? res;
+      // if backend returns the whole updated medicine or wrapper, extract final
+      const finalMed = updated?.data ?? updated;
 
-    const printWindow = window.open("", "", "width=900,height=700");
-    printWindow.document.write(`
-    <html>
-      <head>
-        <title>Medicine Report</title>
-        <style>
-          body { font-family: "Poppins", sans-serif; background: #f7f9fc; color: #222; padding: 2rem; margin: 0; }
-          .header { text-align: center; border-bottom: 3px solid #0d6efd; padding-bottom: 1rem; margin-bottom: 2rem; line-height:1.2 }
-          .header h1 { color: #0d6efd; font-size: 1.8rem; margin: 0; }
-          .header p { color: #555; font-size: 0.95rem; margin-top: 0.4rem; }
-          table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.95rem; }
-          th, td { border: 1px solid #ddd; padding: 0.8rem 1rem; text-align: left; }
-          th { background: #0d6efd; color: #fff; font-weight: 600; text-transform: uppercase; }
-          tr:nth-child(even) { background: #f1f5ff; }
-          .footer { text-align: center; margin-top: 2rem; font-size: 0.9rem; color: #555; }
-          @media print {
-            body { background: #fff; padding: 1rem; }
-            th, td { font-size: 0.9rem; border: 1px solid #aaa; }
-            .no-print { display: none; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <img src="/charity.png" alt="Store Logo" style="width: 80px; margin-bottom: 0.5rem;" />
-          <h1>🌿 HealthCare Pharmacy</h1>
-          <p>Main Bazar, Gujrat | 📞 0312-XXXXXXX</p>
-          <p>GST No: 12-3456789 | Managed by: Admin</p>
-          <p style="margin-top: 0.6rem; color: #777;">${new Date().toLocaleString()}</p>
+      setMedicines(
+        (prev) =>
+          prev
+            .map((m) => (m._id === med._id ? finalMed || updated || m : m))
+            .filter((m) => Number(m.quantity) > 0) // if sold to zero — remove row
+      );
+
+      if (
+        Number(
+          finalMed?.quantity ?? updated?.quantity ?? med.quantity - qty
+        ) === 0
+      ) {
+        toast.success?.(`${med.name} sold — now out of stock and removed`);
+      } else {
+        toast.success?.(`${qty} × ${med.name} sold`);
+      }
+    } catch (err) {
+      console.error("sell error:", err);
+      toast.error?.("Sell failed");
+    } finally {
+      setActiveSellId(null);
+      setSellQty("");
+    }
+  };
+  const openSellToast = (med) => {
+    let tempQty = 1;
+
+    toast.custom(
+      (t) => (
+        <div className="sell-toast">
+          <strong>Sell {med.name}</strong>
+          <input
+            type="number"
+            min="1"
+            max={med.quantity}
+            defaultValue={tempQty}
+            onChange={(e) => {
+              tempQty = Number(e.target.value);
+            }}
+            className="sell-toast-input"
+          />
+          <div className="sell-toast-actions">
+            <button
+              onClick={async () => {
+                if (!tempQty || tempQty <= 0) {
+                  toast.error("Enter valid quantity");
+                  return;
+                }
+                if (tempQty > med.quantity) {
+                  toast.error("Cannot sell more than stock");
+                  return;
+                }
+
+                try {
+                  const res = await sellMedicine(med._id, tempQty);
+                  const updated = res?.data?.data ?? res?.data ?? res;
+                  const finalMed = updated?.data ?? updated;
+
+                  setMedicines((prev) =>
+                    prev
+                      .map((m) =>
+                        m._id === med._id ? finalMed || updated || m : m
+                      )
+                      .filter((m) => Number(m.quantity) > 0)
+                  );
+
+                  toast.success(`${tempQty} × ${med.name} sold`);
+                } catch (err) {
+                  console.error(err);
+                  toast.error("Sell failed");
+                }
+              }}
+            >
+              ✔ Sell
+            </button>
+            <button onClick={() => toast.dismiss(t.id)}>✖ Cancel</button>
+          </div>
         </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Medicine Name</th>
-              <th>Category</th>
-              <th>Expiry Date</th>
-              <th>Available Qty</th>
-              <th>Price (PKR)</th>
-              <th>Total Value (PKR)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${medsToPrint
-              .map(
-                (m, idx) => `
-                <tr>
-                  <td>${idx + 1}</td>
-                  <td>${m.name}</td>
-                  <td>${m.category}</td>
-                  <td>${m.expiry ? m.expiry.slice(0, 10) : "-"}</td>
-                  <td>${m.quantity}</td>
-                  <td>${m.price}</td>
-                  <td>${(m.price * m.quantity).toLocaleString()}</td>
-                </tr>
-              `
-              )
-              .join("")}
-          </tbody>
-        </table>
-
-        <div class="footer">
-          <p><strong>Total Medicines Printed:</strong> ${medsToPrint.length}</p>
-          <p><strong>Total Stock Value:</strong> ${medsToPrint
-            .reduce((sum, m) => sum + m.price * m.quantity, 0)
-            .toLocaleString()} PKR</p>
-          <p><strong>Generated by:</strong> Medicine Inventory System 💊</p>
-        </div>
-      </body>
-    </html>
-    `);
-
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-    printWindow.onafterprint = () => {
-      printWindow.close();
-      setSelectedMeds([]);
-      setSelectMode(false);
-    };
+      ),
+      {
+        id: `sell-${med._id}`,
+        duration: 5000, // optional, you can keep it long or manual dismiss
+        position: "top-center",
+      }
+    );
   };
 
   return (
-    <div className="medicines-page">
-      <div className="header-bar">
-        <h2>💊 Medicines Inventory</h2>
-        <div className="actions-bar">
-          <button
-            className="add-btn"
-            onClick={() => {
-              resetForm();
-              setShowForm(true);
-            }}
-          >
+    <div className="med-page">
+      <header className="med-header">
+        <h1 className="med-title">💊 Medicine Inventory</h1>
+
+        <div className="med-controls">
+          <button className="add-btn" onClick={openAddModal}>
             + Add Medicine
           </button>
-          <button
-            className={`print-btn ${selectMode ? "cancel" : ""}`}
-            onClick={toggleSelectMode}
-          >
-            {selectMode ? "Cancel Print Mode" : "🖨️ Print"}
-          </button>
-          {selectMode && (
-            <button onClick={handlePrintSelected} className="confirm-print-btn">
-              Confirm Print
-            </button>
-          )}
         </div>
-      </div>
+      </header>
 
-      {loading ? (
-        <p className="loader">Loading medicines...</p>
-      ) : (
-        <div className="table-wrapper">
-          <table className="medicines-table">
-            <thead>
-              <tr>
-                {selectMode && <th>Select</th>}
-                <th>Added On</th>
-                <th>Photo</th>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Expiry</th>
-                <th>Quantity</th>
-                <th>Price (PKR)</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {medicines.map((med) => (
-                <tr key={med._id}>
-                  {selectMode && (
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={selectedMeds.includes(med._id)}
-                        onChange={() => toggleSelect(med._id)}
-                      />
-                    </td>
-                  )}
-
-                  {/* Added On column (matches header order) */}
-                  <td>
-                    {med.createdAt
-                      ? new Date(med.createdAt).toLocaleString()
-                      : "-"}
-                  </td>
-
-                  <td>
-                    <img
-                      src={med.photo}
-                      alt={med.name}
-                      className="medicine-image"
-                    />
-                  </td>
-
-                  <td>{med.name}</td>
-                  <td>{med.category}</td>
-                  <td>{med.expiry ? med.expiry.slice(0, 10) : ""}</td>
-                  <td>{med.quantity}</td>
-                  <td>{med.price}</td>
-                  <td>
-                    <button
-                      className="action-btn edit"
-                      onClick={() => handleEdit(med)}
-                      disabled={processingId === med._id}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="action-btn sold"
-                      onClick={() => handleSell(med)}
-                      disabled={processingId === med._id}
-                    >
-                      Sell
-                    </button>
-                  </td>
+      <main className="med-main">
+        {loading ? (
+          <div className="loader">Loading medicines...</div>
+        ) : (
+          <div className="table-wrap">
+            <table className="med-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Generic</th>
+                  <th>Category</th>
+                  <th>Pack</th>
+                  <th>Dosage</th>
+                  <th>Strength</th>
+                  <th>Batch</th>
+                  <th>Expiry</th>
+                  <th>Qty</th>
+                  <th>Purchase</th>
+                  <th>Sale</th>
+                  <th>Disc%</th>
+                  <th>Manufacturer</th>
+                  <th>Supplier</th>
+                  <th>Storage</th>
+                  <th>Expired?</th>
+                  <th>Active?</th>
+                  <th className="col-actions">Sell</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {Array.isArray(medicines) && medicines.length ? (
+                  medicines.map((m) => (
+                    <tr key={m._id}>
+                      <td className="td-name">{m.name}</td>
+                      <td>{m.genericName || "-"}</td>
+                      <td>{m.category}</td>
+                      <td>{m.packSize || "-"}</td>
+                      <td>{m.dosageForm || "-"}</td>
+                      <td>{m.strength || "-"}</td>
+                      <td>{m.batchNumber || "-"}</td>
+                      <td>
+                        {m.expiry
+                          ? new Date(m.expiry).toLocaleDateString()
+                          : "-"}
+                      </td>
+                      <td>{m.quantity}</td>
+                      <td>{m.purchasePrice ?? "-"}</td>
+                      <td>{m.salePrice ?? "-"}</td>
+                      <td>{m.discount ?? 0}</td>
+                      <td>{m.manufacturer || "-"}</td>
+                      <td>{m.supplier || "-"}</td>
+                      <td>{m.storageCondition || "-"}</td>
+                      <td>{m.isExpired ? "Yes" : "No"}</td>
+                      <td>{m.isActive ? "Yes" : "No"}</td>
 
-      {/* Inline Form (non-modal style if you prefer) */}
-      {showForm && (
-        <div className="modal">
-          <form onSubmit={handleSubmit} className="medicine-form">
-            <h3>{isEditMode ? "Edit Medicine" : "Add Medicine"}</h3>
+                      <td>
+                        <div className="sell-actions">
+                          <button
+                            className="sell-btn"
+                            onClick={() => openSellToast(m)}
+                            title={`Sell ${m.name}`}
+                          >
+                            Sell
+                          </button>
+                          <button
+                            className="edit-btn"
+                            onClick={() => openEditModal(m)}
+                            title="Edit"
+                          >
+                            ✎
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="18" className="no-data">
+                      No medicines found — add your first medicine.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </main>
 
-            <input
-              type="text"
-              name="name"
-              placeholder="Medicine Name"
-              value={formData.name}
-              onChange={handleChange}
-              required
-            />
+      {/* Modal Popup */}
+      {showModal && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal-card">
+            <header className="modal-header">
+              <h2>{isEditMode ? "Edit Medicine" : "Add Medicine"}</h2>
+              <button
+                className="modal-close"
+                onClick={() => {
+                  setShowModal(false);
+                  setIsEditMode(false);
+                  setEditId(null);
+                }}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </header>
 
-            <select
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Select Category</option>
-              <option value="Tablet">Tablet</option>
-              <option value="Capsule">Capsule</option>
-              <option value="Syrup">Syrup</option>
-              <option value="Injection">Injection</option>
-            </select>
+            <form className="modal-form" onSubmit={handleSubmit}>
+              <div className="row">
+                <label>
+                  Name <span className="required">*</span>
+                  <input
+                    name="name"
+                    value={form.name}
+                    onChange={handleFormChange}
+                    placeholder="e.g. Panadol 500"
+                  />
+                </label>
 
-            <input
-              type="date"
-              name="expiry"
-              value={formData.expiry}
-              onChange={handleChange}
-              required
-            />
+                <label>
+                  Generic
+                  <input
+                    list="generic-list"
+                    name="genericName"
+                    value={form.genericName}
+                    onChange={handleFormChange}
+                    placeholder="e.g. Paracetamol"
+                  />
+                  <small className="hint">Try selecting from suggestions</small>
+                  <datalist id="generic-list">
+                    {genericSuggestions.map((g) => (
+                      <option key={g} value={g} />
+                    ))}
+                  </datalist>
+                </label>
+              </div>
 
-            <input
-              type="number"
-              name="quantity"
-              placeholder="Quantity"
-              value={formData.quantity}
-              onChange={handleChange}
-              required
-            />
+              <div className="row">
+                <label>
+                  Category <span className="required">*</span>
+                  <select
+                    name="category"
+                    value={form.category}
+                    onChange={handleFormChange}
+                    required
+                  >
+                    <option value="">Select category</option>
+                    {categoryOptions.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-            <input
-              type="number"
-              name="price"
-              placeholder="Price (PKR)"
-              value={formData.price}
-              onChange={handleChange}
-              required
-            />
+                <label>
+                  Pack size
+                  <input
+                    name="packSize"
+                    value={form.packSize}
+                    onChange={handleFormChange}
+                    placeholder='e.g. "10 tablets/strip"'
+                  />
+                </label>
+              </div>
 
-            <input
-              type="file"
-              name="photo"
-              accept="image/*"
-              onChange={handleChange}
-            />
+              <div className="row">
+                <label>
+                  Dosage form
+                  <input
+                    list="dosage-list"
+                    name="dosageForm"
+                    value={form.dosageForm}
+                    onChange={handleFormChange}
+                    placeholder="Oral / Topical / Injection"
+                  />
+                  <datalist id="dosage-list">
+                    {dosageSuggestions.map((d) => (
+                      <option key={d} value={d} />
+                    ))}
+                  </datalist>
+                  <small className="hint">helps for filters & reports</small>
+                </label>
 
-            <button type="submit" disabled={submitting}>
-              {submitting
-                ? isEditMode
-                  ? "Updating..."
-                  : "Saving..."
-                : isEditMode
-                ? "Update"
-                : "Save"}
-            </button>
-            <button
-              type="button"
-              className="cancel"
-              onClick={() => {
-                setShowForm(false);
-                resetForm();
-              }}
-              disabled={submitting}
-            >
-              Cancel
-            </button>
-          </form>
+                <label>
+                  Strength
+                  <input
+                    name="strength"
+                    value={form.strength}
+                    onChange={handleFormChange}
+                    placeholder="e.g. 500mg"
+                  />
+                </label>
+              </div>
+
+              <div className="row">
+                <label>
+                  Batch #
+                  <input
+                    name="batchNumber"
+                    value={form.batchNumber}
+                    onChange={handleFormChange}
+                    placeholder="optional"
+                  />
+                </label>
+
+                <label>
+                  Expiry <span className="required">*</span>
+                  <input
+                    type="date"
+                    name="expiry"
+                    value={form.expiry}
+                    onChange={handleFormChange}
+                    required
+                  />
+                </label>
+              </div>
+
+              <div className="row">
+                <label>
+                  Quantity <span className="required">*</span>
+                  <input
+                    type="number"
+                    min="0"
+                    name="quantity"
+                    value={form.quantity}
+                    onChange={handleFormChange}
+                    required
+                  />
+                </label>
+
+                <label>
+                  Purchase price
+                  <input
+                    type="number"
+                    min="0"
+                    name="purchasePrice"
+                    value={form.purchasePrice}
+                    onChange={handleFormChange}
+                  />
+                </label>
+              </div>
+
+              <div className="row">
+                <label>
+                  Sale price <span className="required">*</span>
+                  <input
+                    type="number"
+                    min="0"
+                    name="salePrice"
+                    value={form.salePrice}
+                    onChange={handleFormChange}
+                    required
+                  />
+                </label>
+
+                <label>
+                  Discount %
+                  <input
+                    type="number"
+                    min="0"
+                    name="discount"
+                    value={form.discount}
+                    onChange={handleFormChange}
+                  />
+                </label>
+              </div>
+
+              <div className="row">
+                <label>
+                  Manufacturer
+                  <input
+                    name="manufacturer"
+                    value={form.manufacturer}
+                    onChange={handleFormChange}
+                  />
+                </label>
+
+                <label>
+                  Supplier
+                  <input
+                    name="supplier"
+                    value={form.supplier}
+                    onChange={handleFormChange}
+                  />
+                </label>
+              </div>
+
+              <div className="row">
+                <label>
+                  Storage condition
+                  <select
+                    name="storageCondition"
+                    value={form.storageCondition}
+                    onChange={handleFormChange}
+                  >
+                    <option value="">Select storage</option>
+                    {storageOptions.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    name="isActive"
+                    checked={form.isActive}
+                    onChange={handleFormChange}
+                  />
+                  Active
+                </label>
+              </div>
+
+              <footer className="modal-footer">
+                <button type="submit" className="save-btn">
+                  {isEditMode ? "Update" : "Save"}
+                </button>
+                <button
+                  type="button"
+                  className="cancel-btn"
+                  onClick={() => setShowModal(false)}
+                >
+                  Cancel
+                </button>
+              </footer>
+            </form>
+          </div>
         </div>
       )}
     </div>

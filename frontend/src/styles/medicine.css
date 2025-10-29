@@ -1,317 +1,321 @@
-/* 🌙 Global Container */
-.medicines-page {
-  background-color: var(--bg-color);
-  color: var(--text-color);
-  padding: 2rem;
-  min-height: 100vh;
-  transition: all 0.3s ease;
+/* =========================
+   Container & Layout
+   ========================= */
+.med-page {
+  padding: 1.5rem;
+  max-width: 100%;
+  font-family: "Inter", sans-serif;
 }
 
-.medicines-page h2 {
-  font-size: 1.8rem;
-  font-weight: 600;
+.med-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 1.5rem;
-  text-align: center;
 }
 
-/* 🌿 Add Button */
-.add-btn {
-  display: block;
-  margin: 2rem auto;
-  padding: 1rem 2rem;
-  background-color: #0d6efd;
-  color: #fff;
+.med-title {
+  font-size: 1.8rem;
   font-weight: 700;
-  font-size: 1.2rem;
+}
+
+.med-controls {
+  margin-top: 0.5rem;
+}
+
+.add-btn {
   border: none;
+  padding: 0.6rem 1.2rem;
   border-radius: 0.6rem;
   cursor: pointer;
-  text-align: center;
-  transition: all 0.25s ease-in-out;
-  box-shadow: 0 0.3rem 1.2rem rgba(13, 110, 253, 0.4);
+  font-weight: 600;
+  transition: all 0.25s ease;
+  font-size: 1rem;
 }
 
 .add-btn:hover {
-  background-color: #0b5ed7;
-  transform: scale(1.05);
-  box-shadow: 0 0.4rem 1.4rem rgba(13, 110, 253, 0.6);
+  transform: translateY(-2px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
 }
 
-/* 🧾 Table */
-.medicines-table {
+/* =========================
+   Table
+   ========================= */
+.table-wrap {
+  overflow-x: auto;
+  border-radius: 0.8rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.05);
+}
+
+.med-table {
   width: 100%;
   border-collapse: collapse;
-  border: 0.1rem solid rgba(255, 255, 255, 0.2);
-  border-radius: 0.8rem;
-  overflow: hidden;
-  background-color: var(--table-bg);
-  box-shadow: 0 0 1rem rgba(0, 0, 0, 0.2);
+  min-width: 60rem;
 }
 
-.medicines-table th,
-.medicines-table td {
-  padding: 0.9rem 1rem;
+.med-table th,
+.med-table td {
+  padding: 0.5rem 0.75rem;
   text-align: left;
-  border: 0.05rem solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+  font-size: 0.875rem;
 }
 
-.medicines-table th {
-  text-transform: uppercase;
-  font-size: 0.9rem;
-  letter-spacing: 0.05em;
-  background-color: var(--table-header-bg);
-  color: var(--text-color);
-}
-
-.medicines-table tr:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-/* 📸 Medicine Image */
-.medicine-image {
-  width: 3.5rem;
-  height: 3.5rem;
-  border-radius: 0.5rem;
-  object-fit: cover;
-  border: 0.08rem solid rgba(255, 255, 255, 0.25);
-}
-
-/* ⚙️ Action Buttons */
-.action-btn {
-  margin-right: 0.6rem;
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 0.5rem;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s ease-in-out;
-}
-
-.action-btn.edit {
-  background-color: #ffc107;
-  color: #000;
+.med-table th {
   font-weight: 600;
 }
 
-.action-btn.edit:hover {
-  background-color: #e0a800;
-}
-
-.action-btn.sold {
-  background-color: #dc3545;
-  color: #fff;
+.td-name {
   font-weight: 600;
 }
 
-.action-btn.sold:hover {
-  background-color: #bb2d3b;
+.no-data {
+  text-align: center;
+  padding: 1rem 0;
 }
 
-/* 🌀 Loader */
 .loader {
   text-align: center;
-  font-size: 1.1rem;
-  color: #999;
-}
-
-/* 🧩 Modal (Form) */
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(255, 255, 255, 0.7); /* light blur instead of black */
-  backdrop-filter: blur(5px); /* adds elegant blur effect */
-  display: flex;
-  color: white;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-/* 📝 Form Styling */
-.medicine-form {
-  background-color: var(--form-bg);
-  padding: 2rem;
-  border-radius: 0.8rem;
-  width: 90%;
-  max-width: 40rem;
-  box-shadow: 0 0 1.2rem rgba(255, 255, 255, 0.1);
-}
-
-.medicine-form h3 {
-  margin-bottom: 1.2rem;
-  text-align: center;
-  color: var(--text-color);
-}
-
-.medicine-form input,
-.medicine-form select {
-  width: 100%;
-  padding: 0.8rem;
-  margin-bottom: 1rem;
-  border: 0.1rem solid rgba(255, 255, 255, 0.2);
-  border-radius: 0.5rem;
-  background-color: #2a2a2a;
-  color: #eaeaea;
+  padding: 2rem 0;
   font-size: 1rem;
-  transition: border 0.2s ease;
 }
 
-body.light-mode .medicine-form input,
-body.light-mode .medicine-form select {
-  background-color: #fff;
-  color: #000;
-  border: 0.1rem solid rgba(0, 0, 0, 0.15);
-}
-
-.medicine-form input:focus,
-.medicine-form select:focus {
-  border-color: #0d6efd;
-  outline: none;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.4rem;
-  color: #ccc;
-  font-size: 0.9rem;
-}
-
-.small-note {
-  font-size: 0.85rem;
-  color: #aaa;
-  margin-top: -0.5rem;
-  margin-bottom: 0.8rem;
-}
-
-.medicine-form button {
-  width: 100%;
-  padding: 0.8rem;
-  margin-top: 0.6rem;
-  border: none;
-  border-radius: 0.5rem;
+/* =========================
+   Table buttons
+   ========================= */
+.sell-btn,
+.edit-btn,
+.sell-confirm,
+.sell-cancel {
   cursor: pointer;
-  font-weight: 600;
-  font-size: 1rem;
+  border: none;
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
   transition: all 0.2s ease;
 }
 
-.medicine-form button[type="submit"] {
-  background-color: #0d6efd;
-  color: white;
+.sell-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.medicine-form button[type="submit"]:hover {
-  background-color: #0b5ed7;
-}
-
-.medicine-form button.cancel {
-  background-color: #444;
-  color: #fff;
-}
-
-.medicine-form button.cancel:hover {
-  background-color: #666;
-}
-/* print button */
-.header {
+.sell-input {
+  width: 3rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(128, 128, 128, 0.3);
   text-align: center;
-  border-bottom: 3px solid #0d6efd;
-  padding-bottom: 1rem;
-  margin-bottom: 2rem;
-  line-height: 1.4;
+  font-size: 0.85rem;
 }
 
-.header h1 {
-  color: #0d6efd;
-  font-size: 1.9rem;
-  margin: 0.2rem 0;
+/* =========================
+   Modal popup
+   ========================= */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
 }
 
-.header p {
-  color: #444;
-  font-size: 0.95rem;
-  margin: 0.2rem 0;
+.modal-card {
+  padding: 1.5rem;
+  border-radius: 1rem;
+  width: 95%;
+  max-width: 40rem;
+  overflow-y: auto;
+  max-height: 90vh;
+  box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.2);
+
+  /* fixed white background with slight opacity for blur */
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  /* black text */
+  color: #000;
+
+  animation: popIn 0.3s ease-out;
 }
 
-@media print {
-  .header {
-    border-color: #000;
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
+/* toast message */
+.sell-toast {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: #fff;
+  color: #000;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.2);
+  min-width: 250px;
+}
 
-.print-btn,
-.confirm-print-btn {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #fff;
+.sell-toast-input {
+  padding: 0.4rem 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid #ccc;
+  width: 100%;
+}
+
+.sell-toast-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.sell-toast-actions button {
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.5rem;
   border: none;
-  padding: 0.7rem 1.4rem;
-  border-radius: 0.6rem;
   cursor: pointer;
-  transition: all 0.25s ease;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
 }
 
-/* Print button (green) */
-.print-btn {
-  background-color: #198754;
+.sell-toast-actions button:first-child {
+  background-color: #4caf50;
+  color: #fff;
 }
 
-.print-btn:hover {
-  background-color: #157347;
-  transform: translateY(-1px);
+.sell-toast-actions button:last-child {
+  background-color: #f44336;
+  color: #fff;
 }
 
-/* Cancel Print Mode (red) */
-.print-btn.cancel {
-  background-color: #dc3545;
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
 }
 
-.print-btn.cancel:hover {
-  background-color: #bb2d3b;
+.modal-header h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
 }
 
-/* Confirm Print (blue) */
-.confirm-print-btn {
-  background-color: #0d6efd;
-  margin-left: 0.8rem;
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
 }
 
-.confirm-print-btn:hover {
-  background-color: #0b5ed7;
-  transform: translateY(-1px);
+/* Form inside modal */
+.modal-form .row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
 }
 
-/* 📱 Mobile Responsive */
-@media (max-width: 48em) {
-  .medicines-page {
-    padding: 1.5rem;
+.modal-form label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.875rem;
+}
+
+.modal-form input,
+.modal-form select {
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.modal-form input:focus,
+.modal-form select:focus {
+  box-shadow: 0 0 4px rgba(79, 70, 229, 0.3);
+}
+
+.modal-form .hint {
+  font-size: 0.75rem;
+  margin-top: 2px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+/* Modal footer buttons */
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.sell-confirm {
+  background-color: #4caf50; /* stays green in both modes */
+  color: #fff;
+}
+
+.sell-cancel {
+  background-color: #f44336; /* stays red */
+  color: #fff;
+}
+
+/* ensure modal / table parent doesn't override text color */
+.sell-btn {
+  background-color: red;
+  color: #fff;
+}
+.edit-btn {
+  background-color: #2196f3;
+  color: #fff;
+}
+
+/* =========================
+   Responsive
+   ========================= */
+@media (max-width: 1024px) {
+  .modal-form .row {
+    flex-direction: column;
   }
 
-  .medicines-table {
-    font-size: 0.85rem;
-  }
-
-  .medicines-table th,
-  .medicines-table td {
-    padding: 0.6rem;
-  }
-
-  .medicine-form {
-    padding: 1.5rem;
-  }
-
-  .medicine-form h3 {
-    font-size: 1.2rem;
+  .med-table {
+    font-size: 0.8rem;
   }
 
   .add-btn {
     width: 100%;
-    font-size: 1.1rem;
-    text-align: center;
-    margin-bottom: 1rem;
+    margin-top: 0.5rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .med-title {
+    font-size: 1.4rem;
+  }
+
+  .sell-inline {
+    flex-direction: column;
+  }
+
+  .med-table th,
+  .med-table td {
+    padding: 0.4rem 0.5rem;
+    font-size: 0.75rem;
   }
 }
