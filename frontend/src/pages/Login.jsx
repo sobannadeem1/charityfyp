@@ -1,10 +1,11 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "../styles/login.css";
 
-export default function Login({ setIsAuthenticated }) {
+export default function Login({ setIsAdmin }) {
   const [formData, setFormData] = useState({ email: "", password: "" });
-
   const [error, setError] = useState("");
+  const navigate = useNavigate(); // ✅ ADD THIS
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -24,8 +25,8 @@ export default function Login({ setIsAuthenticated }) {
       });
 
       if (res.ok) {
-        setIsAuthenticated(true);
-        console.log("Sending:", formData);
+        setIsAdmin(true);
+        navigate("/", { replace: true }); // ✅ Redirect to home/dashboard
       } else {
         const data = await res.json();
         setError(data.message || "Login failed");

@@ -1,0 +1,99 @@
+.sold-container {
+  padding: 1.5rem;
+  background: #f9fafb;
+  min-height: 100vh;
+}
+
+.sold-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.sold-header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #2b2b2b;
+}
+
+.search-box input {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  outline: none;
+  width: 250px;
+  transition: all 0.2s ease;
+}
+
+.search-box input:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+}
+
+.summary-card {
+  background: white;
+  padding: 1rem;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  font-weight: 500;
+}
+
+.sold-table-wrapper {
+  overflow-x: auto;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.sold-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 800px;
+}
+
+.sold-table th,
+.sold-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.sold-table th {
+  background: #007bff;
+  color: white;
+  font-weight: 600;
+}
+
+.sold-table tr:hover {
+  background-color: #f1f9ff;
+}
+
+.loading,
+.no-records {
+  text-align: center;
+  font-size: 1.1rem;
+  color: #555;
+  margin-top: 2rem;
+}
+
+/* Scrollbar styling for smooth horizontal scroll */
+.sold-table-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+
+.sold-table-wrapper::-webkit-scrollbar-thumb {
+  background: #007bff;
+  border-radius: 10px;
+}
+
+.sold-table-wrapper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}

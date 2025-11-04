@@ -6,30 +6,23 @@ import {
   updateMedicine,
   deleteMedicine,
   sellMedicine,
+  getAllSales,
+  getSalesByMedicine,
 } from "../controllers/medicineController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 
 const medicineRouter = express.Router();
 
-// ✅ All routes below require authentication
-medicineRouter.use(authMiddleware);
-
-// ✅ Add medicine (no image upload)
-medicineRouter.post("/", addMedicine);
-
-// ✅ Get all medicines
+// ✅ Public routes (visible to all users)
 medicineRouter.get("/", getAllMedicines);
-
-// ✅ Get single medicine by ID
 medicineRouter.get("/:id", getMedicineById);
+medicineRouter.get("/sold/records", getAllSales);
+medicineRouter.get("/sales/:id", getSalesByMedicine);
 
-// ✅ Sell medicine (reduce quantity)
-medicineRouter.patch("/:id/sell", sellMedicine);
-
-// ✅ Update medicine details
-medicineRouter.put("/:id", updateMedicine);
-
-// ✅ Delete medicine
-medicineRouter.delete("/:id", deleteMedicine);
+// ✅ Protected routes (admin only)
+medicineRouter.post("/", authMiddleware, addMedicine);
+medicineRouter.put("/:id", authMiddleware, updateMedicine);
+medicineRouter.patch("/:id/sell", authMiddleware, sellMedicine);
+medicineRouter.delete("/:id", authMiddleware, deleteMedicine);
 
 export default medicineRouter;

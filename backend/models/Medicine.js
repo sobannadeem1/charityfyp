@@ -8,10 +8,6 @@ const medicineSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    genericName: {
-      type: String,
-      trim: true,
-    },
     category: {
       type: String,
       enum: [
@@ -48,11 +44,6 @@ const medicineSchema = new mongoose.Schema(
       trim: true, // e.g. "500mg", "5mg/5ml"
     },
 
-    // 🔹 Stock & Pricing
-    batchNumber: {
-      type: String,
-      trim: true,
-    },
     expiry: {
       type: Date,
       required: true,
@@ -72,10 +63,6 @@ const medicineSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
-    discount: {
-      type: Number,
-      default: 0, // percentage discount
-    },
 
     // 🔹 Supplier & Manufacturer
     manufacturer: {
@@ -92,22 +79,6 @@ const medicineSchema = new mongoose.Schema(
       type: String,
       enum: ["Room Temperature", "Refrigerated", "Cool & Dry Place", "Other"],
       default: "Room Temperature",
-    },
-
-    // 🔹 Reorder Alerts
-    reorderLevel: {
-      type: Number,
-      default: 10, // alert when quantity <= reorderLevel
-    },
-
-    // 🔹 Status
-    isExpired: {
-      type: Boolean,
-      default: false,
-    },
-    isActive: {
-      type: Boolean,
-      default: true,
     },
   },
   { timestamps: true }

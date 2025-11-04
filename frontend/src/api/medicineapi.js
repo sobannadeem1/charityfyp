@@ -72,3 +72,23 @@ export const sellMedicine = async (id, quantitySold) => {
     throw error;
   }
 };
+// ✅ Get all sold medicine records
+export const getSoldMedicines = async () => {
+  try {
+    const response = await axios.get(`${BASE_URL}/sold/records`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching sold medicines:", error);
+    throw error;
+  }
+};
+
+export const getSalesByMedicine = async (id) => {
+  try {
+    const response = await axios.get(`${BASE_URL}/sales/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching sales by medicine:", error);
+    throw error;
+  }
+};

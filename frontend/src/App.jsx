@@ -7,62 +7,47 @@ import Donations from "./pages/Donation";
 import Reports from "./pages/Report";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
-
+import SoldMedicines from "./pages/SoldMedicine";
 import "./index.css";
-import { Toaster } from "sonner";
 
 const App = () => {
-  const [darkMode, setDarkMode] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  // ✅ Check if JWT cookie exists on first load
+  // ✅ Optional: check if admin is logged in
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const res = await fetch("http://localhost:5000/api/admin/me", {
-          credentials: "include", // send cookies
+          method: "GET",
+          credentials: "include",
         });
-        setIsAuthenticated(res.ok);
+        if (res.ok) setIsAdmin(true);
       } catch (err) {
-        console.error("Auth check failed:", err);
-        setIsAuthenticated(false);
-      } finally {
-        setLoading(false);
+        setIsAdmin(false);
       }
     };
-
     checkAuth();
   }, []);
 
-  if (loading) return <p>Loading...</p>;
-
   return (
     <Router>
-      <div className={`app-container ${darkMode ? "dark" : ""}`}>
-        {/* Show Header + Footer only if logged in */}
-        {isAuthenticated && (
-          <Header
-            darkMode={darkMode}
-            setDarkMode={setDarkMode}
-            setIsAuthenticated={setIsAuthenticated} // ✅ added
-          />
-        )}
+      <div className="app-container">
+        <Header setIsAdmin={setIsAdmin} />
 
-        <main className={`main-content ${darkMode ? "dark" : ""}`}>
-          {!isAuthenticated ? (
-            <Login setIsAuthenticated={setIsAuthenticated} />
-          ) : (
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/medicines" element={<Medicines />} />
-              <Route path="/donations" element={<Donations />} />
-              <Route path="/reports" element={<Reports />} />
-            </Routes>
-          )}
+        <main className="main-content">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route
+              path="/medicines"
+              element={<Medicines isAdmin={isAdmin} />}
+            />
+            <Route path="/donations" element={<Donations />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/sold" element={<SoldMedicines />} />
+            <Route path="/login" element={<Login setIsAdmin={setIsAdmin} />} />
+          </Routes>
         </main>
-
-        {isAuthenticated && <Footer />}
+        <Footer />
       </div>
     </Router>
   );

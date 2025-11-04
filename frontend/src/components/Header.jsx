@@ -1,22 +1,40 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "../styles/headerfooter.css";
 import { NavLink, useNavigate } from "react-router-dom";
 
-export default function Header({ darkMode, setDarkMode, setIsAuthenticated }) {
+export default function Header({ setIsAdmin }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const navigate = useNavigate();
 
+  // ✅ Check if admin is logged in (via token/session)
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/admin/me", {
+          credentials: "include",
+        });
+        setIsLoggedIn(res.ok);
+      } catch (err) {
+        console.error("Auth check failed:", err);
+        setIsLoggedIn(false);
+      }
+    };
+    checkAuth();
+  }, []);
+
+  // ✅ Logout
   const handleLogout = async () => {
     try {
       const res = await fetch("http://localhost:5000/api/admin/logout", {
         method: "POST",
-        credentials: "include", // ✅ important to send cookie
+        credentials: "include",
       });
 
       if (res.ok) {
-        setIsAuthenticated(false);
-        navigate("/", { replace: true }); // redirect to login
+        setIsAdmin(false);
+        setIsLoggedIn(false);
+        navigate("/", { replace: true });
       } else {
         console.error("Logout failed");
       }
@@ -25,10 +43,15 @@ export default function Header({ darkMode, setDarkMode, setIsAuthenticated }) {
     }
   };
 
+  // ✅ Login redirect
+  const handleLogin = () => {
+    navigate("/login");
+  };
+
   return (
     <header className="site-header" role="banner">
       <div className="container header-inner">
-        {/* Brand (Logo + Text) */}
+        {/* 🔹 Brand Logo */}
         <div className="brand">
           <div className="logo" aria-hidden>
             <img src="/charity.png" alt="Charity Medical Logo" />
@@ -39,7 +62,7 @@ export default function Header({ darkMode, setDarkMode, setIsAuthenticated }) {
           </div>
         </div>
 
-        {/* Navigation */}
+        {/* 🔹 Navigation */}
         <nav
           className={`main-nav ${mobileOpen ? "open show" : ""}`}
           aria-label="Main"
@@ -55,59 +78,32 @@ export default function Header({ darkMode, setDarkMode, setIsAuthenticated }) {
           <NavLink to="/reports">Reports</NavLink>
         </nav>
 
-        {/* Header Controls */}
+        {/* 🔹 Header Controls */}
         <div className="header-controls">
-          {/* 🔍 Search */}
-          <div className={`search-wrap ${searchOpen ? "open" : ""}`}>
-            <input
-              type="search"
-              placeholder="Search medicine or donor..."
-              aria-label="Search"
-            />
-            <button
-              className="search-close"
-              onClick={() => setSearchOpen(false)}
-              aria-label="Close search"
-            >
-              &times;
+          {/* 👤 Avatar (only when logged in) */}
+          {isLoggedIn && (
+            <div className="user-section">
+              <button className="avatar" title="Profile">
+                <img
+                  src="https://via.placeholder.com/40x40.png?text=A"
+                  alt="Admin avatar"
+                />
+              </button>
+            </div>
+          )}
+
+          {/* 🚪 Logout / 🔑 Login */}
+          {isLoggedIn ? (
+            <button className="logout-btn" onClick={handleLogout}>
+              Logout
             </button>
-          </div>
-
-          <button
-            className="icon-btn"
-            aria-label="Toggle search"
-            onClick={() => {
-              setSearchOpen((s) => !s);
-              setMobileOpen(false);
-            }}
-            title="Search"
-          >
-            🔍
-          </button>
-
-          {/* 🌙 Dark Mode Toggle */}
-          <button
-            className="icon-btn"
-            onClick={() => setDarkMode(!darkMode)}
-            title="Toggle Dark Mode"
-          >
-            {darkMode ? "☀️" : "🌙"}
-          </button>
-
-          {/* 👤 User Avatar + Logout */}
-          <div className="user-section">
-            <button className="avatar" title="Profile">
-              <img
-                src="https://via.placeholder.com/40x40.png?text=A"
-                alt="Admin avatar"
-              />
+          ) : (
+            <button className="login-btn" onClick={handleLogin}>
+              Login
             </button>
-          </div>
-          <button className="logout-btn" onClick={handleLogout}>
-            Logout
-          </button>
+          )}
 
-          {/* 🍔 Mobile Hamburger */}
+          {/* 🍔 Mobile Menu */}
           <button
             className={`hamburger ${mobileOpen ? "open" : ""}`}
             aria-label="Toggle menu"
@@ -118,7 +114,6 @@ export default function Header({ darkMode, setDarkMode, setIsAuthenticated }) {
                 document.body.classList.toggle("menu-open", next);
                 return next;
               });
-              setSearchOpen(false);
             }}
             title="Menu"
           >
