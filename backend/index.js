@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(
   cors({
-    origin: ["https://nshc-three.vercel.app"],
+    origin: ["https://charityfyp.vercel.app"],
     credentials: true,
   })
 );
