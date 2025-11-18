@@ -1,129 +1,65 @@
-import axios from "axios";
+const BASE_MEDICINES = "https://charityfyp-jm4i.vercel.app/api/medicines";
+const BASE_ADMIN = "https://charityfyp-jm4i.vercel.app/api/admin";
+const BASE_INVOICES = "https://charityfyp-jm4i.vercel.app/api/invoices";
 
-const BASE_URL = "https://charityfyp-jm4i.vercel.app/api/";
-
-// Always include cookies (for authMiddleware)
 axios.defaults.withCredentials = true;
-
-// ✅ Add new medicine
 export const addMedicine = async (data) => {
-  try {
-    const response = await axios.post(BASE_URL, data);
-    return response.data;
-  } catch (error) {
-    console.error("Error adding medicine:", error);
-    throw error;
-  }
+  const res = await axios.post(BASE_MEDICINES, data);
+  return res.data;
 };
 
-// ✅ Get all medicines
 export const getAllMedicines = async () => {
-  try {
-    const response = await axios.get(BASE_URL);
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching medicines:", error);
-    throw error;
-  }
+  const res = await axios.get(BASE_MEDICINES);
+  return res.data;
 };
 
-// ✅ Get single medicine by ID
 export const getMedicineById = async (id) => {
-  try {
-    const response = await axios.get(`${BASE_URL}/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching medicine:", error);
-    throw error;
-  }
+  const res = await axios.get(`${BASE_MEDICINES}/${id}`);
+  return res.data;
 };
 
-// ✅ Update medicine
 export const updateMedicine = async (id, data) => {
-  try {
-    const response = await axios.put(`${BASE_URL}/${id}`, data);
-    return response.data.data; // return only updated medicine
-  } catch (error) {
-    console.error("Error updating medicine:", error);
-    throw error;
-  }
+  const res = await axios.put(`${BASE_MEDICINES}/${id}`, data);
+  return res.data.data;
 };
 
-// ✅ Delete medicine
 export const deleteMedicine = async (id) => {
-  try {
-    const response = await axios.delete(`${BASE_URL}/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error("Error deleting medicine:", error);
-    throw error;
-  }
+  const res = await axios.delete(`${BASE_MEDICINES}/${id}`);
+  return res.data;
 };
 
-// ✅ Sell medicine with support for both packages and individual units
 export const sellMedicine = async (id, quantitySold, sellType = "packages") => {
-  try {
-    const response = await axios.patch(`${BASE_URL}/${id}/sell`, {
-      quantitySold,
-      sellType, // Add this parameter: "packages" or "units"
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Error selling medicine:", error);
-    throw error;
-  }
+  const res = await axios.patch(`${BASE_MEDICINES}/${id}/sell`, {
+    quantitySold,
+    sellType,
+  });
+  return res.data;
 };
-// ✅ Get all sold medicine records
+
 export const getSoldMedicines = async () => {
-  try {
-    const response = await axios.get(`${BASE_URL}/sold/records`);
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching sold medicines:", error);
-    throw error;
-  }
+  const res = await axios.get(`${BASE_MEDICINES}/sold/records`);
+  return res.data;
 };
 
 export const getSalesByMedicine = async (id) => {
-  try {
-    const response = await axios.get(`${BASE_URL}/sales/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching sales by medicine:", error);
-    throw error;
-  }
+  const res = await axios.get(`${BASE_MEDICINES}/sales/${id}`);
+  return res.data;
 };
-
-// ✅ Logout admin
-export const logoutAdmin = async () => {
-  const res = await axios.post(`${BASE_URL}/admin/logout`, null, {
+export const loginAdmin = async (formData) => {
+  const res = await axios.post(`${BASE_ADMIN}/login`, formData, {
     withCredentials: true,
   });
   return res.data;
 };
-// ✅ Login admin
-export const loginAdmin = async (formData) => {
-  try {
-    const res = await axios.post(
-      `${BASE_URL}/admin/login`,
-      formData,
-      { withCredentials: true } // important for session cookies
-    );
-    return res.data;
-  } catch (error) {
-    console.error("Login error:", error);
-    throw error; // let frontend handle the error message
-  }
+
+export const logoutAdmin = async () => {
+  const res = await axios.post(`${BASE_ADMIN}/logout`, null, {
+    withCredentials: true,
+  });
+  return res.data;
 };
-// ✅ Get current logged-in admin
+
 export const getCurrentAdmin = async () => {
-  try {
-    const res = await axios.get(`${BASE_URL}/admin/me`, {
-      withCredentials: true, // important for cookies
-    });
-    return res.data; // contains { message, admin }
-  } catch (error) {
-    console.error("Auth check error:", error);
-    throw error; // frontend will handle setting isAdmin false
-  }
+  const res = await axios.get(`${BASE_ADMIN}/me`, { withCredentials: true });
+  return res.data;
 };
