@@ -14,8 +14,11 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(
   cors({
-    origin: "http://localhost:5173", // your frontend URL
-    credentials: true, // allow sending cookies
+    origin: [
+      "http://localhost:5173", // development
+      "https://nshc-three.vercel.app", // production
+    ],
+    credentials: true,
   })
 );
 app.use(express.json());
