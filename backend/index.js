@@ -14,10 +14,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173", // development
-      "https://nshc-three.vercel.app", // production
-    ],
+    origin: ["https://nshc-three.vercel.app"],
     credentials: true,
   })
 );

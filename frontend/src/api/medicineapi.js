@@ -1,7 +1,6 @@
 import axios from "axios";
 
-const BASE_URL =
-  import.meta.env.REACT_APP_API_URL || "http://localhost:5000/api/medicines";
+const BASE_URL = "https://charityfyp-jm4i.vercel.app";
 
 // Always include cookies (for authMiddleware)
 axios.defaults.withCredentials = true;
