@@ -73,37 +73,89 @@ export default function Medicines({ isAdmin }) {
     }));
   };
 
-  // Helper function to extract units per package
+  // More robust unit extraction
   const getUnitsPerPackage = (medicine) => {
     if (!medicine?.packSize) return 1;
 
-    // Extract number from packSize (e.g., "10 tablets" → 10)
-    const match = medicine.packSize.match(
-      /(\d+)\s*(tablets?|capsules?|ml|vials?|bottles?|sachets?|tubes?)/i
-    );
-    return match ? parseInt(match[1]) : 1;
-  };
+    // Handle various pack size formats
+    const packSize = medicine.packSize.toString().toLowerCase();
 
-  // Fix the price per unit calculation
+    // Extract number using more flexible regex
+    const match = packSize.match(
+      /(\d+(?:\.\d+)?)\s*(tablets?|capsules?|pills?|ml|vials?|bottles?|sachets?|tubes?|units?|pieces?|amps?|suppositories?)/i
+    );
+
+    const units = match ? parseFloat(match[1]) : 1;
+
+    // Ensure we return at least 1 and handle invalid numbers
+    return Math.max(1, isNaN(units) ? 1 : units);
+  };
+  // Validate if we can sell the requested quantity
+  const validateSaleQuantity = (medicine, quantity, type) => {
+    if (!medicine || quantity <= 0) {
+      return { valid: false, error: "Invalid quantity" };
+    }
+
+    const availablePackages = Math.floor(medicine.quantity);
+    const unitsPerPackage = getUnitsPerPackage(medicine);
+    const totalUnitsAvailable = availablePackages * unitsPerPackage;
+
+    if (type === "packages") {
+      if (quantity > availablePackages) {
+        return {
+          valid: false,
+          error: `Not enough packages! Only ${availablePackages} available.`,
+        };
+      }
+      return { valid: true, packagesToDeduct: quantity };
+    } else {
+      // Selling units
+      if (quantity > totalUnitsAvailable) {
+        return {
+          valid: false,
+          error: `Not enough units! Only ${totalUnitsAvailable} available.`,
+        };
+      }
+
+      // Calculate how many complete packages to deduct
+      const packagesToDeduct = Math.floor(quantity / unitsPerPackage);
+      const remainingUnits = quantity % unitsPerPackage;
+
+      // If there are remaining units, we need to deduct an extra package
+      const totalPackagesToDeduct =
+        remainingUnits > 0 ? packagesToDeduct + 1 : packagesToDeduct;
+
+      return {
+        valid: true,
+        packagesToDeduct: totalPackagesToDeduct,
+        unitsSold: quantity,
+      };
+    }
+  };
   const getPricePerUnit = (medicine) => {
     if (!medicine?.salePrice) return 0;
     const unitsPerPackage = getUnitsPerPackage(medicine);
 
-    // Make sure we don't divide by zero
     if (unitsPerPackage <= 0) return medicine.salePrice;
 
-    return medicine.salePrice / unitsPerPackage;
+    const pricePerUnit = medicine.salePrice / unitsPerPackage;
+    // Round to avoid floating point precision issues
+    return Math.round(pricePerUnit * 100) / 100;
   };
-  // Fix the total calculation
   const calculateTotal = (medicine, quantity, type) => {
     if (!medicine) return 0;
 
+    let total = 0;
+
     if (type === "packages") {
-      return medicine.salePrice * quantity;
+      total = medicine.salePrice * quantity;
     } else {
       const pricePerUnit = getPricePerUnit(medicine);
-      return pricePerUnit * quantity;
+      total = pricePerUnit * quantity;
     }
+
+    // Round to 2 decimal places to avoid floating point issues
+    return Math.round(total * 100) / 100;
   };
 
   // Fix the sale description
@@ -244,31 +296,20 @@ export default function Medicines({ isAdmin }) {
     if (!quantity || quantity <= 0) return toast.error("Invalid quantity!");
 
     try {
-      if (quantityType === "packages") {
-        // Selling complete packages
-        if (quantity > currentMedicine.quantity) {
-          return toast.error(
-            `Not enough packages! Only ${Math.floor(
-              currentMedicine.quantity
-            )} available.`
-          );
-        }
+      // Validate the sale first
+      const validation = validateSaleQuantity(
+        currentMedicine,
+        quantity,
+        quantityType
+      );
+      if (!validation.valid) {
+        return toast.error(validation.error);
+      }
 
+      if (quantityType === "packages") {
         await sellMedicine(currentMedicine._id, quantity, "packages");
         toast.success(`Sold ${quantity} packages successfully 💸`);
       } else {
-        // Selling individual units - SIMPLE FIX
-        const unitsPerPackage = getUnitsPerPackage(currentMedicine);
-        const totalUnitsAvailable =
-          Math.floor(currentMedicine.quantity) * unitsPerPackage;
-
-        if (quantity > totalUnitsAvailable) {
-          return toast.error(
-            `Not enough units! Only ${totalUnitsAvailable} available.`
-          );
-        }
-
-        // Sell as individual units (let backend handle package reduction)
         await sellMedicine(currentMedicine._id, quantity, "units");
         toast.success(`Sold ${quantity} units successfully 💊`);
       }
@@ -281,7 +322,6 @@ export default function Medicines({ isAdmin }) {
       toast.error(error.response?.data?.message || "Error selling medicine");
     }
   };
-
   // Emoji mapping based on medicine category
   const getCategoryEmoji = (category) => {
     const emojiMap = {
@@ -914,10 +954,14 @@ export default function Medicines({ isAdmin }) {
               </p>
               <p>
                 <strong>🔢 Available:</strong>{" "}
-                {Math.floor(currentMedicine?.quantity)} packages (
+                {Math.floor(currentMedicine?.quantity)} packages ={" "}
                 {Math.floor(currentMedicine?.quantity) *
                   getUnitsPerPackage(currentMedicine)}{" "}
-                units total)
+                units
+                <br />
+                <small style={{ color: "#666" }}>
+                  (1 package = {getUnitsPerPackage(currentMedicine)} units)
+                </small>
               </p>
             </div>
 
@@ -935,13 +979,32 @@ export default function Medicines({ isAdmin }) {
               type="number"
               placeholder={
                 quantityType === "packages"
-                  ? "🔢 Enter number of PACKAGES..."
-                  : "💊 Enter number of UNITS..."
+                  ? `🔢 Enter packages (max: ${Math.floor(
+                      currentMedicine?.quantity
+                    )})...`
+                  : `💊 Enter units (max: ${
+                      Math.floor(currentMedicine?.quantity) *
+                      getUnitsPerPackage(currentMedicine)
+                    })...`
               }
               value={sellQuantity}
-              onChange={(e) => setSellQuantity(e.target.value)}
+              onChange={(e) => {
+                const max =
+                  quantityType === "packages"
+                    ? Math.floor(currentMedicine?.quantity)
+                    : Math.floor(currentMedicine?.quantity) *
+                      getUnitsPerPackage(currentMedicine);
+                const value = Math.min(parseInt(e.target.value) || 0, max);
+                setSellQuantity(value > 0 ? value : "");
+              }}
               className="input-field"
               min="1"
+              max={
+                quantityType === "packages"
+                  ? Math.floor(currentMedicine?.quantity)
+                  : Math.floor(currentMedicine?.quantity) *
+                    getUnitsPerPackage(currentMedicine)
+              }
             />
 
             <small className="sell-hint">
