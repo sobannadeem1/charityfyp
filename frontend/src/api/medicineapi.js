@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = "https://charityfyp-jm4i.vercel.app";
+const BASE_URL = "https://charityfyp-jm4i.vercel.app/api/";
 
 // Always include cookies (for authMiddleware)
 axios.defaults.withCredentials = true;
