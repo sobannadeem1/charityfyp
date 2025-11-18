@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const BASE_URL =
-  process.env.REACT_APP_API_URL || "http://localhost:5000/api/medicines";
+  import.meta.env.REACT_APP_API_URL || "http://localhost:5000/api/medicines";
 
 // Always include cookies (for authMiddleware)
 axios.defaults.withCredentials = true;

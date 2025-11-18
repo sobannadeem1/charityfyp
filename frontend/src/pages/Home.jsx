@@ -11,7 +11,7 @@ import {
   Legend,
   ArcElement,
 } from "chart.js";
-import "../styles/dashboard.css";
+import "../styles/Dashboard.css";
 import HoverRollCard from "../components/CardCounter";
 import {
   FaPills,
