@@ -93,3 +93,25 @@ export const getSalesByMedicine = async (id) => {
     throw error;
   }
 };
+
+// ✅ Logout admin
+export const logoutAdmin = async () => {
+  const res = await axios.post(`${BASE_URL}/admin/logout`, null, {
+    withCredentials: true,
+  });
+  return res.data;
+};
+// ✅ Login admin
+export const loginAdmin = async (formData) => {
+  try {
+    const res = await axios.post(
+      `${BASE_URL}/admin/login`,
+      formData,
+      { withCredentials: true } // important for session cookies
+    );
+    return res.data;
+  } catch (error) {
+    console.error("Login error:", error);
+    throw error; // let frontend handle the error message
+  }
+};

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/login.css";
+import { loginAdmin } from "../api/medicineapi";
 
 export default function Login({ setIsAdmin }) {
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -17,23 +18,15 @@ export default function Login({ setIsAdmin }) {
     setError("");
 
     try {
-      const res = await fetch("http://localhost:5000/api/admin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(formData),
-      });
-
-      if (res.ok) {
-        setIsAdmin(true);
-        navigate("/", { replace: true }); // ✅ Redirect to home/dashboard
-      } else {
-        const data = await res.json();
-        setError(data.message || "Login failed");
-      }
+      const data = await loginAdmin(formData); // use centralized API
+      setIsAdmin(true);
+      navigate("/", { replace: true }); // ✅ redirect to dashboard
     } catch (err) {
-      console.error("Login error:", err);
-      setError("Network error");
+      if (err.response && err.response.data && err.response.data.message) {
+        setError(err.response.data.message);
+      } else {
+        setError("Network or server error");
+      }
     }
   };
 

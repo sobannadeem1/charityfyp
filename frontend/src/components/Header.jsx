@@ -2,27 +2,19 @@ import React, { useState } from "react";
 import "../styles/headerfooter.css";
 import { NavLink, useNavigate } from "react-router-dom";
 import NotificationBell from "./NotificationBell"; // Import the bell component
+import { logoutAdmin } from "../api/medicineapi";
 
 export default function Header({ isAdmin, setIsAdmin }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
 
-  // ✅ Logout
   const handleLogout = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/admin/logout", {
-        method: "POST",
-        credentials: "include",
-      });
-
-      if (res.ok) {
-        setIsAdmin(false);
-        navigate("/", { replace: true });
-      } else {
-        console.error("Logout failed");
-      }
+      await logoutAdmin();
+      setIsAdmin(false);
+      navigate("/", { replace: true });
     } catch (error) {
-      console.error("Logout error:", error);
+      console.error("Logout failed:", error);
     }
   };
 
