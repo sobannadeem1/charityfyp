@@ -1,3 +1,5 @@
+import axios from "axios";
+
 const BASE_MEDICINES = "https://charityfyp-jm4i.vercel.app/api/medicines";
 const BASE_ADMIN = "https://charityfyp-jm4i.vercel.app/api/admin";
 const BASE_INVOICES = "https://charityfyp-jm4i.vercel.app/api/invoices";
