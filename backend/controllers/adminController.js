@@ -68,12 +68,14 @@ export const loginAdmin = async (req, res) => {
     }
 
     const token = generateToken(admin._id);
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    const cookieOptions = {
+      httpOnly: true, // JS can’t read the cookie
+      secure: true, // must be HTTPS
+      sameSite: "none", // REQUIRED for cross-domain cookies
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    };
+
+    res.cookie("token", token, cookieOptions);
 
     res.status(200).json({
       message: "Login successful",
@@ -95,7 +97,12 @@ export const loginAdmin = async (req, res) => {
 ============================== */
 export const logoutAdmin = async (req, res) => {
   try {
-    res.clearCookie("token");
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+    });
+
     res.status(200).json({ message: "Logged out successfully" });
   } catch (error) {
     console.error("Logout error:", error);
