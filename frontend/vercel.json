@@ -1,21 +1,18 @@
 {
-  "version": 2,
+  "version": 3,
   "builds": [
     {
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "build"
+        "distDir": "dist"
       }
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/build/$1"
+      "dest": "/dist/$1"
     }
-  ],
-  "env": {
-    "REACT_APP_API_URL": "https://charityfyp-jm4i.vercel.app/"
-  }
+  ]
 }
