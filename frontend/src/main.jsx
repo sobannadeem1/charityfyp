@@ -4,10 +4,13 @@ import "./index.css";
 import App from "./App.jsx";
 import "react-toastify/dist/ReactToastify.css";
 import { Toaster } from "sonner";
+import { NotificationProvider } from "./context/NotificationContext.jsx";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <App />
+    <NotificationProvider>
+      <App />
+    </NotificationProvider>
     <Toaster position="top-center" richColors closeButton />
   </StrictMode>
 );

@@ -76,11 +76,12 @@ export const addMedicine = async (req, res) => {
   }
 };
 
-// ✅ Sell medicine (reduce stock)
-
+// ✅ Sell medicine (reduce stock) - UPDATED VERSION
+// ✅ Sell medicine (reduce stock) - FIXED VERSION
 export const sellMedicine = async (req, res) => {
   try {
-    const { quantitySold, soldBy, note } = req.body;
+    const { quantitySold, sellType = "packages" } = req.body;
+
     if (!quantitySold || quantitySold <= 0) {
       return res
         .status(400)
@@ -93,40 +94,102 @@ export const sellMedicine = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Medicine not found" });
 
-    if (quantitySold > medicine.quantity) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Not enough stock available" });
+    // Helper function to extract units from packSize
+    const extractUnitsFromPackSize = (packSize) => {
+      if (!packSize) return 1;
+      const match = packSize.match(
+        /(\d+)\s*(tablets?|capsules?|ml|vials?|bottles?|sachets?|tubes?|pieces?|units?)/i
+      );
+      return match ? parseInt(match[1]) : 1;
+    };
+
+    let packagesToReduce;
+    let unitsSold = quantitySold;
+    let unitPrice = medicine.salePrice;
+    let totalAmount = 0;
+
+    if (sellType === "units") {
+      const unitsPerPackage = extractUnitsFromPackSize(medicine.packSize);
+
+      if (unitsPerPackage <= 0) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid pack size format. Please use format like '10 tablets'",
+        });
+      }
+
+      // Calculate complete packages needed
+      packagesToReduce = Math.ceil(quantitySold / unitsPerPackage);
+
+      // Check stock availability
+      if (packagesToReduce > medicine.quantity) {
+        const availableUnits = medicine.quantity * unitsPerPackage;
+        return res.status(400).json({
+          success: false,
+          message: `Not enough stock! Only ${availableUnits} units available.`,
+        });
+      }
+
+      // Calculate actual units that will be sold (may be more than requested due to package constraint)
+      const actualUnitsSold = Math.min(
+        quantitySold,
+        packagesToReduce * unitsPerPackage
+      );
+
+      // Calculate price per unit and total
+      unitPrice = medicine.salePrice / unitsPerPackage;
+      unitsSold = actualUnitsSold;
+      totalAmount = unitPrice * actualUnitsSold;
+    } else {
+      // Package sales
+      if (quantitySold > medicine.quantity) {
+        return res.status(400).json({
+          success: false,
+          message: `Not enough packages! Only ${medicine.quantity} available.`,
+        });
+      }
+
+      packagesToReduce = quantitySold;
+      const unitsPerPackage = extractUnitsFromPackSize(medicine.packSize);
+      unitsSold = quantitySold * unitsPerPackage;
+      totalAmount = medicine.salePrice * quantitySold;
     }
 
-    // Decrement stock
-    medicine.quantity -= quantitySold;
+    // Decrement stock (always reduce WHOLE packages)
+    medicine.quantity -= packagesToReduce;
 
     // Auto mark as expired/inactive if needed
     if (medicine.quantity <= 0) medicine.isActive = false;
     if (new Date(medicine.expiry) < new Date()) medicine.isExpired = true;
 
-    // Save updated medicine first (atomic-ish for our simple flow)
+    // Save updated medicine
     await medicine.save();
 
-    // Create a sale record
-    const unitPrice = medicine.salePrice || 0;
-    const totalAmount = unitPrice * quantitySold;
-
+    // Create a sale record with detailed information
     const sale = await Sale.create({
       medicine: medicine._id,
       medicineName: medicine.name,
-      quantitySold,
-      unitPrice,
-      totalAmount,
-      soldBy: soldBy || "operator",
-      note: note || "",
+      quantitySold: unitsSold,
+      packagesSold: packagesToReduce,
+      sellType: sellType,
+      unitPrice: unitPrice,
+      totalAmount: totalAmount,
+      soldBy: "operator",
+      note:
+        sellType === "units"
+          ? `Sold as individual units (${unitsSold} units from ${packagesToReduce} packages)`
+          : "",
+      packSize: medicine.packSize,
       soldAt: new Date(),
     });
 
     res.status(200).json({
       success: true,
-      message: `${quantitySold} unit(s) sold successfully`,
+      message:
+        sellType === "packages"
+          ? `${quantitySold} package(s) sold successfully`
+          : `${unitsSold} unit(s) sold successfully (used ${packagesToReduce} packages)`,
       data: { medicine, sale },
     });
   } catch (error) {
@@ -135,6 +198,22 @@ export const sellMedicine = async (req, res) => {
   }
 };
 
+// Helper function to extract units from packSize
+const extractUnitsFromPackSize = (packSize) => {
+  if (!packSize) return 1;
+
+  // Match patterns like: "10 tablets", "100ml", "5 vials", etc.
+  const match = packSize.match(
+    /(\d+)\s*(tablets?|capsules?|ml|vials?|bottles?|sachets?|tubes?|pieces?|units?)/i
+  );
+
+  if (match && match[1]) {
+    return parseInt(match[1]);
+  }
+
+  // Default to 1 if no pattern matched
+  return 1;
+};
 export const getAllSales = async (req, res) => {
   try {
     const sales = await Sale.find()
@@ -212,34 +291,66 @@ export const getMedicineById = async (req, res) => {
 export const updateMedicine = async (req, res) => {
   try {
     const updates = req.body;
-    const medicine = await Medicine.findById(req.params.id);
 
-    if (!medicine)
+    const allowedFields = [
+      "name",
+      "category",
+      "packSize",
+      "dosageForm",
+      "strength",
+      "expiry",
+      "quantity",
+      "purchasePrice",
+      "salePrice",
+      "manufacturer",
+      "supplier",
+      "storageCondition",
+    ];
+
+    const medicine = await Medicine.findById(req.params.id);
+    if (!medicine) {
       return res
         .status(404)
         .json({ success: false, message: "Medicine not found" });
+    }
 
-    // Update provided fields only
-    Object.keys(updates).forEach((key) => {
-      medicine[key] = updates[key];
+    medicine.history = medicine.history || [];
+
+    // ✅ FIX: Track changes with BOTH old and new values
+    const changes = {};
+    allowedFields.forEach((field) => {
+      if (updates[field] !== undefined && updates[field] !== medicine[field]) {
+        changes[field] = {
+          from: medicine[field], // Old value
+          to: updates[field], // New value
+        };
+        // Update the medicine field
+        medicine[field] = updates[field];
+      }
     });
 
-    // Expiry auto check
-    if (new Date(medicine.expiry) < new Date()) medicine.isExpired = true;
+    // ✅ Only add to history if there are actual changes
+    if (Object.keys(changes).length > 0) {
+      medicine.history.push({
+        updatedAt: new Date(),
+        changes: changes, // Now contains {field: {from: old, to: new}}
+      });
+    }
+
+    if (medicine.expiry && new Date(medicine.expiry) < new Date()) {
+      medicine.isExpired = true;
+    }
 
     const updatedMedicine = await medicine.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: "Medicine updated successfully",
+      message: "Medicine updated successfully ✅",
       data: updatedMedicine,
     });
   } catch (error) {
     console.error("Error updating medicine:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error while updating medicine",
-    });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 

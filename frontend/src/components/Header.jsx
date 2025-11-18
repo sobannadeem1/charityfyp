@@ -1,27 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import "../styles/headerfooter.css";
 import { NavLink, useNavigate } from "react-router-dom";
+import NotificationBell from "./NotificationBell"; // Import the bell component
 
-export default function Header({ setIsAdmin }) {
+export default function Header({ isAdmin, setIsAdmin }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const navigate = useNavigate();
-
-  // ✅ Check if admin is logged in (via token/session)
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const res = await fetch("http://localhost:5000/api/admin/me", {
-          credentials: "include",
-        });
-        setIsLoggedIn(res.ok);
-      } catch (err) {
-        console.error("Auth check failed:", err);
-        setIsLoggedIn(false);
-      }
-    };
-    checkAuth();
-  }, []);
 
   // ✅ Logout
   const handleLogout = async () => {
@@ -33,7 +17,6 @@ export default function Header({ setIsAdmin }) {
 
       if (res.ok) {
         setIsAdmin(false);
-        setIsLoggedIn(false);
         navigate("/", { replace: true });
       } else {
         console.error("Logout failed");
@@ -43,10 +26,7 @@ export default function Header({ setIsAdmin }) {
     }
   };
 
-  // ✅ Login redirect
-  const handleLogin = () => {
-    navigate("/login");
-  };
+  const handleLogin = () => navigate("/login");
 
   return (
     <header className="site-header" role="banner">
@@ -54,11 +34,11 @@ export default function Header({ setIsAdmin }) {
         {/* 🔹 Brand Logo */}
         <div className="brand">
           <div className="logo" aria-hidden>
-            <img src="/charity.png" alt="Charity Medical Logo" />
+            <img src="/logo.png" alt="Charity Medical Logo" />
           </div>
           <div className="brand-text">
-            <span className="org-name">Charity Medical</span>
-            <span className="org-sub">Inventory</span>
+            <span className="org-name">Noor Sardar</span>
+            <span className="org-sub">HealthCare Center</span>
           </div>
         </div>
 
@@ -73,27 +53,35 @@ export default function Header({ setIsAdmin }) {
           >
             Dashboard
           </NavLink>
-          <NavLink to="/medicines">Medicines</NavLink>
+
+          {/* 🔽 Medicines Dropdown */}
+          <div className="nav-dropdown">
+            <span className="dropdown-toggle">Medicines ▾</span>
+            <div className="dropdown-menu">
+              <NavLink to="/medicines">All Medicines</NavLink>
+              <NavLink to="/expiring-soon">Expiring Soon</NavLink>
+              <NavLink to="/sold">Sold Medicines</NavLink>
+            </div>
+          </div>
+
           <NavLink to="/donations">Donations</NavLink>
           <NavLink to="/reports">Reports</NavLink>
         </nav>
 
         {/* 🔹 Header Controls */}
         <div className="header-controls">
-          {/* 👤 Avatar (only when logged in) */}
-          {isLoggedIn && (
+          {/* 🔔 NOTIFICATION BELL - Add this line */}
+          {isAdmin && <NotificationBell />}
+
+          {isAdmin && (
             <div className="user-section">
-              <button className="avatar" title="Profile">
-                <img
-                  src="https://via.placeholder.com/40x40.png?text=A"
-                  alt="Admin avatar"
-                />
+              <button className="avatar" title="Noor Sardar Admin">
+                <img src="./logo.png" alt="Admin avatar" />
               </button>
             </div>
           )}
 
-          {/* 🚪 Logout / 🔑 Login */}
-          {isLoggedIn ? (
+          {isAdmin ? (
             <button className="logout-btn" onClick={handleLogout}>
               Logout
             </button>
@@ -103,7 +91,6 @@ export default function Header({ setIsAdmin }) {
             </button>
           )}
 
-          {/* 🍔 Mobile Menu */}
           <button
             className={`hamburger ${mobileOpen ? "open" : ""}`}
             aria-label="Toggle menu"

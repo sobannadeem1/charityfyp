@@ -1,64 +1,209 @@
 .dashboard {
-  padding: 2rem 0;
-  background: transparent; /* prevents white strip */
+  min-height: 90vh;
+  padding: 2rem;
+}
+
+.container {
+  margin: 0 auto;
 }
 
 .dash-title {
-  font-size: 1.5rem;
-  margin-bottom: 1.5rem;
-  color: var(--text, #222);
   text-align: center;
-  transition: color 0.3s ease;
+  font-size: 2.5rem;
+  margin-bottom: 2rem;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+.dash-welcome {
+  text-align: center;
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  color: black;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  animation: fadeIn 1.5s ease-in-out;
 }
 
-/* Cards container */
-.dash-cards {
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* Charts Grid */
+.charts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  margin-bottom: 3rem;
+  animation: fadeInUp 0.8s ease-out 0.4s both;
+}
+
+.chart-container {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1), 0 5px 10px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.chart-container:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15), 0 8px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Quick Stats Section */
+.quick-stats {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  margin-top: 2rem;
+  border: 1px solid #e2e8f0;
+}
+
+.quick-stats h3 {
+  margin: 0 0 1.5rem 0;
+  color: #1e293b;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
 }
 
-/* Single Card */
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.stat-icon {
+  font-size: 2rem;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border-radius: 8px;
+  padding: 0.5rem;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-item {
+    justify-content: flex-start;
+  }
+}
+/* Cards */
+.dash-cards {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin: 1rem 0;
+}
+
 .dash-card {
-  background: var(--card-bg);
-  color: var(--text);
-  padding: 1.2rem;
-  border-radius: var(--radius, 10px);
-  box-shadow: var(--card-shadow, 0 4px 12px rgba(0, 0, 0, 0.08));
+  cursor: pointer;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #222;
+  transition: transform 0.4s ease, color 0.4s ease;
+  flex: 1 1 200px;
+  padding: 2rem 1.5rem;
+  border-radius: 15px;
   text-align: center;
-  transition: transform 0.2s ease, background 0.3s ease, color 0.3s ease;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
 }
 
 .dash-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-10px) scale(1.05);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+}
+.dash-card:hover p {
+  transform: translateY(-4px) scale(1.05);
+  color: #007bff;
 }
 
 .dash-card h3 {
-  margin: 0 0 0.6rem;
-  font-size: 1rem;
-  color: var(--accent-1, #0077b6);
-  transition: color 0.3s ease;
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
 }
 
-.dash-card p {
-  font-size: 1.6rem;
-  font-weight: bold;
-  transition: color 0.3s ease;
+.dash-card-number {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 1px;
 }
 
-🌙 Dark mode overrides .app-container.dark .dash-title {
-  color: #f1f1f1;
+.dash-card-icon {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  font-size: 2rem;
+  opacity: 0.2;
 }
 
-.app-container.dark .dash-card {
-  background: #1e1e1e;
-  color: #e4e4e4;
+/* Specific card colors */
+.total-meds p {
+  color: #f39c12;
+}
+.expiring-soon p {
+  color: #e67e22;
+}
+.out-stock p {
+  color: #e74c3c;
+}
+.total-donations p {
+  color: #1abc9c;
 }
 
-.app-container.dark .dash-card h3 {
-  color: var(--accent-2, #00b4d8);
+/* Chart */
+.chart-container {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  padding: 2rem;
+  border-radius: 15px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
-.app-container.dark .dash-card p {
-  color: #fff; /* makes stats bold & visible */
+/* Responsive */
+@media (max-width: 768px) {
+  .dash-cards {
+    flex-direction: column;
+    align-items: center;
+  }
 }

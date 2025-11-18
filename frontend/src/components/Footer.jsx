@@ -1,19 +1,26 @@
 import React from "react";
-import "../styles/headerfooter.css";
+import "../styles/footer.css";
 import { Link } from "react-router-dom";
 
 export default function Footer() {
   return (
     <footer className="site-footer" role="contentinfo">
       <div className="container footer-grid">
+        {/* About Section */}
         <div className="f-about">
-          <h4>Charity Medical Store</h4>
+          <h4>Noor Sardar HealthCare Center</h4>
           <p>
-            A simple inventory system to manage donated medicines and supplies —
-            built for charity clinics.
+            A community-focused healthcare initiative providing essential
+            medical support, medicine distribution, and patient care to
+            underserved families.
+          </p>
+          <p style={{ fontWeight: "bolder" }}>
+            © {new Date().getFullYear()} Noor Sardar HealthCare Center — All
+            rights reserved.
           </p>
         </div>
 
+        {/* Quick Links */}
         <div className="f-links">
           <h5>Quick Links</h5>
           <ul>
@@ -32,18 +39,20 @@ export default function Footer() {
           </ul>
         </div>
 
+        {/* Contact */}
         <div className="f-contact">
           <h5>Contact</h5>
-          <p>Email: info@charity.org</p>
-          <p>Phone: +92 300 0000000</p>
+          <p>Email: noorsardar@healthcare.org</p>
+          <p>Phone: +92 300 1234567</p>
+
           <div className="socials" aria-hidden>
+            <a className="social" href="#facebook">
+              F
+            </a>
             <a className="social" href="#twitter">
               T
             </a>
-            <a className="social" href="#fb">
-              F
-            </a>
-            <a className="social" href="#ig">
+            <a className="social" href="#instagram">
               I
             </a>
           </div>

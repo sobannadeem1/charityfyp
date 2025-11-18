@@ -42,7 +42,7 @@ export const getMedicineById = async (id) => {
 export const updateMedicine = async (id, data) => {
   try {
     const response = await axios.put(`${BASE_URL}/${id}`, data);
-    return response.data;
+    return response.data.data; // return only updated medicine
   } catch (error) {
     console.error("Error updating medicine:", error);
     throw error;
@@ -60,11 +60,12 @@ export const deleteMedicine = async (id) => {
   }
 };
 
-// ✅ Sell medicine (reduce quantity)
-export const sellMedicine = async (id, quantitySold) => {
+// ✅ Sell medicine with support for both packages and individual units
+export const sellMedicine = async (id, quantitySold, sellType = "packages") => {
   try {
     const response = await axios.patch(`${BASE_URL}/${id}/sell`, {
       quantitySold,
+      sellType, // Add this parameter: "packages" or "units"
     });
     return response.data;
   } catch (error) {

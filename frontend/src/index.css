@@ -1,27 +1,20 @@
-/* Import Google Font */
+/* Import Google Fonts */
+@import url("https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap");
 
-@import url("https://fonts.googleapis.com/css2?family=Bitcount+Prop+Single:wght@100..900&family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Quicksand:wght@300..700&family=Roboto+Slab:wght@100..900&family=Winky+Rough:ital,wght@0,300..900;1,300..900&display=swap");
 :root {
   --font-family: "PT Sans", sans-serif;
-  font-weight: 400;
-  font-style: normal;
 
-  --bg: #ffffff;
-  --text: #222222;
-  --card-bg: #ffffff;
+  --bg: #e6f0fa; /* body background: light, soft blue */
+  --text: #111827; /* dark text */
+  --card-bg: #ffffff; /* card background */
   --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   --radius: 10px;
-  --accent-1: #0077b6;
-  --accent-2: #00b4d8;
-  --toast-bg: #fff;
-  --toast-text: #111;
-}
 
-/* Dark Mode Variables */
-.app-container.dark {
-  --bg: #121212; /* dark background */
-  --text: #e4e4e4; /* light text */
-  --card-bg: #1e1e1e; /* dark card background */
+  --accent-1: #0077b6; /* blue */
+  --accent-2: #00b4d8; /* teal */
+
+  --header-footer-bg: #0f172a; /* dark blue header/footer */
+  --header-footer-text: #ffffff;
 }
 
 /* Basic Reset */
@@ -32,12 +25,10 @@
   font-family: var(--font-family);
 }
 
-/* Full height layout */
 html,
 body,
 #root {
   height: 100%;
-  margin: 0;
 }
 
 body {
@@ -65,44 +56,52 @@ a {
 /* Main App Container */
 .app-container {
   display: flex;
-  flex-direction: column; /* stack header, content, footer */
-  min-height: 100vh; /* full screen height */
+  flex-direction: column;
+  min-height: 100vh;
   background: var(--bg);
   color: var(--text);
 }
 
 /* Main Content */
-
 .main-content {
-  flex: 1; /* grows to fill available space, pushes footer down */
+  flex: 1;
   padding: 2rem;
 }
 
 /* Footer */
-.footer {
-  background: #1e90ff;
-  color: white;
+.site-footer {
+  background: var(--header-footer-bg);
+  color: var(--header-footer-text);
   text-align: center;
-  padding: 1rem;
+  padding: 1.5rem 1rem;
 }
 
-.app-container.dark .footer {
-  background: #222;
+/* Header adjustments */
+.site-header {
+  background: var(--header-footer-bg);
+  color: var(--header-footer-text);
 }
 
-/* Dark Mode Toggle Button */
-.dark-toggle {
-  margin-top: 2rem;
-  padding: 0.6rem 1.2rem;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: bold;
-  background: #1e90ff;
-  color: white;
-  transition: background-color 0.3s, color 0.3s ease;
+/* Logo fixes for dark bg */
+.site-header .logo img {
+  background: #fff; /* ensures logo is visible on dark blue */
+  border-radius: 12px;
+  padding: 4px;
 }
 
-.dark-toggle:hover {
-  background: #0d6efd;
+/* Hamburger: only show on mobile */
+.hamburger {
+  display: none; /* default hidden */
+}
+
+@media (max-width: 900px) {
+  .hamburger {
+    display: flex;
+  }
+  .main-nav {
+    display: none;
+  }
+  .main-nav.open.show {
+    display: flex;
+  }
 }

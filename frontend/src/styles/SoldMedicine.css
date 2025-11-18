@@ -1,99 +1,407 @@
+/* SoldMedicine.css */
 .sold-container {
-  padding: 1.5rem;
-  background: #f9fafb;
+  padding: 2rem;
   min-height: 100vh;
+  background: linear-gradient(135deg, #f0f8ff 0%, #e6f0fa 100%);
+  font-family: "Inter", "Poppins", sans-serif;
 }
 
 .sold-header {
   display: flex;
-  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1.5rem;
 }
 
 .sold-header h1 {
-  font-size: 1.8rem;
+  font-size: 2.5rem;
   font-weight: 700;
-  color: #2b2b2b;
+  background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
 }
 
 .search-box input {
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  border: 1px solid #ccc;
+  padding: 0.8rem 1.2rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
   font-size: 1rem;
-  outline: none;
-  width: 250px;
-  transition: all 0.2s ease;
+  min-width: 280px;
+  background: white;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .search-box input:focus {
-  border-color: #007bff;
-  box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 4px 16px rgba(52, 152, 219, 0.2);
+  transform: translateY(-2px);
+}
+
+.action-bar {
+  display: flex;
+  gap: 1rem;
+}
+
+.bulk-invoice-btn,
+.view-invoices-btn {
+  padding: 0.8rem 1.5rem;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bulk-invoice-btn {
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+  color: white;
+  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+}
+
+.bulk-invoice-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+}
+
+.bulk-invoice-btn:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.view-invoices-btn {
+  background: linear-gradient(135deg, #3498db, #2980b9);
+  color: white;
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.view-invoices-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+}
+
+/* Summary Cards */
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
 }
 
 .summary-card {
-  background: white;
-  padding: 1rem;
-  border-radius: 10px;
-  margin-bottom: 1rem;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #ffffff, #f8f9fa);
+  padding: 1.5rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  font-weight: 500;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.3s ease;
 }
 
+.summary-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+}
+
+.summary-icon {
+  font-size: 2.5rem;
+  background: linear-gradient(135deg, #3498db, #2980b9);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.summary-content h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: #7f8c8d;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summary-content p {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+/* Table Styles */
 .sold-table-wrapper {
-  overflow-x: auto;
   background: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
 .sold-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 800px;
-}
-
-.sold-table th,
-.sold-table td {
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid #eee;
-  text-align: left;
-  white-space: nowrap;
+  font-size: 0.95rem;
 }
 
 .sold-table th {
-  background: #007bff;
+  background: linear-gradient(135deg, #3498db, #2980b9);
   color: white;
+  padding: 1.2rem 1rem;
+  text-align: left;
   font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sold-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #ecf0f1;
+  color: #2c3e50;
 }
 
 .sold-table tr:hover {
-  background-color: #f1f9ff;
+  background: linear-gradient(
+    90deg,
+    rgba(52, 152, 219, 0.05) 0%,
+    transparent 100%
+  );
 }
 
-.loading,
+/* Specific Cell Styles */
+.medicine-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.medicine-icon {
+  font-size: 1.1rem;
+}
+
+.category-badge {
+  background: #e8f4fd;
+  color: #3498db;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid #3498db33;
+}
+
+.quantity-cell {
+  font-weight: 700;
+  color: #e67e22;
+  text-align: center;
+}
+
+.price-cell {
+  font-weight: 600;
+  color: #27ae60;
+}
+
+.total-cell {
+  font-weight: 700;
+  color: #2c3e50;
+  font-size: 1.05rem;
+}
+
+.date-cell {
+  color: #7f8c8d;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+/* Invoice Button */
+.invoice-action {
+  text-align: center;
+}
+
+.invoice-btn {
+  background: linear-gradient(135deg, #9b59b6, #8e44ad);
+  color: white;
+  border: none;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(155, 89, 182, 0.3);
+}
+
+.invoice-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(155, 89, 182, 0.4);
+  background: linear-gradient(135deg, #8e44ad, #9b59b6);
+}
+
+/* Loading and No Records */
+.loading {
+  text-align: center;
+  font-size: 1.2rem;
+  color: #3498db;
+  padding: 3rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
 .no-records {
   text-align: center;
-  font-size: 1.1rem;
-  color: #555;
-  margin-top: 2rem;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
-/* Scrollbar styling for smooth horizontal scroll */
-.sold-table-wrapper::-webkit-scrollbar {
-  height: 8px;
+.no-records-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
 }
 
-.sold-table-wrapper::-webkit-scrollbar-thumb {
-  background: #007bff;
-  border-radius: 10px;
+.no-records h3 {
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+  font-size: 1.5rem;
 }
 
-.sold-table-wrapper::-webkit-scrollbar-track {
-  background: #f1f1f1;
+.no-records p {
+  color: #7f8c8d;
+  margin: 0;
+}
+/* Add these styles to your SoldMedicine.css */
+
+.package-cell {
+  font-size: 0.85rem;
+}
+
+.package-info-small {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.5rem;
+  background: #f0f9ff;
+  border-radius: 6px;
+  border: 1px solid #bae6fd;
+}
+
+.package-icon {
+  font-size: 0.8rem;
+}
+
+.sale-quantity {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sale-type-badge {
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.sale-type-badge.units {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.sale-type-badge.packages {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.sale-type-badge.mixed {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.currency {
+  font-family: "Courier New", monospace;
+  font-weight: 600;
+}
+
+/* Update existing table cells for better alignment */
+.quantity-cell,
+.price-cell,
+.total-cell {
+  text-align: center;
+}
+
+.price-cell,
+.total-cell {
+  font-family: "Courier New", monospace;
+  font-weight: 600;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .sold-container {
+    padding: 1rem;
+  }
+
+  .sold-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-controls {
+    flex-direction: column;
+  }
+
+  .search-box input {
+    min-width: 100%;
+  }
+
+  .action-bar {
+    flex-direction: column;
+  }
+
+  .summary-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .sold-table-wrapper {
+    overflow-x: auto;
+  }
+
+  .sold-table {
+    min-width: 800px;
+  }
+}
+
+/* Print Styles for Invoices */
+@media print {
+  .sold-header,
+  .summary-cards,
+  .action-bar {
+    display: none;
+  }
+
+  .sold-container {
+    padding: 0;
+    background: white;
+  }
 }

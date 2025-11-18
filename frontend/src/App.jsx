@@ -9,6 +9,7 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import SoldMedicines from "./pages/SoldMedicine";
 import "./index.css";
+import ExpiringSoon from "./pages/ExpiringSoon";
 
 const App = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -32,7 +33,7 @@ const App = () => {
   return (
     <Router>
       <div className="app-container">
-        <Header setIsAdmin={setIsAdmin} />
+        <Header isAdmin={isAdmin} setIsAdmin={setIsAdmin} />
 
         <main className="main-content">
           <Routes>
@@ -42,6 +43,7 @@ const App = () => {
               element={<Medicines isAdmin={isAdmin} />}
             />
             <Route path="/donations" element={<Donations />} />
+            <Route path="/expiring-soon" element={<ExpiringSoon />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/sold" element={<SoldMedicines />} />
             <Route path="/login" element={<Login setIsAdmin={setIsAdmin} />} />
