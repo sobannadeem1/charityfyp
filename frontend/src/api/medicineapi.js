@@ -115,3 +115,15 @@ export const loginAdmin = async (formData) => {
     throw error; // let frontend handle the error message
   }
 };
+// ✅ Get current logged-in admin
+export const getCurrentAdmin = async () => {
+  try {
+    const res = await axios.get(`${BASE_URL}/admin/me`, {
+      withCredentials: true, // important for cookies
+    });
+    return res.data; // contains { message, admin }
+  } catch (error) {
+    console.error("Auth check error:", error);
+    throw error; // frontend will handle setting isAdmin false
+  }
+};

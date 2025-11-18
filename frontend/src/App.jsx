@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import SoldMedicines from "./pages/SoldMedicine";
 import "./index.css";
 import ExpiringSoon from "./pages/ExpiringSoon";
+import { getCurrentAdmin } from "./api/medicineapi";
 
 const App = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -18,11 +19,9 @@ const App = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/admin/me", {
-          method: "GET",
-          credentials: "include",
-        });
-        if (res.ok) setIsAdmin(true);
+        const data = await getCurrentAdmin();
+        console.log("Admin info:", data.admin); // optional
+        setIsAdmin(true);
       } catch (err) {
         setIsAdmin(false);
       }
