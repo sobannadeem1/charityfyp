@@ -74,21 +74,22 @@ export default function Medicines({ isAdmin }) {
   };
 
   // More robust unit extraction
+  // More robust unit extraction - STRICTLY INTEGER ONLY
   const getUnitsPerPackage = (medicine) => {
     if (!medicine?.packSize) return 1;
 
     // Handle various pack size formats
     const packSize = medicine.packSize.toString().toLowerCase();
 
-    // Extract number using more flexible regex
+    // Extract number using more flexible regex - CONVERT TO INTEGER
     const match = packSize.match(
-      /(\d+(?:\.\d+)?)\s*(tablets?|capsules?|pills?|ml|vials?|bottles?|sachets?|tubes?|units?|pieces?|amps?|suppositories?)/i
+      /(\d+(?:\.\d+)?)\s*(tablets?|capsules?|pills?|strips?|ml|vials?|bottles?|sachets?|tubes?|units?|pieces?|amps?|suppositories?)/i
     );
 
     const units = match ? parseFloat(match[1]) : 1;
 
-    // Ensure we return at least 1 and handle invalid numbers
-    return Math.max(1, isNaN(units) ? 1 : units);
+    // Ensure we return INTEGER only, at least 1
+    return Math.max(1, Math.floor(isNaN(units) ? 1 : units));
   };
   // Validate if we can sell the requested quantity
   const validateSaleQuantity = (medicine, quantity, type) => {
@@ -136,11 +137,11 @@ export default function Medicines({ isAdmin }) {
     if (!medicine?.salePrice) return 0;
     const unitsPerPackage = getUnitsPerPackage(medicine);
 
-    if (unitsPerPackage <= 0) return medicine.salePrice;
+    if (unitsPerPackage <= 0) return Math.floor(medicine.salePrice);
 
     const pricePerUnit = medicine.salePrice / unitsPerPackage;
-    // Round to avoid floating point precision issues
-    return Math.round(pricePerUnit * 100) / 100;
+    // Round to nearest whole number - NO DECIMALS
+    return Math.round(pricePerUnit);
   };
   const calculateTotal = (medicine, quantity, type) => {
     if (!medicine) return 0;
@@ -154,17 +155,17 @@ export default function Medicines({ isAdmin }) {
       total = pricePerUnit * quantity;
     }
 
-    // Round to 2 decimal places to avoid floating point issues
-    return Math.round(total * 100) / 100;
+    // Return whole number only - NO DECIMALS
+    return Math.round(total);
   };
 
   // Fix the sale description
   const getSaleDescription = (medicine, quantity, type) => {
     if (type === "packages") {
-      return `${quantity} packages × ${medicine.salePrice}`;
+      return `${quantity} packages × PKR ${medicine.salePrice}`;
     } else {
       const pricePerUnit = getPricePerUnit(medicine);
-      return `${quantity} units × ${pricePerUnit.toFixed(2)}`; // Show 2 decimal places
+      return `${quantity} units × PKR ${pricePerUnit}`; // No decimal places
     }
   };
   // Add medicine
@@ -938,37 +939,46 @@ export default function Medicines({ isAdmin }) {
           <div className="popup">
             <h2>💰 Sell {currentMedicine?.name}</h2>
 
-            {/* Simple Package Information */}
+            {/* Improved Package Information */}
             <div className="package-info">
               <p>
-                <strong>📦 Package:</strong>{" "}
+                <strong>📦 Package Contents:</strong>{" "}
                 {currentMedicine?.packSize || "N/A"}
               </p>
               <p>
-                <strong>💰 Package Price:</strong> PKR{" "}
+                <strong>💰 Price per Package:</strong> PKR{" "}
                 {currentMedicine?.salePrice}
               </p>
               <p>
-                <strong>💊 Unit Price:</strong> PKR{" "}
-                {getPricePerUnit(currentMedicine).toFixed(2)}
+                <strong>💊 Price per Unit:</strong> PKR{" "}
+                {getPricePerUnit(currentMedicine)}
               </p>
               <p>
-                <strong>🔢 Available:</strong>{" "}
-                {Math.floor(currentMedicine?.quantity)} packages ={" "}
-                {Math.floor(currentMedicine?.quantity) *
-                  getUnitsPerPackage(currentMedicine)}{" "}
-                units
-                <br />
-                <small style={{ color: "#666" }}>
-                  (1 package = {getUnitsPerPackage(currentMedicine)} units)
-                </small>
+                <strong>📊 Available Stock:</strong>
               </p>
+              <ul style={{ margin: "5px 0", paddingLeft: "20px" }}>
+                <li>
+                  {Math.floor(currentMedicine?.quantity)} packages
+                  (strips/boxes)
+                </li>
+                <li>
+                  {Math.floor(currentMedicine?.quantity) *
+                    getUnitsPerPackage(currentMedicine)}
+                  units (tablets/capsules)
+                </li>
+              </ul>
+              <small style={{ color: "#666", fontStyle: "italic" }}>
+                1 package = {getUnitsPerPackage(currentMedicine)} units
+              </small>
             </div>
 
             {/* Quantity Type Selector */}
             <select
               value={quantityType}
-              onChange={(e) => setQuantityType(e.target.value)}
+              onChange={(e) => {
+                setQuantityType(e.target.value);
+                setSellQuantity(""); // Reset quantity when changing type
+              }}
               className="quantity-type-selector"
             >
               <option value="packages">📦 Sell Complete Packages</option>
@@ -979,10 +989,10 @@ export default function Medicines({ isAdmin }) {
               type="number"
               placeholder={
                 quantityType === "packages"
-                  ? `🔢 Enter packages (max: ${Math.floor(
+                  ? `🔢 Enter number of PACKAGES (max: ${Math.floor(
                       currentMedicine?.quantity
                     )})...`
-                  : `💊 Enter units (max: ${
+                  : `💊 Enter number of UNITS (max: ${
                       Math.floor(currentMedicine?.quantity) *
                       getUnitsPerPackage(currentMedicine)
                     })...`
@@ -994,8 +1004,13 @@ export default function Medicines({ isAdmin }) {
                     ? Math.floor(currentMedicine?.quantity)
                     : Math.floor(currentMedicine?.quantity) *
                       getUnitsPerPackage(currentMedicine);
-                const value = Math.min(parseInt(e.target.value) || 0, max);
-                setSellQuantity(value > 0 ? value : "");
+
+                const value = parseInt(e.target.value) || 0;
+                // Ensure we don't exceed max and value is positive integer
+                const clampedValue = Math.max(0, Math.min(value, max));
+                setSellQuantity(
+                  clampedValue > 0 ? clampedValue.toString() : ""
+                );
               }}
               className="input-field"
               min="1"
@@ -1009,35 +1024,59 @@ export default function Medicines({ isAdmin }) {
 
             <small className="sell-hint">
               {quantityType === "packages"
-                ? "💡 Selling complete packages"
+                ? `💡 Selling complete ${
+                    currentMedicine?.packSize?.toLowerCase().includes("strip")
+                      ? "strips"
+                      : "packages"
+                  }`
                 : "💡 Selling individual tablets/capsules"}
             </small>
 
-            {/* Show calculated total */}
-            {sellQuantity && (
-              <div className="total-calculation">
-                <p>
-                  💵 Total: PKR{" "}
-                  {calculateTotal(
-                    currentMedicine,
-                    sellQuantity,
-                    quantityType
-                  ).toFixed(2)}
-                  <span className="calculation-details">
-                    (
-                    {getSaleDescription(
+            {/* Show calculated total - SIMPLIFIED */}
+            {sellQuantity && parseInt(sellQuantity) > 0 && (
+              <div
+                className="total-calculation"
+                style={{
+                  background: "#f0f8ff",
+                  padding: "10px",
+                  borderRadius: "5px",
+                  margin: "10px 0",
+                  border: "1px solid #0077b6",
+                }}
+              >
+                <p style={{ margin: 0, fontWeight: "bold", fontSize: "16px" }}>
+                  💵 Total Amount:{" "}
+                  <span style={{ color: "#0077b6" }}>
+                    PKR{" "}
+                    {calculateTotal(
                       currentMedicine,
-                      sellQuantity,
+                      parseInt(sellQuantity),
                       quantityType
                     )}
-                    )
                   </span>
+                </p>
+                <p
+                  style={{
+                    margin: "5px 0 0 0",
+                    fontSize: "14px",
+                    color: "#555",
+                  }}
+                >
+                  {getSaleDescription(
+                    currentMedicine,
+                    parseInt(sellQuantity),
+                    quantityType
+                  )}
                 </p>
               </div>
             )}
 
             <div className="popup-buttons">
-              <button className="save-btn" onClick={confirmSell}>
+              <button
+                className="save-btn"
+                onClick={confirmSell}
+                disabled={!sellQuantity || parseInt(sellQuantity) <= 0}
+              >
                 ✅ Confirm Sell
               </button>
               <button
