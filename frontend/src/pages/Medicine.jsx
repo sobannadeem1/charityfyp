@@ -266,10 +266,17 @@ export default function Medicines({ isAdmin }) {
         await sellMedicine(currentMedicine._id, quantity, "packages");
         toast.success(`Sold ${quantity} packages successfully 💸`);
       } else {
-        // Selling individual units - SIMPLE FIX
+        // Selling individual units
         const unitsPerPackage = getUnitsPerPackage(currentMedicine);
         const totalUnitsAvailable =
           Math.floor(currentMedicine.quantity) * unitsPerPackage;
+
+        console.log("🟡 Frontend Validation:", {
+          quantity,
+          packagesAvailable: Math.floor(currentMedicine.quantity),
+          unitsPerPackage,
+          totalUnitsAvailable,
+        });
 
         if (quantity > totalUnitsAvailable) {
           return toast.error(
@@ -277,7 +284,7 @@ export default function Medicines({ isAdmin }) {
           );
         }
 
-        // Sell as individual units (let backend handle package reduction)
+        // Sell as individual units
         await sellMedicine(currentMedicine._id, quantity, "units");
         toast.success(`Sold ${quantity} units successfully 💊`);
       }
@@ -287,7 +294,20 @@ export default function Medicines({ isAdmin }) {
       setShowSellPopup(false);
       fetchMedicines();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Error selling medicine");
+      console.error("🔴 COMPLETE SELL ERROR:", error);
+      console.error("🔴 ERROR RESPONSE DATA:", error.response?.data);
+
+      // Show the exact backend error
+      const backendError = error.response?.data;
+      if (backendError) {
+        if (backendError.message) {
+          toast.error(`Backend: ${backendError.message}`);
+        } else {
+          toast.error(`Backend Error: ${JSON.stringify(backendError)}`);
+        }
+      } else {
+        toast.error("Unknown error selling medicine");
+      }
     }
   };
 

@@ -44,11 +44,31 @@ export const deleteMedicine = async (id) => {
 };
 
 export const sellMedicine = async (id, quantitySold, sellType = "packages") => {
-  const res = await axios.patch(`${BASE_MEDICINES}/${id}/sell`, {
-    quantitySold,
-    sellType,
-  });
-  return res.data;
+  try {
+    console.log("🟢 API Call - Sell Medicine:", {
+      id,
+      quantitySold,
+      sellType,
+    });
+
+    const res = await axios.patch(`${BASE_MEDICINES}/${id}/sell`, {
+      quantitySold,
+      sellType,
+    });
+
+    console.log("🟢 API Success:", res.data);
+    return res.data;
+  } catch (error) {
+    console.error("🔴 API Error Complete Response:", {
+      status: error.response?.status,
+      data: error.response?.data,
+      headers: error.response?.headers,
+      config: error.config,
+    });
+
+    // Throw the complete error
+    throw error;
+  }
 };
 
 export const getSoldMedicines = async () => {

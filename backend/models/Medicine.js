@@ -27,7 +27,9 @@ const medicineSchema = new mongoose.Schema(
     dosageForm: { type: String, trim: true },
     strength: { type: String, trim: true },
     expiry: { type: Date, required: true },
-    quantity: { type: Number, required: true, min: 0 },
+    quantity: { type: Number, required: true, min: 0 }, // Physical packages count
+    unitsAvailable: { type: Number, required: true, min: 0 }, // Actual sellable units
+    unitsPerPackage: { type: Number, required: true, min: 1, default: 1 }, // Store units per package
     purchasePrice: { type: Number, required: true, min: 0 },
     salePrice: { type: Number, required: true, min: 0 },
     manufacturer: { type: String, trim: true },
@@ -37,7 +39,6 @@ const medicineSchema = new mongoose.Schema(
       enum: ["Room Temperature", "Refrigerated", "Cool & Dry Place", "Other"],
       default: "Room Temperature",
     },
-    // 🔹 Edit history array
     history: [
       {
         updatedAt: { type: Date, default: Date.now },
@@ -45,8 +46,17 @@ const medicineSchema = new mongoose.Schema(
       },
     ],
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
 
+// Virtual for display purposes
+medicineSchema.virtual("totalPackagesDisplay").get(function () {
+  return Math.ceil(this.unitsAvailable / this.unitsPerPackage);
+});
+
 const Medicine = mongoose.model("Medicine", medicineSchema);
-export default Medicine; // ✅ ESM default export
+export default Medicine;
