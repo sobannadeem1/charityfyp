@@ -5,7 +5,7 @@ import {
   updateMedicine,
   sellMedicine,
 } from "../api/medicineapi";
-import "../styles/medicine.css";
+import "../styles/Medicine.css";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import Draggable from "react-draggable";
@@ -73,89 +73,47 @@ export default function Medicines({ isAdmin }) {
     }));
   };
 
-  // More robust unit extraction
-  // More robust unit extraction - STRICTLY INTEGER ONLY
   const getUnitsPerPackage = (medicine) => {
     if (!medicine?.packSize) return 1;
 
-    // Handle various pack size formats
+    console.log("PackSize:", medicine.packSize); // Debug log
+
+    // Extract number from packSize (e.g., "10 tablets" → 10)
     const packSize = medicine.packSize.toString().toLowerCase();
 
-    // Extract number using more flexible regex - CONVERT TO INTEGER
-    const match = packSize.match(
-      /(\d+(?:\.\d+)?)\s*(tablets?|capsules?|pills?|strips?|ml|vials?|bottles?|sachets?|tubes?|units?|pieces?|amps?|suppositories?)/i
-    );
+    // Better regex to extract numbers
+    const match = packSize.match(/\b(\d+)\b/);
 
-    const units = match ? parseFloat(match[1]) : 1;
-
-    // Ensure we return INTEGER only, at least 1
-    return Math.max(1, Math.floor(isNaN(units) ? 1 : units));
-  };
-  // Validate if we can sell the requested quantity
-  const validateSaleQuantity = (medicine, quantity, type) => {
-    if (!medicine || quantity <= 0 || !Number.isInteger(quantity)) {
-      return { valid: false, error: "Invalid quantity!" };
+    if (match && match[1]) {
+      const units = parseInt(match[1]);
+      console.log("Extracted units:", units); // Debug log
+      return units;
     }
 
-    const availablePackages = Math.floor(medicine.quantity);
-    const unitsPerPackage = getUnitsPerPackage(medicine);
-    const totalUnitsAvailable = availablePackages * unitsPerPackage;
-
-    if (type === "packages") {
-      if (quantity > availablePackages) {
-        return {
-          valid: false,
-          error: `Not enough packages! Only ${availablePackages} available.`,
-        };
-      }
-      return { valid: true, packagesToDeduct: quantity };
-    } else {
-      // Selling units
-      if (quantity > totalUnitsAvailable) {
-        return {
-          valid: false,
-          error: `Not enough units! Only ${totalUnitsAvailable} available.`,
-        };
-      }
-
-      // Calculate how many complete packages to deduct
-      const packagesToDeduct = Math.floor(quantity / unitsPerPackage);
-      const remainingUnits = quantity % unitsPerPackage;
-
-      // If there are remaining units, we need to deduct an extra package
-      const totalPackagesToDeduct =
-        remainingUnits > 0 ? packagesToDeduct + 1 : packagesToDeduct;
-
-      return {
-        valid: true,
-        packagesToDeduct: totalPackagesToDeduct,
-        unitsSold: quantity,
-      };
-    }
+    console.log("No match found, returning 1"); // Debug log
+    return 1;
   };
+
   const getPricePerUnit = (medicine) => {
     if (!medicine?.salePrice) return 0;
     const unitsPerPackage = getUnitsPerPackage(medicine);
 
     if (unitsPerPackage <= 0) return medicine.salePrice;
 
-    // Keep decimal for accurate calculation
+    // Calculate exact unit price: package price ÷ units per package
     return medicine.salePrice / unitsPerPackage;
   };
   const calculateTotal = (medicine, quantity, type) => {
     if (!medicine) return 0;
 
-    let total = 0;
-
     if (type === "packages") {
-      total = medicine.salePrice * quantity;
+      // Selling complete packages: package price × number of packages
+      return medicine.salePrice * quantity;
     } else {
+      // Selling individual units: (package price ÷ units per package) × number of units
       const pricePerUnit = getPricePerUnit(medicine);
-      total = pricePerUnit * quantity;
+      return pricePerUnit * quantity;
     }
-
-    // Return with 2 decimal places for money
-    return Math.round(total * 100) / 100;
   };
 
   const getSaleDescription = (medicine, quantity, type) => {
@@ -295,20 +253,31 @@ export default function Medicines({ isAdmin }) {
     if (!quantity || quantity <= 0) return toast.error("Invalid quantity!");
 
     try {
-      // Validate the sale first
-      const validation = validateSaleQuantity(
-        currentMedicine,
-        quantity,
-        quantityType
-      );
-      if (!validation.valid) {
-        return toast.error(validation.error);
-      }
-
       if (quantityType === "packages") {
+        // Selling complete packages
+        if (quantity > currentMedicine.quantity) {
+          return toast.error(
+            `Not enough packages! Only ${Math.floor(
+              currentMedicine.quantity
+            )} available.`
+          );
+        }
+
         await sellMedicine(currentMedicine._id, quantity, "packages");
         toast.success(`Sold ${quantity} packages successfully 💸`);
       } else {
+        // Selling individual units - SIMPLE FIX
+        const unitsPerPackage = getUnitsPerPackage(currentMedicine);
+        const totalUnitsAvailable =
+          Math.floor(currentMedicine.quantity) * unitsPerPackage;
+
+        if (quantity > totalUnitsAvailable) {
+          return toast.error(
+            `Not enough units! Only ${totalUnitsAvailable} available.`
+          );
+        }
+
+        // Sell as individual units (let backend handle package reduction)
         await sellMedicine(currentMedicine._id, quantity, "units");
         toast.success(`Sold ${quantity} units successfully 💊`);
       }
@@ -321,6 +290,7 @@ export default function Medicines({ isAdmin }) {
       toast.error(error.response?.data?.message || "Error selling medicine");
     }
   };
+
   // Emoji mapping based on medicine category
   const getCategoryEmoji = (category) => {
     const emojiMap = {
@@ -413,19 +383,21 @@ export default function Medicines({ isAdmin }) {
           <table className="medicine-table">
             <thead>
               <tr>
-                <th title="Medicine brand/generic name">💊 Name</th>
+                <th title="Medicine brand/generic name">💊 Medicine Name</th>
                 <th title="Therapeutic category">📂 Category</th>
-                <th title="Dosage form">💊 Type</th>
+                <th title="Dosage form">💊 Dosage Form</th>
                 <th title="Strength/concentration">⚡ Strength</th>
-                <th title="Package quantity">📦 Pack Size</th>
-                <th title="Expiration date">📅 Expiry</th>
-                <th title="Available stock">🔢 Stock</th>
-                {isAdmin && <th title="Cost per unit">🛒 Cost</th>}
-                <th title="Price per unit">💵 Price</th>
-                <th title="Manufacturing company">🏭 Maker</th>
+                <th title="Package contents">📦 Pack Size</th>
+                <th title="Expiration date">📅 Expiry Date</th>
+                <th title="Available packages in stock">🔢 Stock Quantity</th>
+                {isAdmin && (
+                  <th title="Your cost per package">🛒 Purchase Price</th>
+                )}
+                <th title="Your price per package">💵 Sale Price</th>
+                <th title="Manufacturing company">🏭 Manufacturer</th>
                 <th title="Supply vendor">🚚 Supplier</th>
-                <th title="Storage requirements">🌡️ Storage</th>
-                <th title="Date added">📥 Added</th>
+                <th title="Storage requirements">🌡️ Storage Condition</th>
+                <th title="Date added">📥 Date Added</th>
                 {isAdmin && <th title="Available actions">⚡ Actions</th>}
               </tr>
             </thead>
@@ -565,14 +537,14 @@ export default function Medicines({ isAdmin }) {
                 >
                   <input
                     name="name"
-                    placeholder="💊 Medicine Name (e.g., Paracetamol)"
+                    placeholder="💊 Medicine Name"
                     value={formData.name}
                     onChange={handleChange}
                     required
                     className="form-input"
                   />
                   <small className="form-hint">
-                    💡 Enter brand or generic name
+                    Enter brand or generic name
                   </small>
 
                   <select
@@ -598,42 +570,37 @@ export default function Medicines({ isAdmin }) {
                     <option>Solution</option>
                     <option>Other</option>
                   </select>
-                  <small className="form-hint">
-                    💡 Choose medicine form type
-                  </small>
-
-                  <input
-                    name="packSize"
-                    placeholder="📦 Contents per Package (e.g., 10 tablets, 100ml)"
-                    value={formData.packSize}
-                    onChange={handleChange}
-                    className="form-input"
-                  />
-                  <small className="form-hint">
-                    💡 What's inside ONE package? (e.g., "10 tablets", "100ml",
-                    "5 vials")
-                  </small>
+                  <small className="form-hint">Choose medicine category</small>
 
                   <input
                     name="dosageForm"
-                    placeholder="💊 Dosage Form (e.g., Tablet)"
+                    placeholder="💊 Dosage Form"
                     value={formData.dosageForm}
                     onChange={handleChange}
                     className="form-input"
                   />
-                  <small className="form-hint">
-                    💡 Physical form of medicine
-                  </small>
+                  <small className="form-hint">Physical form of medicine</small>
 
                   <input
                     name="strength"
-                    placeholder="⚡ Strength (e.g., 500mg)"
+                    placeholder="⚡ Strength"
                     value={formData.strength}
                     onChange={handleChange}
                     className="form-input"
                   />
                   <small className="form-hint">
-                    💡 Potency or concentration
+                    Potency or concentration (e.g., 500mg)
+                  </small>
+
+                  <input
+                    name="packSize"
+                    placeholder="📦 Pack Size"
+                    value={formData.packSize}
+                    onChange={handleChange}
+                    className="form-input"
+                  />
+                  <small className="form-hint">
+                    Contents per package (e.g., 10 tablets, 100ml)
                   </small>
 
                   <input
@@ -644,69 +611,62 @@ export default function Medicines({ isAdmin }) {
                     required
                     className="form-input"
                   />
-                  <small className="form-hint">📅 Select expiration date</small>
+                  <small className="form-hint">Select expiration date</small>
 
                   <input
                     type="number"
                     name="quantity"
-                    placeholder="🔢 Number of Packages in Stock"
+                    placeholder="🔢 Stock Quantity"
                     value={formData.quantity}
                     onChange={handleChange}
                     required
                     className="form-input"
                   />
                   <small className="form-hint">
-                    💡 How many packages available? (e.g., 50 strips, 25
-                    bottles, 10 boxes)
+                    Number of packages available
                   </small>
 
                   <input
                     type="number"
                     name="purchasePrice"
-                    placeholder="🛒 Your Cost per Package"
+                    placeholder="🛒 Purchase Price"
                     value={formData.purchasePrice}
                     onChange={handleChange}
                     required
                     className="form-input"
                   />
-                  <small className="form-hint">
-                    💰 What YOU pay suppliers for ONE complete package
-                  </small>
+                  <small className="form-hint">Your cost per package</small>
 
                   <input
                     type="number"
                     name="salePrice"
-                    placeholder="💰 Your Price per Package"
+                    placeholder="💵 Sale Price"
                     value={formData.salePrice}
                     onChange={handleChange}
                     required
                     className="form-input"
                   />
-                  <small className="form-hint">
-                    💵 What CUSTOMERS pay for ONE complete package
-                  </small>
+                  <small className="form-hint">Your price per package</small>
 
                   <input
                     name="manufacturer"
-                    placeholder="🏭 Manufacturer Company"
+                    placeholder="🏭 Manufacturer"
                     value={formData.manufacturer}
                     onChange={handleChange}
                     className="form-input"
                   />
                   <small className="form-hint">
-                    💊 Pharmaceutical company name
+                    Pharmaceutical company name
                   </small>
 
                   <input
                     name="supplier"
-                    placeholder="🚚 Supplier/Vendor Name"
+                    placeholder="🚚 Supplier"
                     value={formData.supplier}
                     onChange={handleChange}
                     className="form-input"
                   />
-                  <small className="form-hint">
-                    📦 Who supplied this medicine
-                  </small>
+                  <small className="form-hint">Vendor or supplier name</small>
 
                   <select
                     name="storageCondition"
@@ -720,12 +680,12 @@ export default function Medicines({ isAdmin }) {
                     <option>Other</option>
                   </select>
                   <small className="form-hint">
-                    🌡️ Required storage conditions
+                    Required storage conditions
                   </small>
 
                   <div className="popup-buttons">
                     <button type="submit" className="save-btn">
-                      {showEditPopup ? "💾 Update" : "➕ Add"}
+                      {showEditPopup ? "💾 Update Medicine" : "➕ Add Medicine"}
                     </button>
                     <button
                       type="button"
@@ -937,7 +897,7 @@ export default function Medicines({ isAdmin }) {
           <div className="popup">
             <h2>💰 Sell {currentMedicine?.name}</h2>
 
-            {/* Improved Package Information */}
+            {/* Package Information */}
             <div className="package-info">
               <p>
                 <strong>📦 Package Contents:</strong>{" "}
@@ -952,30 +912,34 @@ export default function Medicines({ isAdmin }) {
                 {getPricePerUnit(currentMedicine).toFixed(2)}
               </p>
               <p>
+                <strong>🔢 Units per Package:</strong>{" "}
+                {getUnitsPerPackage(currentMedicine)} units
+              </p>
+              <p>
                 <strong>📊 Available Stock:</strong>
               </p>
               <ul style={{ margin: "5px 0", paddingLeft: "20px" }}>
-                <li>
-                  {Math.floor(currentMedicine?.quantity)} packages
-                  (strips/boxes)
-                </li>
+                <li>{Math.floor(currentMedicine?.quantity)} packages</li>
                 <li>
                   {Math.floor(currentMedicine?.quantity) *
-                    getUnitsPerPackage(currentMedicine)}
-                  units (tablets/capsules)
+                    getUnitsPerPackage(currentMedicine)}{" "}
+                  Individual units
                 </li>
               </ul>
-              <small style={{ color: "#666", fontStyle: "italic" }}>
-                1 package = {getUnitsPerPackage(currentMedicine)} units
-              </small>
+              <p>
+                <small style={{ color: "#666" }}>
+                  (Each package contains {getUnitsPerPackage(currentMedicine)}{" "}
+                  units)
+                </small>
+              </p>
             </div>
 
-            {/* Quantity Type Selector */}
+            {/* Rest of the popup remains the same */}
             <select
               value={quantityType}
               onChange={(e) => {
                 setQuantityType(e.target.value);
-                setSellQuantity(""); // Reset quantity when changing type
+                setSellQuantity("");
               }}
               className="quantity-type-selector"
             >
@@ -987,29 +951,16 @@ export default function Medicines({ isAdmin }) {
               type="number"
               placeholder={
                 quantityType === "packages"
-                  ? `🔢 Enter number of PACKAGES (max: ${Math.floor(
+                  ? `Enter number of PACKAGES (max: ${Math.floor(
                       currentMedicine?.quantity
-                    )})...`
-                  : `💊 Enter number of UNITS (max: ${
+                    )})`
+                  : `Enter number of UNITS (max: ${
                       Math.floor(currentMedicine?.quantity) *
                       getUnitsPerPackage(currentMedicine)
-                    })...`
+                    })`
               }
               value={sellQuantity}
-              onChange={(e) => {
-                const max =
-                  quantityType === "packages"
-                    ? Math.floor(currentMedicine?.quantity)
-                    : Math.floor(currentMedicine?.quantity) *
-                      getUnitsPerPackage(currentMedicine);
-
-                const value = parseInt(e.target.value) || 0;
-                // Ensure we don't exceed max and value is positive integer
-                const clampedValue = Math.max(0, Math.min(value, max));
-                setSellQuantity(
-                  clampedValue > 0 ? clampedValue.toString() : ""
-                );
-              }}
+              onChange={(e) => setSellQuantity(e.target.value)}
               className="input-field"
               min="1"
               max={
@@ -1020,70 +971,46 @@ export default function Medicines({ isAdmin }) {
               }
             />
 
-            <small className="sell-hint">
-              {quantityType === "packages"
-                ? `💡 Selling complete ${
-                    currentMedicine?.packSize?.toLowerCase().includes("strip")
-                      ? "strips"
-                      : "packages"
-                  }`
-                : "💡 Selling individual tablets/capsules"}
-            </small>
-
-            {/* Show calculated total */}
             {sellQuantity && parseInt(sellQuantity) > 0 && (
-              <div
-                className="total-calculation"
-                style={{
-                  background: "#f0f8ff",
-                  padding: "10px",
-                  borderRadius: "5px",
-                  margin: "10px 0",
-                  border: "1px solid #0077b6",
-                }}
-              >
-                <p style={{ margin: 0, fontWeight: "bold", fontSize: "16px" }}>
-                  💵 Total Amount:{" "}
-                  <span style={{ color: "#0077b6" }}>
+              <div className="total-calculation">
+                <p>
+                  <strong>
+                    💵 Total Amount: PKR{" "}
+                    {calculateTotal(
+                      currentMedicine,
+                      parseInt(sellQuantity),
+                      quantityType
+                    ).toFixed(2)}
+                  </strong>
+                </p>
+
+                {quantityType === "packages" ? (
+                  <p className="calculation-breakdown">
+                    {sellQuantity} packages × PKR {currentMedicine?.salePrice} =
                     PKR{" "}
                     {calculateTotal(
                       currentMedicine,
                       parseInt(sellQuantity),
                       quantityType
                     ).toFixed(2)}
-                  </span>
-                </p>
-                <p
-                  style={{
-                    margin: "5px 0 0 0",
-                    fontSize: "14px",
-                    color: "#555",
-                  }}
-                >
-                  {getSaleDescription(
-                    currentMedicine,
-                    parseInt(sellQuantity),
-                    quantityType
-                  )}
-                </p>
-
-                {/* Show calculation breakdown */}
-                {quantityType === "units" && (
-                  <p
-                    style={{
-                      margin: "5px 0 0 0",
-                      fontSize: "12px",
-                      color: "#777",
-                    }}
-                  >
-                    Calculation: {parseInt(sellQuantity)} units × PKR{" "}
-                    {getPricePerUnit(currentMedicine).toFixed(2)} = PKR{" "}
-                    {calculateTotal(
-                      currentMedicine,
-                      parseInt(sellQuantity),
-                      quantityType
-                    ).toFixed(2)}
                   </p>
+                ) : (
+                  <div className="calculation-breakdown">
+                    <p>
+                      Unit Price: PKR {currentMedicine?.salePrice} ÷{" "}
+                      {getUnitsPerPackage(currentMedicine)} units = PKR{" "}
+                      {getPricePerUnit(currentMedicine).toFixed(2)} per unit
+                    </p>
+                    <p>
+                      Final: {sellQuantity} units × PKR{" "}
+                      {getPricePerUnit(currentMedicine).toFixed(2)} = PKR{" "}
+                      {calculateTotal(
+                        currentMedicine,
+                        parseInt(sellQuantity),
+                        quantityType
+                      ).toFixed(2)}
+                    </p>
+                  </div>
                 )}
               </div>
             )}

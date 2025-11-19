@@ -1,10 +1,23 @@
 import axios from "axios";
 
-const BASE_MEDICINES = "https://charityfyp-jm4i.vercel.app/api/medicines";
-const BASE_ADMIN = "https://charityfyp-jm4i.vercel.app/api/admin";
-const BASE_INVOICES = "https://charityfyp-jm4i.vercel.app/api/invoices";
+// ✅ Detect environment (localhost vs production)
+const isLocal = window.location.hostname === "localhost";
 
+// ✅ Base URLs for both
+const BASE_URL = isLocal
+  ? "http://localhost:5000/api"
+  : "https://charityfyp-jm4i.vercel.app/api";
+
+const BASE_MEDICINES = `${BASE_URL}/medicines`;
+const BASE_ADMIN = `${BASE_URL}/admin`;
+const BASE_INVOICES = `${BASE_URL}/invoices`;
+
+// ✅ Always send cookies (important for authentication)
 axios.defaults.withCredentials = true;
+
+/* ==============================
+   💊 Medicines APIs
+============================== */
 export const addMedicine = async (data) => {
   const res = await axios.post(BASE_MEDICINES, data);
   return res.data;
@@ -47,6 +60,10 @@ export const getSalesByMedicine = async (id) => {
   const res = await axios.get(`${BASE_MEDICINES}/sales/${id}`);
   return res.data;
 };
+
+/* ==============================
+   👨‍💻 Admin APIs
+============================== */
 export const loginAdmin = async (formData) => {
   const res = await axios.post(`${BASE_ADMIN}/login`, formData, {
     withCredentials: true,
@@ -63,5 +80,13 @@ export const logoutAdmin = async () => {
 
 export const getCurrentAdmin = async () => {
   const res = await axios.get(`${BASE_ADMIN}/me`, { withCredentials: true });
+  return res.data;
+};
+
+/* ==============================
+   🧾 Invoices APIs
+============================== */
+export const getAllInvoices = async () => {
+  const res = await axios.get(BASE_INVOICES);
   return res.data;
 };
