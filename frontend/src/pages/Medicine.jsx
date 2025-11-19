@@ -5,7 +5,7 @@ import {
   updateMedicine,
   sellMedicine,
 } from "../api/medicineapi";
-import "../styles/Medicine.css";
+import "../styles/medicine.css";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import Draggable from "react-draggable";
