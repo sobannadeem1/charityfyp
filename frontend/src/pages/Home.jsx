@@ -37,6 +37,7 @@ ChartJS.register(
 export default function Home() {
   const [medicines, setMedicines] = useState([]);
   const [welcomeMsg, setWelcomeMsg] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchMedicines();
@@ -46,7 +47,20 @@ export default function Home() {
   const fetchMedicines = async () => {
     try {
       const data = await getAllMedicines();
+      console.log("🔍 Fetched medicines:", data); // Debug log
+
       const meds = Array.isArray(data) ? data : data.data || [];
+      console.log("📊 Processed medicines array:", meds);
+
+      // Log first medicine to see its structure
+      if (meds.length > 0) {
+        console.log("🔬 First medicine details:", meds[0]);
+        console.log("📋 Available fields:", Object.keys(meds[0]));
+        console.log("💊 unitsAvailable field:", meds[0].unitsAvailable);
+        console.log("📦 quantity field:", meds[0].quantity);
+        console.log("🏷️ packSize field:", meds[0].packSize);
+      }
+
       setMedicines(meds);
     } catch (error) {
       console.error("Failed to fetch medicines:", error);
@@ -66,8 +80,54 @@ export default function Home() {
     setWelcomeMsg(`${greeting} ${randomEmoji}`);
   };
 
-  // Helper function to extract units from packSize
+  // IMPROVED: Better unit calculation with fallbacks
+  const getUnitsAvailable = (medicine) => {
+    console.log("🧮 Calculating units for:", medicine?.name);
+
+    // Check if unitsAvailable exists and is valid
+    if (
+      medicine?.unitsAvailable !== undefined &&
+      medicine.unitsAvailable !== null
+    ) {
+      const units = Number(medicine.unitsAvailable);
+      console.log("✅ Using unitsAvailable:", units);
+      return isNaN(units) ? 0 : units;
+    }
+
+    console.log("❌ unitsAvailable not found, using fallback calculation");
+
+    // Fallback 1: Use quantity field directly
+    const quantity = Number(medicine?.quantity) || 0;
+    console.log("📦 Quantity field:", quantity);
+
+    // Fallback 2: Calculate from packSize if available
+    if (medicine?.packSize) {
+      console.log("🏷️ PackSize:", medicine.packSize);
+      const match = medicine.packSize.match(
+        /(\d+)\s*(tablets?|capsules?|ml|vials?|bottles?|sachets?|tubes?|g|grams?|units?)/i
+      );
+      const unitsPerPackage = match ? parseInt(match[1]) : 1;
+      console.log("🔢 Units per package:", unitsPerPackage);
+
+      const totalUnits = quantity * unitsPerPackage;
+      console.log("📊 Total units calculated:", totalUnits);
+      return totalUnits;
+    }
+
+    console.log("📦 No packSize, using quantity as units:", quantity);
+    return quantity;
+  };
+
   const getUnitsPerPackage = (medicine) => {
+    if (
+      medicine?.unitsPerPackage !== undefined &&
+      medicine.unitsPerPackage !== null
+    ) {
+      const units = Number(medicine.unitsPerPackage);
+      return isNaN(units) ? 1 : units;
+    }
+
+    // Fallback: Extract from packSize
     if (!medicine?.packSize) return 1;
     const match = medicine.packSize.match(
       /(\d+)\s*(tablets?|capsules?|ml|vials?|bottles?|sachets?|tubes?|g|grams?|units?)/i
@@ -75,20 +135,48 @@ export default function Home() {
     return match ? parseInt(match[1]) : 1;
   };
 
-  // Calculate total units across all medicines
+  // FILTER: Get only active medicines (stock > 0)
+  const activeMedicines = medicines.filter((medicine) => {
+    const units = getUnitsAvailable(medicine);
+    console.log(
+      `📋 ${medicine.name}: ${units} units - ${
+        units > 0 ? "ACTIVE" : "OUT OF STOCK"
+      }`
+    );
+    return units > 0;
+  });
+
+  // FIXED: Safe calculations using ONLY active medicines
   const calculateTotalUnits = (meds) => {
+    const total = meds.reduce((total, medicine) => {
+      const units = getUnitsAvailable(medicine);
+      console.log(`➕ Adding ${medicine.name}: ${units} units`);
+      return total + units;
+    }, 0);
+
+    console.log("🎯 TOTAL UNITS CALCULATED:", total);
+    return total;
+  };
+
+  const calculateTotalPackages = (meds) => {
     return meds.reduce((total, medicine) => {
+      const unitsAvailable = getUnitsAvailable(medicine);
       const unitsPerPackage = getUnitsPerPackage(medicine);
-      return total + Number(medicine.quantity) * unitsPerPackage;
+      const packages = Math.ceil(unitsAvailable / unitsPerPackage);
+      console.log(
+        `📦 ${medicine.name}: ${unitsAvailable} units = ${packages} packages`
+      );
+      return total + packages;
     }, 0);
   };
 
-  // Counts with Package/Unit Logic
-  const totalMedicines = medicines.length;
+  // Counts with SAFE calculations - USING ACTIVE MEDICINES ONLY
+  const totalActiveMedicines = activeMedicines.length;
+  const totalAllMedicines = medicines.length;
 
-  const outOfStock = medicines.filter((m) => Number(m.quantity) <= 0).length;
+  const outOfStock = medicines.filter((m) => getUnitsAvailable(m) <= 0).length;
 
-  const expiringSoon = medicines.filter((m) => {
+  const expiringSoon = activeMedicines.filter((m) => {
     if (!m.expiry) return false;
     const expiryDate = new Date(m.expiry);
     const today = new Date();
@@ -96,44 +184,49 @@ export default function Home() {
     return diffDays <= 30 && diffDays >= 0;
   }).length;
 
-  // Ready for Distribution with Unit Calculation
-  const readyForDistribution = medicines.filter(
-    (med) =>
-      Number(med.quantity) > 0 &&
-      (!med.expiry || new Date(med.expiry) > new Date())
+  // Ready for Distribution - ONLY ACTIVE MEDICINES
+  const readyForDistribution = activeMedicines.filter(
+    (med) => !med.expiry || new Date(med.expiry) > new Date()
   );
 
-  const totalPackagesAvailable = readyForDistribution.reduce(
-    (sum, m) => sum + Number(m.quantity),
-    0
-  );
+  const totalPackagesAvailable = calculateTotalPackages(activeMedicines);
+  const totalUnitsAvailable = calculateTotalUnits(activeMedicines);
 
-  const totalUnitsAvailable = calculateTotalUnits(readyForDistribution);
+  console.log("🎯 FINAL TOTAL UNITS:", totalUnitsAvailable);
+  console.log("📦 FINAL TOTAL PACKAGES:", totalPackagesAvailable);
 
-  const estimatedPatientsServed = Math.floor(totalUnitsAvailable / 30); // Assuming 30 units per patient
+  const estimatedPatientsServed = Math.floor(totalUnitsAvailable / 30);
 
-  // NEW: Category-wise statistics
-  const categoryStats = medicines.reduce((acc, medicine) => {
-    const category = medicine.category || "Other";
-    if (!acc[category]) {
-      acc[category] = {
-        count: 0,
-        totalPackages: 0,
-        totalUnits: 0,
-      };
+  // FIXED: Safe inventory value calculation - ONLY ACTIVE MEDICINES
+  const totalInventoryValue = activeMedicines.reduce((sum, med) => {
+    const unitsAvailable = getUnitsAvailable(med);
+    const unitsPerPackage = getUnitsPerPackage(med);
+    const packagePrice = Number(med.purchasePrice || 0);
+
+    if (unitsPerPackage > 0) {
+      const unitCost = packagePrice / unitsPerPackage;
+      const medicineValue = unitsAvailable * unitCost;
+      console.log(
+        `💰 ${med.name}: ${unitsAvailable} units × PKR ${unitCost.toFixed(
+          2
+        )} = PKR ${medicineValue.toFixed(2)}`
+      );
+      return sum + medicineValue;
     }
-    acc[category].count++;
-    acc[category].totalPackages += Number(medicine.quantity);
-    acc[category].totalUnits +=
-      Number(medicine.quantity) * getUnitsPerPackage(medicine);
-    return acc;
-  }, {});
+    return sum;
+  }, 0);
 
-  // Top 5 medicines by unit count
-  const topMedicinesByUnits = medicines
+  console.log("💰 FINAL INVENTORY VALUE:", totalInventoryValue);
+
+  // FIXED: Top ACTIVE medicines only
+  const topMedicinesByUnits = activeMedicines
     .map((medicine) => ({
       ...medicine,
-      totalUnits: Number(medicine.quantity) * getUnitsPerPackage(medicine),
+      totalUnits: getUnitsAvailable(medicine),
+      displayName:
+        medicine.name.length > 15
+          ? medicine.name.substring(0, 15) + "..."
+          : medicine.name,
     }))
     .sort((a, b) => b.totalUnits - a.totalUnits)
     .slice(0, 5);
@@ -149,13 +242,13 @@ export default function Home() {
       tooltip: {
         callbacks: {
           label: function (context) {
-            return `Units: ${context.raw}`;
+            return `Units: ${context.raw.toLocaleString()}`;
           },
         },
       },
       title: {
         display: true,
-        text: "Top Medicines by Total Units",
+        text: "Top Active Medicines by Available Units",
         color: "#000",
         font: { size: 16, weight: "bold" },
       },
@@ -163,7 +256,12 @@ export default function Home() {
     scales: {
       y: {
         beginAtZero: true,
-        ticks: { color: "#000" },
+        ticks: {
+          color: "#000",
+          callback: function (value) {
+            return value.toLocaleString();
+          },
+        },
         title: {
           display: true,
           text: "Total Units",
@@ -171,7 +269,9 @@ export default function Home() {
         },
       },
       x: {
-        ticks: { color: "#000" },
+        ticks: {
+          color: "#000",
+        },
         title: {
           display: true,
           text: "Medicines",
@@ -181,12 +281,12 @@ export default function Home() {
     },
   };
 
-  // Bar Chart Data - Top Medicines by Units
+  // Bar Chart Data - ONLY ACTIVE MEDICINES
   const barChartData = {
-    labels: topMedicinesByUnits.map((med) => med.name),
+    labels: topMedicinesByUnits.map((med) => med.displayName),
     datasets: [
       {
-        label: "Total Units Available",
+        label: "Units Available",
         data: topMedicinesByUnits.map((med) => med.totalUnits),
         backgroundColor: [
           "#36b5f0",
@@ -202,7 +302,10 @@ export default function Home() {
     ],
   };
 
-  const navigate = useNavigate();
+  // FIXED: Navigation handlers
+  const handleNavigateToMedicines = () => {
+    navigate("/medicines");
+  };
 
   return (
     <main className="dashboard">
@@ -211,21 +314,31 @@ export default function Home() {
 
         <div className="dash-cards">
           <HoverRollCard
-            title="Total Medicines"
-            value={totalMedicines}
+            title="Active Medicines"
+            value={totalActiveMedicines}
             color="linear-gradient(135deg,#36b5f0,#36f0d8)"
             icon={<FaPills />}
-            onClick={() => navigate("/medicines")}
-            subtitle={`${Object.keys(categoryStats).length} categories`}
+            onClick={handleNavigateToMedicines}
+            subtitle={`${totalAllMedicines} total medicines`}
+            additionalInfo={[
+              `📊 ${
+                new Set(activeMedicines.map((m) => m.category)).size
+              } categories`,
+              `📦 ${outOfStock} out of stock`,
+            ]}
           />
 
           <HoverRollCard
             title="Expiring Soon"
             value={expiringSoon}
-            color="linear-gradient(135deg,#ff7e5f,#feb47b)"
+            color="linear-gradient(135deg,#f59e0b,#fbbf24)"
             icon={<FaExclamationTriangle />}
-            onClick={() => navigate("/expiring-soon")}
+            onClick={handleNavigateToMedicines}
             subtitle="Within 30 days"
+            additionalInfo={[
+              `${expiringSoon} of ${totalActiveMedicines} active`,
+              "Check inventory regularly",
+            ]}
           />
 
           <HoverRollCard
@@ -233,38 +346,71 @@ export default function Home() {
             value={readyForDistribution.length}
             color="linear-gradient(135deg, #43e97b, #38f9d7)"
             icon={<FaHandsHelping />}
-            onClick={() => navigate("/medicines")}
-            subtitle={`${totalUnitsAvailable.toLocaleString()} total units`}
+            onClick={handleNavigateToMedicines}
+            subtitle={
+              !isNaN(totalUnitsAvailable)
+                ? `${totalUnitsAvailable.toLocaleString()} total units`
+                : "Calculating..."
+            }
             additionalInfo={[
               `📦 ${totalPackagesAvailable} packages`,
-              `👥 Serves ~${estimatedPatientsServed} patients`,
+              `👥 Serves ~${
+                !isNaN(estimatedPatientsServed)
+                  ? estimatedPatientsServed.toLocaleString()
+                  : 0
+              } patients`,
             ]}
           />
 
           <HoverRollCard
-            title="Inventory Value"
-            value={`PKR ${medicines
-              .reduce(
-                (sum, med) =>
-                  sum + Number(med.quantity) * Number(med.purchasePrice || 0),
-                0
-              )
-              .toLocaleString()}`}
-            color="linear-gradient(135deg,#a855f7,#ec4899)"
-            icon={<FaPrescriptionBottleAlt />}
-            subtitle="Total stock value"
+            title="Total Active Units"
+            value={
+              !isNaN(totalUnitsAvailable)
+                ? totalUnitsAvailable.toLocaleString()
+                : "Calculating..."
+            }
+            color="linear-gradient(135deg,#8b5cf6,#06b6d4)"
+            icon={<FaCapsules />}
+            subtitle="Available for distribution"
+            onClick={handleNavigateToMedicines}
             additionalInfo={[
-              `💊 ${totalUnitsAvailable.toLocaleString()} units`,
-              `📦 ${totalPackagesAvailable} packages`,
+              `📊 ${totalPackagesAvailable} packages`,
+              `🏥 ${
+                !isNaN(estimatedPatientsServed)
+                  ? estimatedPatientsServed.toLocaleString()
+                  : 0
+              } patients`,
             ]}
           />
         </div>
 
-        <div className="charts-grid">
-          <div className="chart-container">
-            <Bar data={barChartData} options={barChartOptions} />
+        {topMedicinesByUnits.length > 0 && (
+          <div className="charts-grid">
+            <div className="chart-container">
+              <Bar data={barChartData} options={barChartOptions} />
+              <p className="chart-note">
+                * Showing top {topMedicinesByUnits.length} active medicines by
+                unit count
+              </p>
+            </div>
           </div>
-        </div>
+        )}
+
+        {activeMedicines.length === 0 && medicines.length > 0 && (
+          <div className="no-data-message">
+            <h3>📭 No Active Medicines</h3>
+            <p>
+              All {medicines.length} medicines are currently out of stock. Add
+              new stock to see analytics.
+            </p>
+            <button
+              className="add-medicine-btn"
+              onClick={handleNavigateToMedicines}
+            >
+              ➕ Manage Medicines
+            </button>
+          </div>
+        )}
       </div>
     </main>
   );

@@ -14,6 +14,10 @@ const saleSchema = new mongoose.Schema(
     soldBy: { type: String, default: "system" }, // optional: user who sold
     note: { type: String, default: "" },
     soldAt: { type: Date, default: Date.now },
+    // In your Sale model, add:
+    originalQuantity: { type: Number, required: true }, // What user entered
+    originalSellType: { type: String, required: true }, // "packages" or "units"
+    unitsPerPackage: { type: Number, required: true }, // For frontend calculations
   },
   { timestamps: true }
 );

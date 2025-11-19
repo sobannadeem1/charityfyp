@@ -213,6 +213,19 @@
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
+.quantity-type-info {
+  background: #e3f2fd;
+  padding: 10px;
+  border-radius: 6px;
+  border-left: 4px solid #2196f3;
+  margin: 10px 0;
+}
+
+.quantity-type-info p {
+  margin: 0;
+  color: #1976d2;
+  font-weight: 500;
+}
 
 .sell-hint {
   display: block;

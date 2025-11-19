@@ -253,8 +253,24 @@ export default function Medicines({ isAdmin }) {
     if (!quantity || quantity <= 0) return toast.error("Invalid quantity!");
 
     try {
+      const unitsPerPackage = getUnitsPerPackage(currentMedicine);
+
+      console.log("🔍 STOCK DEBUG - BEFORE SELL:", {
+        medicine: currentMedicine.name,
+        currentStock: currentMedicine.quantity,
+        unitsPerPackage: unitsPerPackage,
+        totalUnits: currentMedicine.quantity * unitsPerPackage,
+        selling: quantity,
+        type: quantityType,
+        expectedPackagesToDeduct:
+          quantityType === "units" ? quantity / unitsPerPackage : quantity,
+        expectedRemaining:
+          quantityType === "units"
+            ? currentMedicine.quantity - quantity / unitsPerPackage
+            : currentMedicine.quantity - quantity,
+      });
+
       if (quantityType === "packages") {
-        // Selling complete packages
         if (quantity > currentMedicine.quantity) {
           return toast.error(
             `Not enough packages! Only ${Math.floor(
@@ -262,29 +278,16 @@ export default function Medicines({ isAdmin }) {
             )} available.`
           );
         }
-
         await sellMedicine(currentMedicine._id, quantity, "packages");
         toast.success(`Sold ${quantity} packages successfully 💸`);
       } else {
-        // Selling individual units
-        const unitsPerPackage = getUnitsPerPackage(currentMedicine);
         const totalUnitsAvailable =
           Math.floor(currentMedicine.quantity) * unitsPerPackage;
-
-        console.log("🟡 Frontend Validation:", {
-          quantity,
-          packagesAvailable: Math.floor(currentMedicine.quantity),
-          unitsPerPackage,
-          totalUnitsAvailable,
-        });
-
         if (quantity > totalUnitsAvailable) {
           return toast.error(
             `Not enough units! Only ${totalUnitsAvailable} available.`
           );
         }
-
-        // Sell as individual units
         await sellMedicine(currentMedicine._id, quantity, "units");
         toast.success(`Sold ${quantity} units successfully 💊`);
       }
@@ -294,20 +297,8 @@ export default function Medicines({ isAdmin }) {
       setShowSellPopup(false);
       fetchMedicines();
     } catch (error) {
-      console.error("🔴 COMPLETE SELL ERROR:", error);
-      console.error("🔴 ERROR RESPONSE DATA:", error.response?.data);
-
-      // Show the exact backend error
-      const backendError = error.response?.data;
-      if (backendError) {
-        if (backendError.message) {
-          toast.error(`Backend: ${backendError.message}`);
-        } else {
-          toast.error(`Backend Error: ${JSON.stringify(backendError)}`);
-        }
-      } else {
-        toast.error("Unknown error selling medicine");
-      }
+      console.error("🔴 SELL ERROR:", error);
+      toast.error(error.response?.data?.message || "Error selling medicine");
     }
   };
 
@@ -920,7 +911,7 @@ export default function Medicines({ isAdmin }) {
           <div className="popup">
             <h2>💰 Sell {currentMedicine?.name}</h2>
 
-            {/* Package Information */}
+            {/* Enhanced Package Information with Stock Change Awareness */}
             <div className="package-info">
               <p>
                 <strong>📦 Package Contents:</strong>{" "}
@@ -938,37 +929,69 @@ export default function Medicines({ isAdmin }) {
                 <strong>🔢 Units per Package:</strong>{" "}
                 {getUnitsPerPackage(currentMedicine)} units
               </p>
+
+              {/* Enhanced Stock Display */}
+              <div className="stock-summary">
+                <p>
+                  <strong>📊 Available Stock:</strong>
+                </p>
+                <div className="stock-details">
+                  <div className="stock-item">
+                    <span className="stock-label">Packages:</span>
+                    <span className="stock-value">
+                      {Math.floor(currentMedicine?.quantity)}
+                    </span>
+                  </div>
+                  <div className="stock-item">
+                    <span className="stock-label">Individual Units:</span>
+                    <span className="stock-value">
+                      {Math.floor(currentMedicine?.quantity) *
+                        getUnitsPerPackage(currentMedicine)}
+                    </span>
+                  </div>
+                  <div className="stock-item">
+                    <span className="stock-label">Total Value:</span>
+                    <span className="stock-value">
+                      PKR{" "}
+                      {(
+                        currentMedicine?.quantity * currentMedicine?.salePrice
+                      ).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               <p>
-                <strong>📊 Available Stock:</strong>
-              </p>
-              <ul style={{ margin: "5px 0", paddingLeft: "20px" }}>
-                <li>{Math.floor(currentMedicine?.quantity)} packages</li>
-                <li>
-                  {Math.floor(currentMedicine?.quantity) *
-                    getUnitsPerPackage(currentMedicine)}{" "}
-                  Individual units
-                </li>
-              </ul>
-              <p>
-                <small style={{ color: "#666" }}>
-                  (Each package contains {getUnitsPerPackage(currentMedicine)}{" "}
-                  units)
+                <small style={{ color: "#666", fontStyle: "italic" }}>
+                  💡 When you edit stock quantity, both packages and individual
+                  units update automatically
                 </small>
               </p>
             </div>
 
-            {/* Rest of the popup remains the same */}
-            <select
-              value={quantityType}
-              onChange={(e) => {
-                setQuantityType(e.target.value);
-                setSellQuantity("");
-              }}
-              className="quantity-type-selector"
-            >
-              <option value="packages">📦 Sell Complete Packages</option>
-              <option value="units">💊 Sell Individual Units</option>
-            </select>
+            {/* Conditional Quantity Type Selector */}
+            {currentMedicine?.category === "Tablet" ||
+            currentMedicine?.category === "Capsule" ||
+            currentMedicine?.category === "Injection" ? (
+              <select
+                value={quantityType}
+                onChange={(e) => {
+                  setQuantityType(e.target.value);
+                  setSellQuantity("");
+                }}
+                className="quantity-type-selector"
+              >
+                <option value="packages">📦 Sell Complete Packages</option>
+                <option value="units">💊 Sell Individual Units</option>
+              </select>
+            ) : (
+              <div className="quantity-type-info">
+                <p>
+                  📦 Selling complete packages only for{" "}
+                  {currentMedicine?.category}
+                </p>
+              </div>
+            )}
 
             <input
               type="number"

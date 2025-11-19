@@ -214,6 +214,9 @@ export const sellMedicine = async (req, res) => {
       soldBy: "operator",
       packSize: medicine.packSize,
       soldAt: new Date(),
+      originalQuantity: quantitySold, // Original quantity entered by user
+      originalSellType: sellType, // Original sell type
+      unitsPerPackage: medicine.unitsPerPackage,
     });
 
     res.status(200).json({
@@ -236,7 +239,7 @@ export const getAllSales = async (req, res) => {
       .sort({ soldAt: -1 })
       .populate("medicine", "name category manufacturer salePrice");
 
-    // 🔧 Normalize data for frontend readability
+    // 🔧 Enhanced data normalization with fallbacks
     const formattedSales = sales.map((s) => ({
       _id: s._id,
       name: s.medicineName || s.medicine?.name || "Unknown",
@@ -248,6 +251,11 @@ export const getAllSales = async (req, res) => {
       soldAt: s.soldAt,
       soldBy: s.soldBy,
       note: s.note,
+      packSize: s.packSize,
+      sellType: s.sellType || s.originalSellType || "packages", // Fallback
+      originalQuantity: s.originalQuantity || s.quantitySold, // Fallback
+      unitsPerPackage: s.unitsPerPackage || 1, // Fallback
+      originalSellType: s.originalSellType || s.sellType || "packages", // Fallback
     }));
 
     res.status(200).json({ success: true, data: formattedSales });
@@ -307,7 +315,6 @@ export const getMedicineById = async (req, res) => {
 export const updateMedicine = async (req, res) => {
   try {
     const updates = req.body;
-
     const allowedFields = [
       "name",
       "category",
@@ -331,25 +338,48 @@ export const updateMedicine = async (req, res) => {
     }
 
     medicine.history = medicine.history || [];
-
-    // ✅ FIX: Track changes with BOTH old and new values
     const changes = {};
+
+    // Track if quantity or packSize changes (affects unitsAvailable)
+    const shouldRecalculateUnits =
+      updates.quantity !== undefined || updates.packSize !== undefined;
+
     allowedFields.forEach((field) => {
       if (updates[field] !== undefined && updates[field] !== medicine[field]) {
         changes[field] = {
-          from: medicine[field], // Old value
-          to: updates[field], // New value
+          from: medicine[field],
+          to: updates[field],
         };
-        // Update the medicine field
         medicine[field] = updates[field];
       }
     });
 
-    // ✅ Only add to history if there are actual changes
+    // ✅ CRITICAL FIX: Recalculate unitsAvailable when quantity or packSize changes
+    if (shouldRecalculateUnits) {
+      const oldUnitsAvailable = medicine.unitsAvailable;
+
+      // Re-extract units per package if packSize changed
+      if (updates.packSize !== undefined) {
+        medicine.unitsPerPackage = extractUnitsFromPackSize(medicine.packSize);
+      }
+
+      // Recalculate total units available
+      medicine.unitsAvailable = medicine.quantity * medicine.unitsPerPackage;
+
+      console.log("🔄 UNITS RECALCULATION:", {
+        oldQuantity: changes.quantity?.from,
+        newQuantity: medicine.quantity,
+        oldUnitsAvailable: oldUnitsAvailable,
+        newUnitsAvailable: medicine.unitsAvailable,
+        unitsPerPackage: medicine.unitsPerPackage,
+      });
+    }
+
+    // Only add to history if there are actual changes
     if (Object.keys(changes).length > 0) {
       medicine.history.push({
         updatedAt: new Date(),
-        changes: changes, // Now contains {field: {from: old, to: new}}
+        changes: changes,
       });
     }
 

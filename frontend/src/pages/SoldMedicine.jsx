@@ -21,40 +21,82 @@ export default function SoldMedicines() {
     return match ? parseInt(match[1]) : 1;
   };
 
-  // Helper to determine sale type and format display
+  // Enhanced helper with better fallbacks for old records
   const getSaleTypeInfo = (record) => {
-    if (!record.packSize)
-      return { type: "units", description: `${record.quantitySold} units` };
+    // Use the new fields if available, otherwise fallback to smart detection
+    const originalSellType = record.originalSellType || record.sellType;
+    const originalQuantity = record.originalQuantity || record.quantitySold;
+    const unitsPerPackage =
+      record.unitsPerPackage || getUnitsPerPackage(record.packSize) || 1;
 
-    const unitsPerPackage = getUnitsPerPackage(record.packSize);
+    console.log("🔍 SALE DEBUG:", {
+      recordId: record._id,
+      originalSellType,
+      originalQuantity,
+      quantitySold: record.quantitySold,
+      unitsPerPackage,
+      hasNewFields: !!(record.originalSellType && record.originalQuantity),
+    });
 
-    if (record.sellType === "units" || record.quantitySold < unitsPerPackage) {
-      // Individual unit sale
-      const unitPrice = record.unitPrice || record.salePrice / unitsPerPackage;
+    // If we have the original sell type, use it for accurate display
+    if (originalSellType === "units") {
+      const packagesEquivalent = record.quantitySold / unitsPerPackage;
       return {
         type: "units",
-        description: `${record.quantitySold} units`,
-        unitPrice: unitPrice,
-        packageInfo: `From: ${record.packSize}`,
+        displayText: `${
+          record.quantitySold
+        } units / ${packagesEquivalent.toFixed(1)} packages`,
+        shortDisplay: `${record.quantitySold}u / ${packagesEquivalent.toFixed(
+          1
+        )}p`,
       };
-    } else if (record.quantitySold % unitsPerPackage === 0) {
-      // Complete package sale
-      const packagesSold = record.quantitySold / unitsPerPackage;
+    } else if (originalSellType === "packages") {
+      const packagesSold = originalQuantity;
+      const totalUnits = record.quantitySold;
       return {
         type: "packages",
-        description: `${packagesSold} packages`,
-        unitPrice: record.salePrice,
-        packageInfo: `${record.packSize}`,
+        displayText: `${packagesSold} packages / ${totalUnits} units`,
+        shortDisplay: `${packagesSold}p / ${totalUnits}u`,
       };
     } else {
-      // Mixed sale (packages + individual units)
-      const packagesSold = Math.floor(record.quantitySold / unitsPerPackage);
-      const remainingUnits = record.quantitySold % unitsPerPackage;
+      // Fallback for old records without new fields - smart detection
+      return smartDetectSaleType(record, unitsPerPackage);
+    }
+  };
+
+  // Smart detection for old records
+  const smartDetectSaleType = (record, unitsPerPackage) => {
+    const totalUnits = record.quantitySold;
+
+    // If quantity is exactly divisible by unitsPerPackage, likely packages
+    if (totalUnits % unitsPerPackage === 0) {
+      const packagesSold = totalUnits / unitsPerPackage;
       return {
-        type: "mixed",
-        description: `${packagesSold} packages + ${remainingUnits} units`,
-        unitPrice: record.salePrice / unitsPerPackage,
-        packageInfo: `${record.packSize}`,
+        type: "packages",
+        displayText: `${packagesSold} packages / ${totalUnits} units`,
+        shortDisplay: `${packagesSold}p / ${totalUnits}u`,
+      };
+    }
+    // If quantity is less than unitsPerPackage, definitely units
+    else if (totalUnits < unitsPerPackage) {
+      const packagesEquivalent = totalUnits / unitsPerPackage;
+      return {
+        type: "units",
+        displayText: `${totalUnits} units / ${packagesEquivalent.toFixed(
+          2
+        )} packages`,
+        shortDisplay: `${totalUnits}u / ${packagesEquivalent.toFixed(2)}p`,
+      };
+    }
+    // Otherwise, show as units with package equivalent
+    else {
+      const packagesEquivalent = totalUnits / unitsPerPackage;
+      return {
+        type: "units",
+        displayText: `${totalUnits} units / ${packagesEquivalent.toFixed(
+          1
+        )} packages`,
+        shortDisplay: `${totalUnits}u / ${packagesEquivalent.toFixed(1)}p`,
       };
     }
   };
@@ -318,7 +360,7 @@ export default function SoldMedicines() {
             record.soldAt
           ).toLocaleDateString()}</p>
           <div class="sale-type">${saleInfo.type.toUpperCase()} SALE - ${
-        saleInfo.description
+        saleInfo.displayText
       }</div>
           ${
             record.packSize
@@ -328,7 +370,7 @@ export default function SoldMedicines() {
           <table class="invoice-table">
             <tr><th>Quantity</th><th>Unit Price (PKR)</th><th>Total (PKR)</th></tr>
             <tr>
-              <td>${saleInfo.description}</td>
+              <td>${saleInfo.displayText}</td>
               <td class="currency">${(
                 record.unitPrice || record.salePrice
               ).toFixed(2)}</td>
@@ -459,7 +501,26 @@ export default function SoldMedicines() {
                             ? "📦"
                             : "📋"}
                         </span>
-                        {saleInfo.description}
+                        {/* Use displayText instead of description */}
+                        {saleInfo.displayText || saleInfo.description}
+
+                        {/* Optional: Show small breakdown */}
+                        <div
+                          className="quantity-breakdown"
+                          style={{
+                            fontSize: "0.8em",
+                            color: "#666",
+                            marginTop: "2px",
+                          }}
+                        >
+                          {/* <small>
+                            {saleInfo.type === "units"
+                              ? "Unit Sale"
+                              : saleInfo.type === "packages"
+                              ? "Package Sale"
+                              : "Mixed Sale"}
+                          </small> */}
+                        </div>
                       </div>
                     </td>
                     <td className="price-cell">
