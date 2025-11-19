@@ -619,6 +619,7 @@ export default function Medicines({ isAdmin }) {
                     placeholder="🔢 Stock Quantity"
                     value={formData.quantity}
                     onChange={handleChange}
+                    onWheel={(e) => e.target.blur()}
                     required
                     className="form-input"
                   />
@@ -633,6 +634,7 @@ export default function Medicines({ isAdmin }) {
                     value={formData.purchasePrice}
                     onChange={handleChange}
                     required
+                    onWheel={(e) => e.target.blur()}
                     className="form-input"
                   />
                   <small className="form-hint">Your cost per package</small>
@@ -644,6 +646,7 @@ export default function Medicines({ isAdmin }) {
                     value={formData.salePrice}
                     onChange={handleChange}
                     required
+                    onWheel={(e) => e.target.blur()}
                     className="form-input"
                   />
                   <small className="form-hint">Your price per package</small>
@@ -949,6 +952,7 @@ export default function Medicines({ isAdmin }) {
 
             <input
               type="number"
+              onWheel={(e) => e.target.blur()}
               placeholder={
                 quantityType === "packages"
                   ? `Enter number of PACKAGES (max: ${Math.floor(
