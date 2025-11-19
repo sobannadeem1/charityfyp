@@ -93,8 +93,8 @@ export default function Medicines({ isAdmin }) {
   };
   // Validate if we can sell the requested quantity
   const validateSaleQuantity = (medicine, quantity, type) => {
-    if (!medicine || quantity <= 0) {
-      return { valid: false, error: "Invalid quantity" };
+    if (!medicine || quantity <= 0 || !Number.isInteger(quantity)) {
+      return { valid: false, error: "Invalid quantity!" };
     }
 
     const availablePackages = Math.floor(medicine.quantity);
@@ -137,11 +137,10 @@ export default function Medicines({ isAdmin }) {
     if (!medicine?.salePrice) return 0;
     const unitsPerPackage = getUnitsPerPackage(medicine);
 
-    if (unitsPerPackage <= 0) return Math.floor(medicine.salePrice);
+    if (unitsPerPackage <= 0) return medicine.salePrice;
 
-    const pricePerUnit = medicine.salePrice / unitsPerPackage;
-    // Round to nearest whole number - NO DECIMALS
-    return Math.round(pricePerUnit);
+    // Keep decimal for accurate calculation
+    return medicine.salePrice / unitsPerPackage;
   };
   const calculateTotal = (medicine, quantity, type) => {
     if (!medicine) return 0;
@@ -155,17 +154,16 @@ export default function Medicines({ isAdmin }) {
       total = pricePerUnit * quantity;
     }
 
-    // Return whole number only - NO DECIMALS
-    return Math.round(total);
+    // Return with 2 decimal places for money
+    return Math.round(total * 100) / 100;
   };
 
-  // Fix the sale description
   const getSaleDescription = (medicine, quantity, type) => {
     if (type === "packages") {
       return `${quantity} packages × PKR ${medicine.salePrice}`;
     } else {
       const pricePerUnit = getPricePerUnit(medicine);
-      return `${quantity} units × PKR ${pricePerUnit}`; // No decimal places
+      return `${quantity} units × PKR ${pricePerUnit.toFixed(2)}`;
     }
   };
   // Add medicine
@@ -951,7 +949,7 @@ export default function Medicines({ isAdmin }) {
               </p>
               <p>
                 <strong>💊 Price per Unit:</strong> PKR{" "}
-                {getPricePerUnit(currentMedicine)}
+                {getPricePerUnit(currentMedicine).toFixed(2)}
               </p>
               <p>
                 <strong>📊 Available Stock:</strong>
@@ -1032,7 +1030,7 @@ export default function Medicines({ isAdmin }) {
                 : "💡 Selling individual tablets/capsules"}
             </small>
 
-            {/* Show calculated total - SIMPLIFIED */}
+            {/* Show calculated total */}
             {sellQuantity && parseInt(sellQuantity) > 0 && (
               <div
                 className="total-calculation"
@@ -1052,7 +1050,7 @@ export default function Medicines({ isAdmin }) {
                       currentMedicine,
                       parseInt(sellQuantity),
                       quantityType
-                    )}
+                    ).toFixed(2)}
                   </span>
                 </p>
                 <p
@@ -1068,6 +1066,25 @@ export default function Medicines({ isAdmin }) {
                     quantityType
                   )}
                 </p>
+
+                {/* Show calculation breakdown */}
+                {quantityType === "units" && (
+                  <p
+                    style={{
+                      margin: "5px 0 0 0",
+                      fontSize: "12px",
+                      color: "#777",
+                    }}
+                  >
+                    Calculation: {parseInt(sellQuantity)} units × PKR{" "}
+                    {getPricePerUnit(currentMedicine).toFixed(2)} = PKR{" "}
+                    {calculateTotal(
+                      currentMedicine,
+                      parseInt(sellQuantity),
+                      quantityType
+                    ).toFixed(2)}
+                  </p>
+                )}
               </div>
             )}
 
