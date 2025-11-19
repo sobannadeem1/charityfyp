@@ -9,18 +9,18 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import SoldMedicines from "./pages/SoldMedicine";
 import "./index.css";
+import "./App.css";
 import ExpiringSoon from "./pages/ExpiringSoon";
 import { getCurrentAdmin } from "./api/medicineapi";
 
 const App = () => {
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // ✅ Optional: check if admin is logged in
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const data = await getCurrentAdmin();
-        console.log("Admin info:", data.admin); // optional
+        console.log("Admin info:", data.admin);
         setIsAdmin(true);
       } catch (err) {
         setIsAdmin(false);
@@ -42,9 +42,10 @@ const App = () => {
               element={<Medicines isAdmin={isAdmin} />}
             />
             <Route path="/donations" element={<Donations />} />
+
             <Route path="/expiring-soon" element={<ExpiringSoon />} />
             <Route path="/reports" element={<Reports />} />
-            <Route path="/sold" element={<SoldMedicines />} />
+            {isAdmin && <Route path="/sold" element={<SoldMedicines />} />}
             <Route path="/login" element={<Login setIsAdmin={setIsAdmin} />} />
           </Routes>
         </main>

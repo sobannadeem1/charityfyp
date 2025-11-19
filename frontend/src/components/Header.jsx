@@ -34,7 +34,6 @@ export default function Header({ isAdmin, setIsAdmin }) {
           </div>
         </div>
 
-        {/* 🔹 Navigation */}
         <nav
           className={`main-nav ${mobileOpen ? "open show" : ""}`}
           aria-label="Main"
@@ -52,7 +51,8 @@ export default function Header({ isAdmin, setIsAdmin }) {
             <div className="dropdown-menu">
               <NavLink to="/medicines">All Medicines</NavLink>
               <NavLink to="/expiring-soon">Expiring Soon</NavLink>
-              <NavLink to="/sold">Sold Medicines</NavLink>
+
+              {isAdmin && <NavLink to="/sold">Sold Medicines</NavLink>}
             </div>
           </div>
 

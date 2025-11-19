@@ -23,20 +23,10 @@ export default function SoldMedicines() {
 
   // Enhanced helper with better fallbacks for old records
   const getSaleTypeInfo = (record) => {
-    // Use the new fields if available, otherwise fallback to smart detection
     const originalSellType = record.originalSellType || record.sellType;
     const originalQuantity = record.originalQuantity || record.quantitySold;
     const unitsPerPackage =
       record.unitsPerPackage || getUnitsPerPackage(record.packSize) || 1;
-
-    console.log("🔍 SALE DEBUG:", {
-      recordId: record._id,
-      originalSellType,
-      originalQuantity,
-      quantitySold: record.quantitySold,
-      unitsPerPackage,
-      hasNewFields: !!(record.originalSellType && record.originalQuantity),
-    });
 
     // If we have the original sell type, use it for accurate display
     if (originalSellType === "units") {
@@ -68,7 +58,6 @@ export default function SoldMedicines() {
   const smartDetectSaleType = (record, unitsPerPackage) => {
     const totalUnits = record.quantitySold;
 
-    // If quantity is exactly divisible by unitsPerPackage, likely packages
     if (totalUnits % unitsPerPackage === 0) {
       const packagesSold = totalUnits / unitsPerPackage;
       return {
@@ -76,9 +65,7 @@ export default function SoldMedicines() {
         displayText: `${packagesSold} packages / ${totalUnits} units`,
         shortDisplay: `${packagesSold}p / ${totalUnits}u`,
       };
-    }
-    // If quantity is less than unitsPerPackage, definitely units
-    else if (totalUnits < unitsPerPackage) {
+    } else if (totalUnits < unitsPerPackage) {
       const packagesEquivalent = totalUnits / unitsPerPackage;
       return {
         type: "units",
@@ -87,9 +74,7 @@ export default function SoldMedicines() {
         )} packages`,
         shortDisplay: `${totalUnits}u / ${packagesEquivalent.toFixed(2)}p`,
       };
-    }
-    // Otherwise, show as units with package equivalent
-    else {
+    } else {
       const packagesEquivalent = totalUnits / unitsPerPackage;
       return {
         type: "units",
@@ -98,6 +83,32 @@ export default function SoldMedicines() {
         )} packages`,
         shortDisplay: `${totalUnits}u / ${packagesEquivalent.toFixed(1)}p`,
       };
+    }
+  };
+
+  // ✅ FIXED: Correct total amount calculation
+  const calculateTotalAmount = (record) => {
+    // Always use totalAmount from backend if available (most reliable)
+    if (record.totalAmount) {
+      return Number(record.totalAmount);
+    }
+
+    // Fallback calculation
+    const unitsPerPackage =
+      record.unitsPerPackage || getUnitsPerPackage(record.packSize) || 1;
+    const sellType = record.originalSellType || record.sellType;
+
+    if (sellType === "packages") {
+      // For packages: quantitySold is actually total units, so we need originalQuantity
+      const packagesSold =
+        record.originalQuantity || record.quantitySold / unitsPerPackage;
+      return packagesSold * (record.unitPrice || record.salePrice);
+    } else {
+      // For units: use unit price
+      return (
+        record.quantitySold *
+        (record.unitPrice || record.salePrice / unitsPerPackage)
+      );
     }
   };
 
@@ -113,18 +124,17 @@ export default function SoldMedicines() {
         quantitySold: Number(item.quantitySold) || 0,
         salePrice: Number(item.salePrice) || 0,
         unitPrice: Number(item.unitPrice) || 0,
+        totalAmount: Number(item.totalAmount) || 0,
       }));
 
       setSoldRecords(cleanedData);
       setFiltered(cleanedData);
 
-      const total = cleanedData.reduce(
-        (acc, item) =>
-          acc +
-          (item.totalAmount ||
-            item.quantitySold * (item.unitPrice || item.salePrice)),
-        0
-      );
+      // ✅ FIXED: Use the correct calculation for total revenue
+      const total = cleanedData.reduce((acc, item) => {
+        return acc + calculateTotalAmount(item);
+      }, 0);
+
       setTotalRevenue(total);
     } catch (err) {
       console.error(err);
@@ -151,17 +161,15 @@ export default function SoldMedicines() {
     setFiltered(results);
   };
 
-  // Generate PDF Invoice
+  // ✅ IMPROVED: Generate PDF Invoice
   const generateInvoice = (saleRecord) => {
     try {
       const saleInfo = getSaleTypeInfo(saleRecord);
-      const totalAmount =
-        saleRecord.totalAmount ||
-        saleRecord.quantitySold *
-          (saleRecord.unitPrice || saleRecord.salePrice);
+      const totalAmount = calculateTotalAmount(saleRecord);
+      const unitPrice = saleRecord.unitPrice || saleRecord.salePrice;
 
       // Create a new window for invoice
-      const invoiceWindow = window.open("", "_blank");
+      const invoiceWindow = window.open("", "_blank", "width=800,height=1000");
 
       const invoiceContent = `
         <!DOCTYPE html>
@@ -169,128 +177,250 @@ export default function SoldMedicines() {
         <head>
           <title>Invoice - ${saleRecord.name}</title>
           <style>
+            @media print {
+              body { margin: 0; padding: 15px; }
+              .no-print { display: none; }
+            }
             body { 
-              font-family: Arial, sans-serif; 
-              margin: 40px; 
+              font-family: 'Arial', sans-serif; 
+              margin: 30px; 
               color: #333;
+              line-height: 1.4;
+            }
+            .invoice-container {
+              max-width: 700px;
+              margin: 0 auto;
+              border: 2px solid #3498db;
+              border-radius: 10px;
+              padding: 25px;
+              background: white;
             }
             .invoice-header { 
               text-align: center; 
               border-bottom: 3px solid #3498db; 
               padding-bottom: 20px; 
-              margin-bottom: 30px;
+              margin-bottom: 25px;
+            }
+            .clinic-info {
+              margin-bottom: 10px;
+            }
+            .clinic-name {
+              font-size: 24px;
+              font-weight: bold;
+              color: #2c3e50;
+              margin-bottom: 5px;
+            }
+            .clinic-sub {
+              font-size: 16px;
+              color: #7f8c8d;
+            }
+            .invoice-title {
+              font-size: 20px;
+              color: #3498db;
+              margin: 10px 0;
             }
             .invoice-details { 
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 15px;
               margin: 20px 0; 
               background: #f8f9fa; 
               padding: 15px; 
               border-radius: 8px;
             }
+            .detail-group {
+              margin-bottom: 8px;
+            }
+            .detail-label {
+              font-weight: bold;
+              color: #555;
+              font-size: 14px;
+            }
+            .detail-value {
+              color: #2c3e50;
+            }
             .sale-type-info {
               background: #e8f4fd;
-              padding: 10px;
+              padding: 12px;
               border-radius: 6px;
-              margin: 10px 0;
+              margin: 15px 0;
               border-left: 4px solid #3498db;
             }
             .invoice-table { 
               width: 100%; 
               border-collapse: collapse; 
               margin: 20px 0;
-            }
-            .invoice-table th, .invoice-table td { 
-              border: 1px solid #ddd; 
-              padding: 12px; 
-              text-align: left;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             }
             .invoice-table th { 
               background: #3498db; 
               color: white;
+              padding: 12px;
+              text-align: left;
+              font-weight: bold;
+            }
+            .invoice-table td { 
+              padding: 12px;
+              border-bottom: 1px solid #ddd;
+            }
+            .invoice-table tr:nth-child(even) {
+              background: #f8f9fa;
             }
             .total-section { 
               text-align: right; 
-              margin-top: 20px; 
-              font-size: 1.2em; 
+              margin-top: 25px; 
+              font-size: 1.1em;
+              padding: 15px;
+              background: #ecf0f1;
+              border-radius: 6px;
+            }
+            .grand-total {
+              font-size: 1.3em;
+              color: #27ae60;
               font-weight: bold;
+              margin-top: 10px;
+              padding-top: 10px;
+              border-top: 2px solid #bdc3c7;
             }
             .footer { 
               margin-top: 40px; 
               text-align: center; 
-              color: #666; 
+              color: #7f8c8d; 
               border-top: 1px solid #ddd; 
               padding-top: 20px;
+              font-size: 14px;
             }
             .currency {
-              font-family: monospace;
+              font-family: 'Courier New', monospace;
+              font-weight: bold;
+            }
+            .print-btn {
+              background: #3498db;
+              color: white;
+              border: none;
+              padding: 10px 20px;
+              border-radius: 5px;
+              cursor: pointer;
+              margin: 20px 0;
+              font-size: 16px;
+            }
+            .print-btn:hover {
+              background: #2980b9;
             }
           </style>
         </head>
         <body>
-          <div class="invoice-header">
-            <h1>💊 Noor Sardar HealthCare Center</h1>
-            <h2>MEDICINE INVOICE</h2>
-            <p>Invoice #${saleRecord._id.slice(-6).toUpperCase()}</p>
-          </div>
+          <div class="invoice-container">
+            <div class="invoice-header">
+              <div class="clinic-info">
+                <div class="clinic-name">💊 Noor Sardar HealthCare Center</div>
+                <div class="clinic-sub">Quality Medicines, Caring Service</div>
+              </div>
+              <div class="invoice-title">MEDICINE SALES INVOICE</div>
+              <div style="font-size: 14px; color: #7f8c8d;">
+                Invoice #INV-${saleRecord._id.slice(-8).toUpperCase()}
+              </div>
+            </div>
 
-          <div class="invoice-details">
-            <p><strong>Date:</strong> ${new Date(
-              saleRecord.soldAt
-            ).toLocaleDateString()}</p>
-            <p><strong>Time:</strong> ${new Date(
-              saleRecord.soldAt
-            ).toLocaleTimeString()}</p>
-            <p><strong>Invoice ID:</strong> INV-${saleRecord._id
-              .slice(-8)
-              .toUpperCase()}</p>
-            <p><strong>Sold By:</strong> ${saleRecord.soldBy || "Operator"}</p>
-          </div>
+            <div class="invoice-details">
+              <div>
+                <div class="detail-group">
+                  <div class="detail-label">Invoice Date</div>
+                  <div class="detail-value">${new Date(
+                    saleRecord.soldAt
+                  ).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}</div>
+                </div>
+                <div class="detail-group">
+                  <div class="detail-label">Invoice Time</div>
+                  <div class="detail-value">${new Date(
+                    saleRecord.soldAt
+                  ).toLocaleTimeString("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: true,
+                  })}</div>
+                </div>
+              </div>
+              <div>
+                <div class="detail-group">
+                  <div class="detail-label">Sold By</div>
+                  <div class="detail-value">${
+                    saleRecord.soldBy || "Operator"
+                  }</div>
+                </div>
+                <div class="detail-group">
+                  <div class="detail-label">Generated On</div>
+                  <div class="detail-value">${new Date().toLocaleString(
+                    "en-US"
+                  )}</div>
+                </div>
+              </div>
+            </div>
 
-          <div class="sale-type-info">
-            <p><strong>Sale Type:</strong> ${saleInfo.type.toUpperCase()} SALE</p>
-            <p><strong>Package:</strong> ${
-              saleRecord.packSize || "Not specified"
-            }</p>
-          </div>
+            <div class="sale-type-info">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                  <strong>Sale Type:</strong> ${saleInfo.type.toUpperCase()} SALE
+                </div>
+                <div>
+                  <strong>Package Size:</strong> ${
+                    saleRecord.packSize || "Not specified"
+                  }
+                </div>
+              </div>
+            </div>
 
-          <table class="invoice-table">
-            <thead>
-              <tr>
-                <th>Medicine Name</th>
-                <th>Category</th>
-                <th>Quantity</th>
-                <th>Unit Price (PKR)</th>
-                <th>Total (PKR)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>${saleRecord.name || "-"}</td>
-                <td>${saleRecord.category || "-"}</td>
-                <td>${saleInfo.description}</td>
-                <td class="currency">${(
-                  saleRecord.unitPrice || saleRecord.salePrice
-                ).toFixed(2)}</td>
-                <td class="currency">${totalAmount.toFixed(2)}</td>
-              </tr>
-            </tbody>
-          </table>
+            <table class="invoice-table">
+              <thead>
+                <tr>
+                  <th>Medicine Details</th>
+                  <th>Category</th>
+                  <th>Quantity</th>
+                  <th>Unit Price</th>
+                  <th>Total Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <strong>${saleRecord.name || "-"}</strong><br/>
+                    <small style="color: #7f8c8d;">${
+                      saleRecord.manufacturer || "No manufacturer"
+                    }</small>
+                  </td>
+                  <td>${saleRecord.category || "-"}</td>
+                  <td>${saleInfo.displayText}</td>
+                  <td class="currency">PKR ${unitPrice.toFixed(2)}</td>
+                  <td class="currency">PKR ${totalAmount.toFixed(2)}</td>
+                </tr>
+              </tbody>
+            </table>
 
-          <div class="total-section">
-            <p>Subtotal: <span class="currency">${totalAmount.toFixed(
-              2
-            )}</span></p>
-            <p>Tax (0%): <span class="currency">0.00</span></p>
-            <p style="color: #27ae60; font-size: 1.3em;">
-              Grand Total: <span class="currency">PKR ${totalAmount.toFixed(
+            <div class="total-section">
+              <div>Subtotal: <span class="currency">PKR ${totalAmount.toFixed(
                 2
-              )}</span>
-            </p>
-          </div>
+              )}</span></div>
+              <div>Tax (0%): <span class="currency">PKR 0.00</span></div>
+              <div class="grand-total">
+                Grand Total: <span class="currency">PKR ${totalAmount.toFixed(
+                  2
+                )}</span>
+              </div>
+            </div>
 
-          <div class="footer">
-            <p>Thank you for your purchase! 🎉</p>
-            <p>Noor Sardar HealthCare Center - Quality Medicines, Caring Service</p>
-            <p>Generated on ${new Date().toLocaleString()}</p>
+            <div class="footer">
+              <p>Thank you for your purchase! 🎉</p>
+              <p>For any queries, please contact the pharmacy</p>
+              <p><em>This is a computer-generated invoice</em></p>
+            </div>
+
+            <div class="no-print" style="text-align: center; margin-top: 20px;">
+              <button class="print-btn" onclick="window.print()">🖨️ Print Invoice</button>
+            </div>
           </div>
         </body>
         </html>
@@ -300,11 +430,6 @@ export default function SoldMedicines() {
       invoiceWindow.document.close();
 
       toast.success("Invoice generated successfully! 🧾");
-
-      // Auto-print after a short delay
-      setTimeout(() => {
-        invoiceWindow.print();
-      }, 500);
     } catch (error) {
       console.error("Error generating invoice:", error);
       toast.error("Failed to generate invoice");
@@ -318,7 +443,7 @@ export default function SoldMedicines() {
       return;
     }
 
-    const bulkWindow = window.open("", "_blank");
+    const bulkWindow = window.open("", "_blank", "width=900,height=700");
 
     let bulkContent = `
       <!DOCTYPE html>
@@ -326,49 +451,98 @@ export default function SoldMedicines() {
       <head>
         <title>Bulk Invoices - Noor Sardar HealthCare Center</title>
         <style>
+          @media print {
+            .invoice { page-break-after: always; }
+            .no-print { display: none; }
+          }
           body { font-family: Arial, sans-serif; margin: 20px; }
-          .invoice { page-break-after: always; margin-bottom: 40px; padding: 20px; border: 1px solid #ddd; }
-          .invoice-header { text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 20px; }
-          .sale-type { background: #e8f4fd; padding: 5px 10px; border-radius: 4px; display: inline-block; margin: 5px 0; }
-          .invoice-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-          .invoice-table th, .invoice-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          .bulk-header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #3498db; }
+          .invoice { margin-bottom: 40px; padding: 25px; border: 1px solid #ddd; border-radius: 8px; background: white; }
+          .invoice-header { text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 15px; margin-bottom: 20px; }
+          .sale-type { background: #e8f4fd; padding: 8px 12px; border-radius: 4px; display: inline-block; margin: 5px 0; font-size: 14px; }
+          .invoice-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+          .invoice-table th, .invoice-table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
           .invoice-table th { background: #3498db; color: white; }
-          .total { text-align: right; font-weight: bold; margin-top: 10px; }
-          .currency { font-family: monospace; }
+          .total { text-align: right; font-weight: bold; margin-top: 15px; padding: 10px; background: #ecf0f1; border-radius: 4px; }
+          .currency { font-family: 'Courier New', monospace; font-weight: bold; }
+          .print-all-btn { 
+            background: #3498db; 
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            margin: 20px 0; 
+          }
+          .print-all-btn:hover { background: #2980b9; }
         </style>
       </head>
       <body>
-        <h1 style="text-align: center; color: #2c3e50;">📦 Bulk Invoices Report</h1>
-        <p style="text-align: center;">Noor Sardar HealthCare Center - Generated on ${new Date().toLocaleDateString()}</p>
-        <hr style="margin: 20px 0;">
+        <div class="bulk-header">
+          <h1 style="color: #2c3e50;">📦 Bulk Invoices Report</h1>
+          <h3>Noor Sardar HealthCare Center</h3>
+          <p>Generated on ${new Date().toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            weekday: "long",
+          })}</p>
+          <p>Total Invoices: ${filtered.length} | Total Revenue: PKR ${filtered
+      .reduce((acc, record) => acc + calculateTotalAmount(record), 0)
+      .toFixed(2)}</p>
+        </div>
+        
+        <div class="no-print" style="text-align: center;">
+          <button class="print-all-btn" onclick="window.print()">🖨️ Print All Invoices</button>
+        </div>
     `;
 
     filtered.forEach((record, index) => {
       const saleInfo = getSaleTypeInfo(record);
-      const totalAmount =
-        record.totalAmount ||
-        record.quantitySold * (record.unitPrice || record.salePrice);
+      const totalAmount = calculateTotalAmount(record);
 
       bulkContent += `
         <div class="invoice">
           <div class="invoice-header">
             <h2>Noor Sardar HealthCare Center</h2>
-            <h3>INVOICE #${index + 1}</h3>
+            <h3>INVOICE #${index + 1} of ${filtered.length}</h3>
+            <p style="color: #7f8c8d; font-size: 14px;">INV-${record._id
+              .slice(-8)
+              .toUpperCase()}</p>
           </div>
-          <p><strong>Medicine:</strong> ${record.name}</p>
-          <p><strong>Date:</strong> ${new Date(
-            record.soldAt
-          ).toLocaleDateString()}</p>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+            <div>
+              <strong>Medicine:</strong> ${record.name}<br/>
+              <strong>Date:</strong> ${new Date(
+                record.soldAt
+              ).toLocaleDateString()}
+            </div>
+            <div>
+              <strong>Category:</strong> ${record.category || "-"}<br/>
+              <strong>Time:</strong> ${new Date(
+                record.soldAt
+              ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </div>
+          </div>
+          
           <div class="sale-type">${saleInfo.type.toUpperCase()} SALE - ${
         saleInfo.displayText
       }</div>
+          
           ${
             record.packSize
               ? `<p><strong>Package:</strong> ${record.packSize}</p>`
               : ""
           }
+          
           <table class="invoice-table">
-            <tr><th>Quantity</th><th>Unit Price (PKR)</th><th>Total (PKR)</th></tr>
+            <tr>
+              <th>Quantity</th>
+              <th>Unit Price (PKR)</th>
+              <th>Total Amount (PKR)</th>
+            </tr>
             <tr>
               <td>${saleInfo.displayText}</td>
               <td class="currency">${(
@@ -377,9 +551,10 @@ export default function SoldMedicines() {
               <td class="currency">${totalAmount.toFixed(2)}</td>
             </tr>
           </table>
-          <div class="total">Total: <span class="currency">PKR ${totalAmount.toFixed(
-            2
-          )}</span></div>
+          
+          <div class="total">
+            Total: <span class="currency">PKR ${totalAmount.toFixed(2)}</span>
+          </div>
         </div>
       `;
     });
@@ -467,9 +642,7 @@ export default function SoldMedicines() {
             <tbody>
               {filtered.map((r) => {
                 const saleInfo = getSaleTypeInfo(r);
-                const totalAmount =
-                  r.totalAmount ||
-                  r.quantitySold * (r.unitPrice || r.salePrice);
+                const totalAmount = calculateTotalAmount(r);
 
                 return (
                   <tr key={r._id}>
@@ -501,26 +674,7 @@ export default function SoldMedicines() {
                             ? "📦"
                             : "📋"}
                         </span>
-                        {/* Use displayText instead of description */}
-                        {saleInfo.displayText || saleInfo.description}
-
-                        {/* Optional: Show small breakdown */}
-                        <div
-                          className="quantity-breakdown"
-                          style={{
-                            fontSize: "0.8em",
-                            color: "#666",
-                            marginTop: "2px",
-                          }}
-                        >
-                          {/* <small>
-                            {saleInfo.type === "units"
-                              ? "Unit Sale"
-                              : saleInfo.type === "packages"
-                              ? "Package Sale"
-                              : "Mixed Sale"}
-                          </small> */}
-                        </div>
+                        {saleInfo.displayText}
                       </div>
                     </td>
                     <td className="price-cell">
@@ -528,12 +682,9 @@ export default function SoldMedicines() {
                     </td>
                     <td className="total-cell">PKR {totalAmount.toFixed(2)}</td>
                     <td className="date-cell">
-                      {new Date(r.soldAt).toLocaleString("en-US", {
-                        hour: "numeric",
-                        minute: "2-digit",
-                        hour12: true,
-                        day: "2-digit",
+                      {new Date(r.soldAt).toLocaleDateString("en-US", {
                         month: "short",
+                        day: "2-digit",
                         year: "numeric",
                       })}
                     </td>

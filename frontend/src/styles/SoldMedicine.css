@@ -1,6 +1,6 @@
-/* SoldMedicine.css */
+/* SoldMedicine.css - RESPONSIVE REM UNITS */
 .sold-container {
-  padding: 2rem;
+  padding: 2rem; /* 32px */
   min-height: 100vh;
   background: linear-gradient(135deg, #f0f8ff 0%, #e6f0fa 100%);
   font-family: "Inter", "Poppins", sans-serif;
@@ -10,13 +10,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 2rem; /* 32px */
   flex-wrap: wrap;
-  gap: 1.5rem;
+  gap: 1.5rem; /* 24px */
 }
 
 .sold-header h1 {
-  font-size: 2.5rem;
+  font-size: clamp(1.75rem, 4vw, 2.5rem); /* Responsive: 28px - 40px */
   font-weight: 700;
   background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
   -webkit-background-clip: text;
@@ -28,56 +28,56 @@
 .header-controls {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1.5rem; /* 24px */
   flex-wrap: wrap;
 }
 
 .search-box input {
-  padding: 0.8rem 1.2rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 12px;
-  font-size: 1rem;
-  min-width: 280px;
+  padding: 0.8rem 1.2rem; /* 12.8px 19.2px */
+  border: 0.125rem solid #e0e0e0; /* 2px */
+  border-radius: 0.75rem; /* 12px */
+  font-size: 1rem; /* 16px */
+  min-width: min(17.5rem, 90vw); /* 280px max, 90% viewport width */
   background: white;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.1); /* 2px 8px */
 }
 
 .search-box input:focus {
   outline: none;
   border-color: #3498db;
-  box-shadow: 0 4px 16px rgba(52, 152, 219, 0.2);
-  transform: translateY(-2px);
+  box-shadow: 0 0.25rem 1rem rgba(52, 152, 219, 0.2); /* 4px 16px */
+  transform: translateY(-0.125rem); /* -2px */
 }
 
 .action-bar {
   display: flex;
-  gap: 1rem;
+  gap: 1rem; /* 16px */
 }
 
 .bulk-invoice-btn,
 .view-invoices-btn {
-  padding: 0.8rem 1.5rem;
+  padding: 0.8rem 1.5rem; /* 12.8px 24px */
   border: none;
-  border-radius: 10px;
+  border-radius: 0.625rem; /* 10px */
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  font-size: 0.9rem;
+  font-size: clamp(0.85rem, 1.5vw, 0.9rem); /* Responsive: 13.6px - 14.4px */
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.5rem; /* 8px */
 }
 
 .bulk-invoice-btn {
   background: linear-gradient(135deg, #27ae60, #2ecc71);
   color: white;
-  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+  box-shadow: 0 0.25rem 0.75rem rgba(39, 174, 96, 0.3); /* 4px 12px */
 }
 
 .bulk-invoice-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+  transform: translateY(-0.125rem); /* -2px */
+  box-shadow: 0 0.375rem 1.25rem rgba(39, 174, 96, 0.4); /* 6px 20px */
 }
 
 .bulk-invoice-btn:disabled {
@@ -90,41 +90,41 @@
 .view-invoices-btn {
   background: linear-gradient(135deg, #3498db, #2980b9);
   color: white;
-  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+  box-shadow: 0 0.25rem 0.75rem rgba(52, 152, 219, 0.3); /* 4px 12px */
 }
 
 .view-invoices-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+  transform: translateY(-0.125rem); /* -2px */
+  box-shadow: 0 0.375rem 1.25rem rgba(52, 152, 219, 0.4); /* 6px 20px */
 }
 
 /* Summary Cards */
 .summary-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(15.625rem, 1fr)); /* 250px */
+  gap: 1.5rem; /* 24px */
+  margin-bottom: 2.5rem; /* 40px */
 }
 
 .summary-card {
   background: linear-gradient(135deg, #ffffff, #f8f9fa);
-  padding: 1.5rem;
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  padding: 1.5rem; /* 24px */
+  border-radius: 1rem; /* 16px */
+  box-shadow: 0 0.25rem 1.25rem rgba(0, 0, 0, 0.1); /* 4px 20px */
+  border: 0.0625rem solid rgba(255, 255, 255, 0.5); /* 1px */
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1rem; /* 16px */
   transition: all 0.3s ease;
 }
 
 .summary-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  transform: translateY(-0.3125rem); /* -5px */
+  box-shadow: 0 0.5rem 1.875rem rgba(0, 0, 0, 0.15); /* 8px 30px */
 }
 
 .summary-icon {
-  font-size: 2.5rem;
+  font-size: 2.5rem; /* 40px */
   background: linear-gradient(135deg, #3498db, #2980b9);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -132,17 +132,17 @@
 }
 
 .summary-content h3 {
-  margin: 0 0 0.5rem 0;
-  font-size: 0.9rem;
+  margin: 0 0 0.5rem 0; /* 0 0 8px 0 */
+  font-size: clamp(0.8rem, 1.5vw, 0.9rem); /* Responsive: 12.8px - 14.4px */
   color: #7f8c8d;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.03125rem; /* 0.5px */
 }
 
 .summary-content p {
   margin: 0;
-  font-size: 1.8rem;
+  font-size: clamp(1.5rem, 3vw, 1.8rem); /* Responsive: 24px - 28.8px */
   font-weight: 700;
   color: #2c3e50;
 }
@@ -150,32 +150,32 @@
 /* Table Styles */
 .sold-table-wrapper {
   background: white;
-  border-radius: 16px;
+  border-radius: 1rem; /* 16px */
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.1); /* 8px 32px */
+  border: 0.0625rem solid rgba(255, 255, 255, 0.5); /* 1px */
 }
 
 .sold-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.95rem;
+  font-size: clamp(0.85rem, 1.5vw, 0.95rem); /* Responsive: 13.6px - 15.2px */
 }
 
 .sold-table th {
   background: linear-gradient(135deg, #3498db, #2980b9);
   color: white;
-  padding: 1.2rem 1rem;
+  padding: 1.2rem 1rem; /* 19.2px 16px */
   text-align: left;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: clamp(0.8rem, 1.5vw, 0.9rem); /* Responsive: 12.8px - 14.4px */
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.03125rem; /* 0.5px */
 }
 
 .sold-table td {
-  padding: 1rem;
-  border-bottom: 1px solid #ecf0f1;
+  padding: 1rem; /* 16px */
+  border-bottom: 0.0625rem solid #ecf0f1; /* 1px */
   color: #2c3e50;
 }
 
@@ -191,22 +191,22 @@
 .medicine-name {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.5rem; /* 8px */
   font-weight: 600;
 }
 
 .medicine-icon {
-  font-size: 1.1rem;
+  font-size: 1.1rem; /* 17.6px */
 }
 
 .category-badge {
   background: #e8f4fd;
   color: #3498db;
-  padding: 0.3rem 0.8rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
+  padding: 0.3rem 0.8rem; /* 4.8px 12.8px */
+  border-radius: 1.25rem; /* 20px */
+  font-size: clamp(0.75rem, 1.5vw, 0.8rem); /* Responsive: 12px - 12.8px */
   font-weight: 600;
-  border: 1px solid #3498db33;
+  border: 0.0625rem solid #3498db33; /* 1px */
 }
 
 .quantity-cell {
@@ -223,12 +223,12 @@
 .total-cell {
   font-weight: 700;
   color: #2c3e50;
-  font-size: 1.05rem;
+  font-size: clamp(0.95rem, 1.5vw, 1.05rem); /* Responsive: 15.2px - 16.8px */
 }
 
 .date-cell {
   color: #7f8c8d;
-  font-size: 0.9rem;
+  font-size: clamp(0.8rem, 1.5vw, 0.9rem); /* Responsive: 12.8px - 14.4px */
   white-space: nowrap;
 }
 
@@ -241,85 +241,86 @@
   background: linear-gradient(135deg, #9b59b6, #8e44ad);
   color: white;
   border: none;
-  padding: 0.6rem 1rem;
-  border-radius: 8px;
-  font-size: 0.85rem;
+  padding: 0.6rem 1rem; /* 9.6px 16px */
+  border-radius: 0.5rem; /* 8px */
+  font-size: clamp(0.8rem, 1.5vw, 0.85rem); /* Responsive: 12.8px - 13.6px */
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(155, 89, 182, 0.3);
+  box-shadow: 0 0.125rem 0.5rem rgba(155, 89, 182, 0.3); /* 2px 8px */
 }
 
 .invoice-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(155, 89, 182, 0.4);
+  transform: translateY(-0.125rem); /* -2px */
+  box-shadow: 0 0.25rem 0.75rem rgba(155, 89, 182, 0.4); /* 4px 12px */
   background: linear-gradient(135deg, #8e44ad, #9b59b6);
 }
 
 /* Loading and No Records */
 .loading {
   text-align: center;
-  font-size: 1.2rem;
+  font-size: clamp(1rem, 2vw, 1.2rem); /* Responsive: 16px - 19.2px */
   color: #3498db;
-  padding: 3rem;
+  padding: 3rem; /* 48px */
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  border-radius: 0.75rem; /* 12px */
+  box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.1); /* 4px 16px */
 }
 
 .no-records {
   text-align: center;
-  padding: 4rem 2rem;
+  padding: 4rem 2rem; /* 64px 32px */
   background: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border-radius: 1rem; /* 16px */
+  box-shadow: 0 0.25rem 1.25rem rgba(0, 0, 0, 0.1); /* 4px 20px */
 }
 
 .no-records-icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
+  font-size: clamp(3rem, 8vw, 4rem); /* Responsive: 48px - 64px */
+  margin-bottom: 1rem; /* 16px */
 }
 
 .no-records h3 {
   color: #2c3e50;
-  margin-bottom: 0.5rem;
-  font-size: 1.5rem;
+  margin-bottom: 0.5rem; /* 8px */
+  font-size: clamp(1.25rem, 3vw, 1.5rem); /* Responsive: 20px - 24px */
 }
 
 .no-records p {
   color: #7f8c8d;
   margin: 0;
+  font-size: clamp(0.9rem, 2vw, 1rem); /* Responsive: 14.4px - 16px */
 }
-/* Add these styles to your SoldMedicine.css */
 
+/* Package and Sale Quantity Styles */
 .package-cell {
-  font-size: 0.85rem;
+  font-size: clamp(0.8rem, 1.5vw, 0.85rem); /* Responsive: 12.8px - 13.6px */
 }
 
 .package-info-small {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.3rem 0.5rem;
+  gap: 0.3rem; /* 4.8px */
+  padding: 0.3rem 0.5rem; /* 4.8px 8px */
   background: #f0f9ff;
-  border-radius: 6px;
-  border: 1px solid #bae6fd;
+  border-radius: 0.375rem; /* 6px */
+  border: 0.0625rem solid #bae6fd; /* 1px */
 }
 
 .package-icon {
-  font-size: 0.8rem;
+  font-size: 0.8rem; /* 12.8px */
 }
 
 .sale-quantity {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.5rem; /* 8px */
 }
 
 .sale-type-badge {
-  padding: 0.2rem 0.4rem;
-  border-radius: 4px;
-  font-size: 0.7rem;
+  padding: 0.2rem 0.4rem; /* 3.2px 6.4px */
+  border-radius: 0.25rem; /* 4px */
+  font-size: clamp(0.65rem, 1.5vw, 0.7rem); /* Responsive: 10.4px - 11.2px */
   font-weight: 600;
 }
 
@@ -356,39 +357,119 @@
   font-weight: 600;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
+/* ========== RESPONSIVE DESIGN ========== */
+
+/* Tablet */
+@media (max-width: 64rem) {
+  /* 1024px */
   .sold-container {
-    padding: 1rem;
+    padding: 1.5rem; /* 24px */
+  }
+
+  .summary-cards {
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); /* 224px */
+    gap: 1.25rem; /* 20px */
+  }
+}
+
+/* Mobile */
+@media (max-width: 48rem) {
+  /* 768px */
+  .sold-container {
+    padding: 1rem; /* 16px */
   }
 
   .sold-header {
     flex-direction: column;
     align-items: stretch;
+    margin-bottom: 1.5rem; /* 24px */
+    gap: 1rem; /* 16px */
   }
 
   .header-controls {
     flex-direction: column;
+    gap: 1rem; /* 16px */
   }
 
   .search-box input {
     min-width: 100%;
+    padding: 0.75rem 1rem; /* 12px 16px */
   }
 
   .action-bar {
     flex-direction: column;
+    gap: 0.75rem; /* 12px */
   }
 
   .summary-cards {
     grid-template-columns: 1fr;
+    gap: 1rem; /* 16px */
+    margin-bottom: 1.5rem; /* 24px */
+  }
+
+  .summary-card {
+    padding: 1.25rem; /* 20px */
   }
 
   .sold-table-wrapper {
     overflow-x: auto;
+    border-radius: 0.75rem; /* 12px */
   }
 
   .sold-table {
-    min-width: 800px;
+    min-width: 50rem; /* 800px */
+  }
+
+  .sold-table th,
+  .sold-table td {
+    padding: 0.75rem 0.5rem; /* 12px 8px */
+  }
+}
+
+/* Small Mobile Devices */
+@media (max-width: 30rem) {
+  /* 480px */
+  .sold-container {
+    padding: 0.75rem; /* 12px */
+  }
+
+  .sold-header h1 {
+    font-size: 1.5rem; /* 24px */
+  }
+
+  .summary-card {
+    padding: 1rem; /* 16px */
+    gap: 0.75rem; /* 12px */
+  }
+
+  .summary-icon {
+    font-size: 2rem; /* 32px */
+  }
+
+  .loading {
+    padding: 2rem 1rem; /* 32px 16px */
+  }
+
+  .no-records {
+    padding: 2.5rem 1rem; /* 40px 16px */
+  }
+}
+
+/* Touch device improvements */
+@media (hover: none) and (pointer: coarse) {
+  .invoice-btn,
+  .bulk-invoice-btn,
+  .view-invoices-btn {
+    min-height: 2.75rem; /* 44px - Better touch target */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sold-table td {
+    min-height: 3rem; /* 48px - Better touch target */
+    display: flex;
+    align-items: center;
   }
 }
 
@@ -403,5 +484,33 @@
   .sold-container {
     padding: 0;
     background: white;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .sold-table th {
+    background: #000080;
+    border: 0.125rem solid #000; /* 2px */
+  }
+
+  .summary-card {
+    border: 0.125rem solid #000; /* 2px */
+  }
+
+  .category-badge {
+    border: 0.125rem solid #0000ff; /* 2px */
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .summary-card,
+  .invoice-btn,
+  .bulk-invoice-btn,
+  .view-invoices-btn,
+  .search-box input {
+    transition: none;
+    transform: none;
   }
 }

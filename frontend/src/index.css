@@ -2,7 +2,7 @@
 @import url("https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap");
 
 :root {
-  --font-family: "PT Sans", sans-serif;
+  --font-family: "PT Sans";
 
   --bg: #e6f0fa; /* body background: light, soft blue */
   --text: #111827; /* dark text */
@@ -38,7 +38,6 @@ body {
   transition: background 0.4s ease, color 0.4s ease;
 }
 
-/* Headings */
 h1,
 h2,
 h3,
@@ -53,7 +52,6 @@ a {
   color: inherit;
 }
 
-/* Main App Container */
 .app-container {
   display: flex;
   flex-direction: column;
@@ -62,46 +60,7 @@ a {
   color: var(--text);
 }
 
-/* Main Content */
 .main-content {
   flex: 1;
   padding: 2rem;
-}
-
-/* Footer */
-.site-footer {
-  background: var(--header-footer-bg);
-  color: var(--header-footer-text);
-  text-align: center;
-  padding: 1.5rem 1rem;
-}
-
-/* Header adjustments */
-.site-header {
-  background: var(--header-footer-bg);
-  color: var(--header-footer-text);
-}
-
-/* Logo fixes for dark bg */
-.site-header .logo img {
-  background: #fff; /* ensures logo is visible on dark blue */
-  border-radius: 12px;
-  padding: 4px;
-}
-
-/* Hamburger: only show on mobile */
-.hamburger {
-  display: none; /* default hidden */
-}
-
-@media (max-width: 900px) {
-  .hamburger {
-    display: flex;
-  }
-  .main-nav {
-    display: none;
-  }
-  .main-nav.open.show {
-    display: flex;
-  }
 }

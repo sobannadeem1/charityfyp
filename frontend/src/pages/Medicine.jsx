@@ -446,15 +446,13 @@ export default function Medicines({ isAdmin }) {
                         <td
                           title="Your purchase cost"
                           style={{
-                            color: "#0077b6",
-                            fontWeight: "600",
                             textAlign: "center",
 
                             padding: "0.5rem",
                             borderRadius: "6px",
                           }}
                         >
-                          PKR {m.purchasePrice}
+                          {m.purchasePrice}
                         </td>
                       )}
                       <td>{m.salePrice}</td>
@@ -462,19 +460,34 @@ export default function Medicines({ isAdmin }) {
                       <td>{m.supplier}</td>
                       <td>{m.storageCondition}</td>
                       <td>
-                        <span className="date-badge">
-                          {m.createdAt
-                            ? new Date(m.createdAt).toLocaleString("en-US", {
-                                hour: "numeric",
-                                minute: "numeric",
-                                second: "numeric",
-                                hour12: true,
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric",
-                              })
-                            : "N/A"}
-                        </span>
+                        <div className="date-cell">
+                          {m.createdAt ? (
+                            <>
+                              <div className="date-main">
+                                {new Date(m.createdAt).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                  }
+                                )}
+                              </div>
+                              <div className="date-time">
+                                {new Date(m.createdAt).toLocaleTimeString(
+                                  "en-US",
+                                  {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    hour12: true,
+                                  }
+                                )}
+                              </div>
+                            </>
+                          ) : (
+                            "N/A"
+                          )}
+                        </div>
                       </td>
                       <td className="action-btns">
                         {isAdmin && (
