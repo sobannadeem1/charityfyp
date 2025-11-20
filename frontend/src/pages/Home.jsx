@@ -388,10 +388,6 @@ export default function Home() {
           <div className="charts-grid">
             <div className="chart-container">
               <Bar data={barChartData} options={barChartOptions} />
-              <p className="chart-note">
-                * Showing top {topMedicinesByUnits.length} active medicines by
-                unit count
-              </p>
             </div>
           </div>
         )}
