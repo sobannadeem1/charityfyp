@@ -4,6 +4,7 @@ import {
   addMedicine,
   updateMedicine,
   sellMedicine,
+  deleteMedicine,
 } from "../api/medicineapi";
 import "../styles/medicine.css";
 import { toast } from "sonner";
@@ -22,10 +23,11 @@ export default function Medicines({ isAdmin }) {
   const [quantityType, setQuantityType] = useState("packages"); // "packages" or "units"
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const itemsPerPage = 10;
   const popupRef = useRef(null);
-
+  const sellPopupRef = useRef(null);
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -40,6 +42,41 @@ export default function Medicines({ isAdmin }) {
     supplier: "",
     storageCondition: "Room Temperature",
   });
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (e.target.classList.contains("popup-overlay") && !isSubmitting) {
+        setShowAddPopup(false);
+        setShowEditPopup(false);
+        setShowSellPopup(false);
+        setSellQuantity("");
+        setQuantityType("packages");
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showAddPopup, showEditPopup, showSellPopup, isSubmitting]);
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        popupRef.current &&
+        !popupRef.current.contains(e.target) &&
+        (showAddPopup || showEditPopup || showSellPopup)
+      ) {
+        // Only close if not submitting
+        if (!isSubmitting) {
+          setShowAddPopup(false);
+          setShowEditPopup(false);
+          setShowSellPopup(false);
+          setSellQuantity("");
+          setQuantityType("packages");
+        }
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showAddPopup, showEditPopup, showSellPopup, isSubmitting]);
   //fetvh medicines
   const fetchMedicines = async () => {
     try {
@@ -64,7 +101,122 @@ export default function Medicines({ isAdmin }) {
   useEffect(() => {
     fetchMedicines();
   }, []);
+  // Add this function in your component
+  const showConfirmation = (title, message, confirmCallback) => {
+    const toastId = toast.custom(
+      (t) => (
+        <div
+          style={{
+            background: "white",
+            padding: "16px",
+            borderRadius: "8px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            border: "2px solid #e2e8f0",
+            minWidth: "300px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              marginBottom: "12px",
+            }}
+          >
+            <span style={{ fontSize: "20px", marginRight: "8px" }}>🗑️</span>
+            <h3
+              style={{
+                margin: 0,
+                color: "#1f2937",
+                fontSize: "16px",
+                fontWeight: "600",
+              }}
+            >
+              {title}
+            </h3>
+          </div>
+          <p
+            style={{
+              margin: "0 0 16px 0",
+              color: "#4b5563",
+              fontSize: "14px",
+              lineHeight: "1.4",
+            }}
+          >
+            {message}
+          </p>
+          <div
+            style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}
+          >
+            <button
+              onClick={() => {
+                toast.dismiss(t);
+              }}
+              style={{
+                padding: "8px 16px",
+                border: "1px solid #d1d5db",
+                borderRadius: "6px",
+                background: "white",
+                color: "#374151",
+                cursor: "pointer",
+                fontSize: "14px",
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                confirmCallback();
+                toast.dismiss(t);
+              }}
+              style={{
+                padding: "8px 16px",
+                border: "none",
+                borderRadius: "6px",
+                background: "#ef4444",
+                color: "white",
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: "500",
+              }}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      ),
+      { duration: Infinity }
+    );
+  };
 
+  // Updated handleDelete function
+  const handleDelete = async (medicine) => {
+    if (!medicine?._id) return;
+
+    if (isSubmitting) {
+      toast.info("Please wait, another operation in progress...");
+      return;
+    }
+
+    showConfirmation(
+      "Delete Medicine",
+      `Are you sure you want to delete "${medicine.name}"? This action cannot be undone.`,
+      async () => {
+        try {
+          setIsSubmitting(true);
+          await deleteMedicine(medicine._id);
+          toast.success("Medicine deleted successfully 🗑️");
+          fetchMedicines();
+        } catch (error) {
+          console.error("Error deleting medicine:", error);
+          toast.error(
+            error.response?.data?.message || "Error deleting medicine"
+          );
+        } finally {
+          setIsSubmitting(false);
+        }
+      }
+    );
+  };
   const handleChange = (e) => {
     const { name, value, type } = e.target;
     setFormData((prev) => ({
@@ -127,7 +279,16 @@ export default function Medicines({ isAdmin }) {
   // Add medicine
   const handleAddMedicine = async (e) => {
     e.preventDefault();
+
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      toast.info("Please wait, submission in progress...");
+      return;
+    }
+
     try {
+      setIsSubmitting(true); // Disable form
+
       const required = [
         "name",
         "category",
@@ -136,6 +297,7 @@ export default function Medicines({ isAdmin }) {
         "purchasePrice",
         "salePrice",
       ];
+
       for (let field of required) {
         if (!formData[field])
           return toast.error(`Please fill the ${field} field`);
@@ -167,6 +329,8 @@ export default function Medicines({ isAdmin }) {
     } catch (error) {
       console.error("Error adding medicine:", error);
       toast.error("Error adding medicine");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -196,10 +360,18 @@ export default function Medicines({ isAdmin }) {
 
   const handleUpdateMedicine = async (e) => {
     e.preventDefault();
+
+    if (isSubmitting) {
+      toast.info("Please wait, another operation in progress...");
+      return;
+    }
+
     if (!selectedMedicine?._id)
       return toast.error("No medicine selected for update");
 
     try {
+      setIsSubmitting(true);
+
       const payload = {};
       const allowedFields = [
         "name",
@@ -229,7 +401,6 @@ export default function Medicines({ isAdmin }) {
         prev.map((m) => (m._id === updated._id ? updated : m))
       );
 
-      setSelectedMedicine(updated);
       toast.success("Medicine updated successfully ✅");
       setShowEditPopup(false);
     } catch (error) {
@@ -237,6 +408,8 @@ export default function Medicines({ isAdmin }) {
       toast.error(
         error.response?.data?.message || error.message || "Update failed"
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -252,7 +425,15 @@ export default function Medicines({ isAdmin }) {
     const quantity = parseInt(sellQuantity, 10);
     if (!quantity || quantity <= 0) return toast.error("Invalid quantity!");
 
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      toast.info("Please wait, another operation in progress...");
+      return;
+    }
+
     try {
+      setIsSubmitting(true);
+
       const unitsPerPackage = getUnitsPerPackage(currentMedicine);
 
       console.log("🔍 STOCK DEBUG - BEFORE SELL:", {
@@ -272,11 +453,12 @@ export default function Medicines({ isAdmin }) {
 
       if (quantityType === "packages") {
         if (quantity > currentMedicine.quantity) {
-          return toast.error(
+          toast.error(
             `Not enough packages! Only ${Math.floor(
               currentMedicine.quantity
             )} available.`
           );
+          return;
         }
         await sellMedicine(currentMedicine._id, quantity, "packages");
         toast.success(`Sold ${quantity} packages successfully 💸`);
@@ -284,9 +466,10 @@ export default function Medicines({ isAdmin }) {
         const totalUnitsAvailable =
           Math.floor(currentMedicine.quantity) * unitsPerPackage;
         if (quantity > totalUnitsAvailable) {
-          return toast.error(
+          toast.error(
             `Not enough units! Only ${totalUnitsAvailable} available.`
           );
+          return;
         }
         await sellMedicine(currentMedicine._id, quantity, "units");
         toast.success(`Sold ${quantity} units successfully 💊`);
@@ -299,6 +482,8 @@ export default function Medicines({ isAdmin }) {
     } catch (error) {
       console.error("🔴 SELL ERROR:", error);
       toast.error(error.response?.data?.message || "Error selling medicine");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -388,7 +573,10 @@ export default function Medicines({ isAdmin }) {
       </div>
 
       {loading ? (
-        <p className="loading">Loading...</p>
+        <div className="loader-container">
+          <div className="spinner"></div>
+          <p>Loading medicines...</p>
+        </div>
       ) : (
         <div className="table-wrapper">
           <table className="medicine-table">
@@ -495,14 +683,26 @@ export default function Medicines({ isAdmin }) {
                             <button
                               className="edit-btn"
                               onClick={() => handleEdit(m)}
+                              disabled={isSubmitting}
+                              title="Edit medicine"
                             >
-                              ✏️ Edit
+                              {isSubmitting ? "⏳ Processing..." : "✏️ Edit"}
                             </button>
                             <button
                               className="sell-btn"
                               onClick={() => handleSell(m)}
+                              disabled={isSubmitting}
+                              title="Sell medicine"
                             >
-                              💰 Sell
+                              {isSubmitting ? "⏳ Processing..." : "💰 Sell"}
+                            </button>
+                            <button
+                              className="delete-btn"
+                              onClick={() => handleDelete(m)}
+                              disabled={isSubmitting}
+                              title="Delete medicine"
+                            >
+                              {isSubmitting ? "⏳ Processing..." : "🗑️ Delete"}
                             </button>
                           </>
                         )}
@@ -711,8 +911,16 @@ export default function Medicines({ isAdmin }) {
                   </small>
 
                   <div className="popup-buttons">
-                    <button type="submit" className="save-btn">
-                      {showEditPopup ? "💾 Update Medicine" : "➕ Add Medicine"}
+                    <button
+                      type="submit"
+                      className="save-btn"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting
+                        ? "⏳ Processing..."
+                        : showEditPopup
+                        ? "💾 Update Medicine"
+                        : "➕ Add Medicine"}
                     </button>
                     <button
                       type="button"
@@ -721,6 +929,7 @@ export default function Medicines({ isAdmin }) {
                         setShowAddPopup(false);
                         setShowEditPopup(false);
                       }}
+                      disabled={isSubmitting}
                     >
                       ❌ Cancel
                     </button>
@@ -921,7 +1130,7 @@ export default function Medicines({ isAdmin }) {
 
       {showSellPopup && (
         <div className="popup-overlay">
-          <div className="popup">
+          <div className="popup" ref={sellPopupRef}>
             <h2>💰 Sell {currentMedicine?.name}</h2>
 
             {/* Enhanced Package Information with Stock Change Awareness */}
@@ -1075,13 +1284,16 @@ export default function Medicines({ isAdmin }) {
               </div>
             )}
 
+            {/* For the sell popup */}
             <div className="popup-buttons">
               <button
                 className="save-btn"
                 onClick={confirmSell}
-                disabled={!sellQuantity || parseInt(sellQuantity) <= 0}
+                disabled={
+                  !sellQuantity || parseInt(sellQuantity) <= 0 || isSubmitting
+                }
               >
-                ✅ Confirm Sell
+                {isSubmitting ? "⏳ Processing..." : "✅ Confirm Sell"}
               </button>
               <button
                 className="cancel-btn"
@@ -1090,6 +1302,7 @@ export default function Medicines({ isAdmin }) {
                   setSellQuantity("");
                   setQuantityType("packages");
                 }}
+                disabled={isSubmitting}
               >
                 ❌ Cancel
               </button>
