@@ -395,22 +395,6 @@ export default function Home() {
             </div>
           </div>
         )}
-
-        {activeMedicines.length === 0 && medicines.length > 0 && (
-          <div className="no-data-message">
-            <h3>📭 No Active Medicines</h3>
-            <p>
-              All {medicines.length} medicines are currently out of stock. Add
-              new stock to see analytics.
-            </p>
-            <button
-              className="add-medicine-btn"
-              onClick={handleNavigateToMedicines}
-            >
-              ➕ Manage Medicines
-            </button>
-          </div>
-        )}
       </div>
     </main>
   );

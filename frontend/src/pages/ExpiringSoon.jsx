@@ -35,21 +35,28 @@ export default function ExpiringSoon() {
       const data = Array.isArray(res) ? res : res.data || [];
 
       const today = new Date();
+
+      // ✅ FIX: Filter only medicines with POSITIVE stock
       const filtered = data.filter((m) => {
         if (!m.expiry) return false;
+
+        // Check if medicine has ACTUAL stock (not sold out)
+        const hasStock = Number(m.quantity) > 0;
+
         const expiry = new Date(m.expiry);
         const diffDays = (expiry - today) / (1000 * 60 * 60 * 24);
-        return diffDays <= 30 && diffDays >= 0;
+
+        return hasStock && diffDays <= 30 && diffDays >= 0;
       });
 
-      // Add unit calculations to each medicine WITH INTEGER FIX
+      // Enhanced data with unit calculations
       const enhancedData = filtered.map((medicine) => {
-        const packageQuantity = Math.floor(Number(medicine.quantity)); // Force integer
+        const packageQuantity = Math.floor(Number(medicine.quantity));
         const unitsPerPackage = getUnitsPerPackage(medicine);
 
         return {
           ...medicine,
-          quantity: packageQuantity, // Store as integer
+          quantity: packageQuantity,
           totalUnits: packageQuantity * unitsPerPackage,
           unitsPerPackage: unitsPerPackage,
         };
