@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { getAllMedicines } from "../api/medicineapi";
 import "../styles/ExpiringSoon.css";
 import { toast } from "sonner";
+import { FaExclamationTriangle, FaFire, FaInfoCircle } from "react-icons/fa";
 
 export default function ExpiringSoon() {
   const [expiring, setExpiring] = useState([]);
@@ -104,7 +105,7 @@ export default function ExpiringSoon() {
           <p>Medicines expiring within the next 30 days</p>
         </div>
         <input
-          type="text"
+          type="search"
           placeholder="🔍 Search by medicine name..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -115,7 +116,9 @@ export default function ExpiringSoon() {
       {/* Summary Cards */}
       <div className="expiring-summary">
         <div className="summary-card critical">
-          <div className="summary-icon">🔥</div>
+          <div className="summary-icon">
+            <FaFire />
+          </div>
           <div className="summary-content">
             <h3>
               Critical (
@@ -133,7 +136,9 @@ export default function ExpiringSoon() {
           </div>
         </div>
         <div className="summary-card warning">
-          <div className="summary-icon">⚠️</div>
+          <div className="summary-icon">
+            <FaExclamationTriangle />
+          </div>
           <div className="summary-content">
             <h3>
               Warning (
@@ -151,7 +156,10 @@ export default function ExpiringSoon() {
           </div>
         </div>
         <div className="summary-card info">
-          <div className="summary-icon">ℹ️</div>
+          <div className="summary-icon">
+            {" "}
+            <FaInfoCircle />
+          </div>
           <div className="summary-content">
             <h3>
               Notice (
@@ -222,9 +230,6 @@ export default function ExpiringSoon() {
                       {m.packSize ? (
                         <div className="package-info">
                           <div className="pack-size">{m.packSize}</div>
-                          <div className="unit-info">
-                            {m.unitsPerPackage} units/pkg
-                          </div>
                         </div>
                       ) : (
                         <span className="no-pack-size">—</span>

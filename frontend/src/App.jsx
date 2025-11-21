@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -15,6 +15,8 @@ import { getCurrentAdmin } from "./api/medicineapi";
 
 const App = () => {
   const [isAdmin, setIsAdmin] = useState(false);
+  const SoldMedicines = lazy(() => import("./pages/SoldMedicine"));
+  const ExpiringSoon = lazy(() => import("./pages/ExpiringSoon"));
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -45,7 +47,16 @@ const App = () => {
 
             <Route path="/expiring-soon" element={<ExpiringSoon />} />
             <Route path="/reports" element={<Reports />} />
-            {isAdmin && <Route path="/sold" element={<SoldMedicines />} />}
+            {isAdmin && (
+              <Route
+                path="/sold"
+                element={
+                  <Suspense fallback={<div>Loading...</div>}>
+                    <SoldMedicines />
+                  </Suspense>
+                }
+              />
+            )}
             <Route path="/login" element={<Login setIsAdmin={setIsAdmin} />} />
           </Routes>
         </main>

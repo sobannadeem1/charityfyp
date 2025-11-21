@@ -23,11 +23,44 @@ export const addMedicine = async (data) => {
   return res.data;
 };
 
-export const getAllMedicines = async () => {
-  const res = await axios.get(BASE_MEDICINES);
-  return res.data;
-};
+export const getMedicinesWithPagination = async (
+  page = 1,
+  limit = 10,
+  search = ""
+) => {
+  try {
+    console.log(`🟢 API Call - Medicines with Pagination:`, {
+      page,
+      limit,
+      search,
+    });
 
+    const res = await axios.get(`${BASE_MEDICINES}/`, {
+      params: { page, limit, search },
+    });
+
+    console.log("🟢 Medicines data fetched successfully");
+    return res.data; // This now includes data + pagination info
+  } catch (error) {
+    console.error("🔴 Error fetching medicines:", error);
+    throw error;
+  }
+};
+// ✅ Keep this for backward compatibility - used by NotificationContext
+export const getAllMedicines = async () => {
+  try {
+    console.log("🟢 API Call - Getting ALL medicines for expiry check");
+
+    // Use a large limit to get all medicines for expiry checking
+    const res = await getMedicinesWithPagination(1, 10000, "");
+
+    console.log("🟢 All medicines fetched for expiry check");
+    return res.data || [];
+  } catch (error) {
+    console.error("🔴 Error fetching all medicines:", error);
+    throw error;
+  }
+};
 export const getMedicineById = async (id) => {
   const res = await axios.get(`${BASE_MEDICINES}/${id}`);
   return res.data;
@@ -79,6 +112,30 @@ export const getSoldMedicines = async () => {
 export const getSalesByMedicine = async (id) => {
   const res = await axios.get(`${BASE_MEDICINES}/sales/${id}`);
   return res.data;
+};
+
+export const getSalesWithPagination = async (
+  page = 1,
+  limit = 10,
+  searchTerm = ""
+) => {
+  try {
+    console.log(`🟢 API Call - Sales with Pagination:`, {
+      page,
+      limit,
+      searchTerm,
+    });
+
+    const res = await axios.get(`${BASE_MEDICINES}/sold/records`, {
+      params: { page, limit, q: searchTerm },
+    });
+
+    console.log("🟢 Sales data fetched successfully");
+    return res.data;
+  } catch (error) {
+    console.error("🔴 Error fetching sales:", error);
+    throw error;
+  }
 };
 
 /* ==============================

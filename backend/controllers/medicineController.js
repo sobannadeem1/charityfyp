@@ -233,32 +233,72 @@ export const sellMedicine = async (req, res) => {
   }
 };
 
+// ✅ Unified sales controller that handles both normal and search
 export const getAllSales = async (req, res) => {
   try {
-    const sales = await Sale.find()
-      .sort({ soldAt: -1 })
-      .populate("medicine", "name category manufacturer salePrice");
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const searchTerm = req.query.q || req.query.search || ""; // Support both parameter names
+    const skip = (page - 1) * limit;
 
-    // 🔧 Enhanced data normalization with fallbacks
+    console.log(
+      `📊 Fetching sales - Page: ${page}, Limit: ${limit}, Search: "${searchTerm}"`
+    );
+
+    // Build search query - empty if no search term
+    let searchQuery = {};
+    if (searchTerm && searchTerm.trim() !== "") {
+      searchQuery = {
+        $or: [
+          { medicineName: { $regex: searchTerm, $options: "i" } },
+          { "medicine.name": { $regex: searchTerm, $options: "i" } },
+          { "medicine.category": { $regex: searchTerm, $options: "i" } },
+          { "medicine.manufacturer": { $regex: searchTerm, $options: "i" } },
+        ],
+      };
+    }
+
+    // Get total count for pagination info
+    const totalSales = await Sale.countDocuments(searchQuery);
+
+    const sales = await Sale.find(searchQuery)
+      .sort({ soldAt: -1 })
+      .populate("medicine", "name category manufacturer salePrice packSize")
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    // Format sales data
     const formattedSales = sales.map((s) => ({
       _id: s._id,
       name: s.medicineName || s.medicine?.name || "Unknown",
       category: s.medicine?.category || "-",
       manufacturer: s.medicine?.manufacturer || "-",
       quantitySold: s.quantitySold,
-      salePrice: s.unitPrice || s.medicine?.salePrice || 0,
-      total: s.totalAmount || s.quantitySold * (s.unitPrice || 0),
+      salePrice: s.medicine?.salePrice || 0,
+      unitPrice: s.unitPrice || 0,
+      total: s.totalAmount || 0,
       soldAt: s.soldAt,
       soldBy: s.soldBy,
       note: s.note,
-      packSize: s.packSize,
-      sellType: s.sellType || s.originalSellType || "packages", // Fallback
-      originalQuantity: s.originalQuantity || s.quantitySold, // Fallback
-      unitsPerPackage: s.unitsPerPackage || 1, // Fallback
-      originalSellType: s.originalSellType || s.sellType || "packages", // Fallback
+      packSize: s.packSize || s.medicine?.packSize || "-",
+      sellType: s.sellType || s.originalSellType || "packages",
+      originalQuantity: s.originalQuantity || s.quantitySold,
+      unitsPerPackage: s.unitsPerPackage || 1,
+      originalSellType: s.originalSellType || s.sellType || "packages",
     }));
 
-    res.status(200).json({ success: true, data: formattedSales });
+    res.status(200).json({
+      success: true,
+      data: formattedSales,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalSales / limit),
+        totalSales,
+        hasNextPage: page < Math.ceil(totalSales / limit),
+        hasPrevPage: page > 1,
+      },
+    });
   } catch (error) {
     console.error("Error fetching sales:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -278,16 +318,61 @@ export const getSalesByMedicine = async (req, res) => {
   }
 };
 
-// ✅ Get all medicines
+// ✅ Update getAllMedicines to support pagination and search
 export const getAllMedicines = async (req, res) => {
   try {
-    const medicines = await Medicine.find().sort({ createdAt: -1 });
-    res.status(200).json({ success: true, data: medicines });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || "";
+    const skip = (page - 1) * limit;
+
+    console.log(
+      `📦 Fetching medicines - Page: ${page}, Limit: ${limit}, Search: "${search}"`
+    );
+
+    // Build search query
+    let query = {};
+    if (search && search.trim() !== "") {
+      query = {
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { category: { $regex: search, $options: "i" } },
+          { manufacturer: { $regex: search, $options: "i" } },
+          { dosageForm: { $regex: search, $options: "i" } },
+        ],
+      };
+    }
+
+    // Get total count for pagination info
+    const totalMedicines = await Medicine.countDocuments(query);
+
+    // Get paginated results
+    const medicines = await Medicine.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    console.log(
+      `✅ Medicines fetched - Found: ${totalMedicines} total, Returning: ${medicines.length} records`
+    );
+
+    res.status(200).json({
+      success: true,
+      data: medicines,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalMedicines / limit),
+        totalMedicines,
+        hasNextPage: page < Math.ceil(totalMedicines / limit),
+        hasPrevPage: page > 1,
+      },
+    });
   } catch (error) {
     console.error("Error fetching medicines:", error);
     res.status(500).json({
       success: false,
       message: "Server error while fetching medicines",
+      error: error.message,
     });
   }
 };

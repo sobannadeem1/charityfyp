@@ -231,7 +231,242 @@
   font-size: clamp(0.8rem, 1.5vw, 0.9rem); /* Responsive: 12.8px - 14.4px */
   white-space: nowrap;
 }
+/* spinner loader */
 
+/* loader css */
+/* Loader Styles */
+.loader-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+}
+/* IMPROVED PAGINATION STYLES */
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin: 30px 0;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+  flex-wrap: wrap;
+  position: relative;
+}
+
+.page-numbers {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  flex: 1;
+}
+
+.page-number {
+  padding: 10px 15px;
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  min-width: 44px;
+  text-align: center;
+  color: #555;
+  position: relative;
+  overflow: hidden;
+}
+
+.page-number:hover {
+  background: #3498db;
+  color: white;
+  border-color: #3498db;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+}
+
+.page-number.active {
+  background: #3498db;
+  color: white;
+  border-color: #3498db;
+  font-weight: bold;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+}
+
+.pagination-btn {
+  padding: 10px 18px;
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #555;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #3498db;
+  color: white;
+  border-color: #3498db;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.page-ellipsis {
+  padding: 10px 5px;
+  color: #aaa;
+  font-weight: bold;
+}
+
+.page-info {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+.records-info {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+  background: #f8f9fa;
+  padding: 8px 15px;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .pagination {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .page-info {
+    margin-left: 0;
+    order: -1;
+  }
+
+  .page-numbers {
+    order: 1;
+  }
+
+  .pagination-btn.prev-next {
+    order: 2;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-number {
+    padding: 6px 10px;
+    min-width: 35px;
+    font-size: 14px;
+  }
+
+  .records-info {
+    font-size: 12px;
+  }
+}
+/* Add these to your existing SoldMedicine.css */
+.load-more-container {
+  text-align: center;
+  margin: 20px 0;
+  padding: 20px;
+}
+
+.load-more-btn {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: background 0.3s;
+}
+
+.load-more-btn:hover:not(:disabled) {
+  background: #2980b9;
+}
+
+.load-more-btn:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+}
+
+.loading-more {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.small-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.price-label,
+.calculation-label {
+  display: block;
+  font-size: 0.7rem;
+  color: #666;
+  margin-top: 2px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #e2e8f0;
+  border-left: 4px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.loader-container p {
+  color: #6b7280;
+  font-size: 1.1rem;
+  margin: 0;
+}
 /* Invoice Button */
 .invoice-action {
   text-align: center;

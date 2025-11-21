@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
-  getAllMedicines,
+  getMedicinesWithPagination,
   addMedicine,
   updateMedicine,
   sellMedicine,
@@ -20,10 +20,13 @@ export default function Medicines({ isAdmin }) {
   const [showSellPopup, setShowSellPopup] = useState(false);
   const [currentMedicine, setCurrentMedicine] = useState(null);
   const [sellQuantity, setSellQuantity] = useState("");
-  const [quantityType, setQuantityType] = useState("packages"); // "packages" or "units"
+  const [quantityType, setQuantityType] = useState("packages");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const navigate = useNavigate();
   const itemsPerPage = 10;
   const popupRef = useRef(null);
@@ -42,6 +45,8 @@ export default function Medicines({ isAdmin }) {
     supplier: "",
     storageCondition: "Room Temperature",
   });
+
+  // Click outside handlers (keep as is)
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (e.target.classList.contains("popup-overlay") && !isSubmitting) {
@@ -56,6 +61,7 @@ export default function Medicines({ isAdmin }) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showAddPopup, showEditPopup, showSellPopup, isSubmitting]);
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (
@@ -63,7 +69,6 @@ export default function Medicines({ isAdmin }) {
         !popupRef.current.contains(e.target) &&
         (showAddPopup || showEditPopup || showSellPopup)
       ) {
-        // Only close if not submitting
         if (!isSubmitting) {
           setShowAddPopup(false);
           setShowEditPopup(false);
@@ -77,32 +82,82 @@ export default function Medicines({ isAdmin }) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showAddPopup, showEditPopup, showSellPopup, isSubmitting]);
-  //fetvh medicines
-  const fetchMedicines = async () => {
+
+  // ✅ UPDATED: Fetch medicines with pagination and search
+  const fetchMedicines = async (page = 1, search = "") => {
     try {
       setLoading(true);
-      const res = await getAllMedicines();
-      const data = Array.isArray(res) ? res : res.data || [];
+      const res = await getMedicinesWithPagination(page, itemsPerPage, search);
+      const data = Array.isArray(res.data) ? res.data : res.data || [];
 
-      // ⚠️ FRONTEND FIX: Convert all quantities to integers
+      console.log("📦 LOADED MEDICINES:", {
+        page: page,
+        records: data.length,
+        pagination: res.pagination,
+        isSearching: !!search.trim(),
+      });
+
+      // Fix quantities to integers
       const fixedData = data.map((m) => ({
         ...m,
-        quantity: Math.floor(Number(m.quantity)), // Force integer
+        quantity: Math.floor(Number(m.quantity)),
       }));
 
       setMedicines(fixedData.filter((m) => Number(m.quantity) > 0));
+      setIsSearching(!!search.trim());
+
+      // Set pagination info from backend
+      if (res.pagination) {
+        setTotalPages(res.pagination.totalPages || 1);
+        setTotalRecords(res.pagination.totalMedicines || 0);
+        setCurrentPage(res.pagination.currentPage || page);
+      }
     } catch (error) {
+      console.error("Error fetching medicines:", error);
       toast.error("Failed to load medicines");
     } finally {
       setLoading(false);
     }
   };
 
+  // ✅ UPDATED: Load data when component mounts or page changes
   useEffect(() => {
-    fetchMedicines();
-  }, []);
-  // Add this function in your component
+    fetchMedicines(currentPage, searchTerm);
+  }, [currentPage]);
+
+  // ✅ UPDATED: Search functionality with server-side search
+  const handleSearch = (e) => {
+    const val = e.target.value;
+    setSearchTerm(val);
+
+    // Reset to page 1 when search changes
+    setCurrentPage(1);
+
+    // Use debounce to avoid too many API calls
+    const timeoutId = setTimeout(() => {
+      fetchMedicines(1, val);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  };
+
+  // ✅ Clear search and return to normal pagination
+  const clearSearch = () => {
+    setSearchTerm("");
+    setCurrentPage(1);
+    fetchMedicines(1, "");
+  };
+
+  // ✅ Pagination controls
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  // Keep all your existing helper functions (unchanged)
   const showConfirmation = (title, message, confirmCallback) => {
+    // ... keep existing implementation
     const toastId = toast.custom(
       (t) => (
         <div
@@ -188,7 +243,6 @@ export default function Medicines({ isAdmin }) {
     );
   };
 
-  // Updated handleDelete function
   const handleDelete = async (medicine) => {
     if (!medicine?._id) return;
 
@@ -205,7 +259,7 @@ export default function Medicines({ isAdmin }) {
           setIsSubmitting(true);
           await deleteMedicine(medicine._id);
           toast.success("Medicine deleted successfully 🗑️");
-          fetchMedicines();
+          fetchMedicines(currentPage, searchTerm); // ✅ UPDATED: Refresh current page
         } catch (error) {
           console.error("Error deleting medicine:", error);
           toast.error(
@@ -217,6 +271,7 @@ export default function Medicines({ isAdmin }) {
       }
     );
   };
+
   const handleChange = (e) => {
     const { name, value, type } = e.target;
     setFormData((prev) => ({
@@ -227,42 +282,24 @@ export default function Medicines({ isAdmin }) {
 
   const getUnitsPerPackage = (medicine) => {
     if (!medicine?.packSize) return 1;
-
-    console.log("PackSize:", medicine.packSize); // Debug log
-
-    // Extract number from packSize (e.g., "10 tablets" → 10)
     const packSize = medicine.packSize.toString().toLowerCase();
-
-    // Better regex to extract numbers
     const match = packSize.match(/\b(\d+)\b/);
-
-    if (match && match[1]) {
-      const units = parseInt(match[1]);
-      console.log("Extracted units:", units); // Debug log
-      return units;
-    }
-
-    console.log("No match found, returning 1"); // Debug log
-    return 1;
+    return match ? parseInt(match[1]) : 1;
   };
 
   const getPricePerUnit = (medicine) => {
     if (!medicine?.salePrice) return 0;
     const unitsPerPackage = getUnitsPerPackage(medicine);
-
-    if (unitsPerPackage <= 0) return medicine.salePrice;
-
-    // Calculate exact unit price: package price ÷ units per package
-    return medicine.salePrice / unitsPerPackage;
+    return unitsPerPackage <= 0
+      ? medicine.salePrice
+      : medicine.salePrice / unitsPerPackage;
   };
+
   const calculateTotal = (medicine, quantity, type) => {
     if (!medicine) return 0;
-
     if (type === "packages") {
-      // Selling complete packages: package price × number of packages
       return medicine.salePrice * quantity;
     } else {
-      // Selling individual units: (package price ÷ units per package) × number of units
       const pricePerUnit = getPricePerUnit(medicine);
       return pricePerUnit * quantity;
     }
@@ -276,18 +313,18 @@ export default function Medicines({ isAdmin }) {
       return `${quantity} units × PKR ${pricePerUnit.toFixed(2)}`;
     }
   };
+
   // Add medicine
   const handleAddMedicine = async (e) => {
     e.preventDefault();
 
-    // Prevent multiple submissions
     if (isSubmitting) {
       toast.info("Please wait, submission in progress...");
       return;
     }
 
     try {
-      setIsSubmitting(true); // Disable form
+      setIsSubmitting(true);
 
       const required = [
         "name",
@@ -303,6 +340,7 @@ export default function Medicines({ isAdmin }) {
           return toast.error(`Please fill the ${field} field`);
       }
 
+      // Check if medicine exists (you might want to keep this client-side check)
       const exists = medicines.find(
         (m) => m.name.toLowerCase() === formData.name.toLowerCase()
       );
@@ -324,7 +362,7 @@ export default function Medicines({ isAdmin }) {
         supplier: "",
         storageCondition: "Room Temperature",
       });
-      fetchMedicines();
+      fetchMedicines(currentPage, searchTerm); // ✅ UPDATED: Refresh current view
       toast.success("Medicine added successfully ✅");
     } catch (error) {
       console.error("Error adding medicine:", error);
@@ -397,9 +435,9 @@ export default function Medicines({ isAdmin }) {
 
       const updated = await updateMedicine(selectedMedicine._id, payload);
       setSelectedMedicine(updated);
-      setMedicines((prev) =>
-        prev.map((m) => (m._id === updated._id ? updated : m))
-      );
+
+      // ✅ UPDATED: Refresh the current view instead of local state update
+      fetchMedicines(currentPage, searchTerm);
 
       toast.success("Medicine updated successfully ✅");
       setShowEditPopup(false);
@@ -425,7 +463,6 @@ export default function Medicines({ isAdmin }) {
     const quantity = parseInt(sellQuantity, 10);
     if (!quantity || quantity <= 0) return toast.error("Invalid quantity!");
 
-    // Prevent multiple submissions
     if (isSubmitting) {
       toast.info("Please wait, another operation in progress...");
       return;
@@ -435,21 +472,6 @@ export default function Medicines({ isAdmin }) {
       setIsSubmitting(true);
 
       const unitsPerPackage = getUnitsPerPackage(currentMedicine);
-
-      console.log("🔍 STOCK DEBUG - BEFORE SELL:", {
-        medicine: currentMedicine.name,
-        currentStock: currentMedicine.quantity,
-        unitsPerPackage: unitsPerPackage,
-        totalUnits: currentMedicine.quantity * unitsPerPackage,
-        selling: quantity,
-        type: quantityType,
-        expectedPackagesToDeduct:
-          quantityType === "units" ? quantity / unitsPerPackage : quantity,
-        expectedRemaining:
-          quantityType === "units"
-            ? currentMedicine.quantity - quantity / unitsPerPackage
-            : currentMedicine.quantity - quantity,
-      });
 
       if (quantityType === "packages") {
         if (quantity > currentMedicine.quantity) {
@@ -478,7 +500,7 @@ export default function Medicines({ isAdmin }) {
       setSellQuantity("");
       setQuantityType("packages");
       setShowSellPopup(false);
-      fetchMedicines();
+      fetchMedicines(currentPage, searchTerm); // ✅ UPDATED: Refresh current view
     } catch (error) {
       console.error("🔴 SELL ERROR:", error);
       toast.error(error.response?.data?.message || "Error selling medicine");
@@ -506,40 +528,23 @@ export default function Medicines({ isAdmin }) {
       Other: "💊",
     };
 
-    return emojiMap[category] || "💊"; // Default to pill emoji
+    return emojiMap[category] || "💊";
   };
-  // Search + Pagination
-  const filteredMedicines = useMemo(() => {
-    return medicines.filter((m) => {
-      if (!m) return false;
-      const search = searchTerm.toLowerCase();
-      return (
-        m.name?.toLowerCase().includes(search) ||
-        m.category?.toLowerCase().includes(search)
-      );
-    });
-  }, [medicines, searchTerm]);
-
-  const totalPages = Math.ceil(filteredMedicines.length / itemsPerPage);
-  const paginatedMedicines = filteredMedicines.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  useEffect(() => setCurrentPage(1), [searchTerm]);
 
   return (
     <div className="medicine-container">
       <div className="header">
         <h1>💊 Medicine Inventory</h1>
-        <div className="header-buttons">
-          <input
-            type="search"
-            className="search-box"
-            placeholder="Search by name or category..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="header-controls">
+          <div className="search-box">
+            <input
+              type="search"
+              placeholder="🔍 Search medicine..."
+              value={searchTerm}
+              onChange={handleSearch}
+            />
+          </div>
+
           {isAdmin && (
             <div className="button-group">
               <button
@@ -575,34 +580,33 @@ export default function Medicines({ isAdmin }) {
       {loading ? (
         <div className="loader-container">
           <div className="spinner"></div>
-          <p>Loading medicines...</p>
         </div>
-      ) : (
-        <div className="table-wrapper">
-          <table className="medicine-table">
-            <thead>
-              <tr>
-                <th title="Medicine brand/generic name">💊 Medicine Name</th>
-                <th title="Therapeutic category">📂 Category</th>
-                <th title="Dosage form">💊 Dosage Form</th>
-                <th title="Strength/concentration">⚡ Strength</th>
-                <th title="Package contents">📦 Pack Size</th>
-                <th title="Expiration date">📅 Expiry Date</th>
-                <th title="Available packages in stock">🔢 Stock Quantity</th>
-                {isAdmin && (
-                  <th title="Your cost per package">🛒 Purchase Price</th>
-                )}
-                <th title="Your price per package">💵 Sale Price</th>
-                <th title="Manufacturing company">🏭 Manufacturer</th>
-                <th title="Supply vendor">🚚 Supplier</th>
-                <th title="Storage requirements">🌡️ Storage Condition</th>
-                <th title="Date added">📥 Date Added</th>
-                {isAdmin && <th title="Available actions">⚡ Actions</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedMedicines.length > 0 ? (
-                paginatedMedicines.filter(Boolean).map((m) => {
+      ) : medicines.length > 0 ? (
+        <>
+          <div className="table-wrapper">
+            <table className="medicine-table">
+              <thead>
+                <tr>
+                  <th title="Medicine brand/generic name">💊 Medicine Name</th>
+                  <th title="Therapeutic category">📂 Category</th>
+                  <th title="Dosage form">💊 Dosage Form</th>
+                  <th title="Strength/concentration">⚡ Strength</th>
+                  <th title="Package contents">📦 Pack Size</th>
+                  <th title="Expiration date">📅 Expiry Date</th>
+                  <th title="Available packages in stock">🔢 Stock Quantity</th>
+                  {isAdmin && (
+                    <th title="Your cost per package">🛒 Purchase Price</th>
+                  )}
+                  <th title="Your price per package">💵 Sale Price</th>
+                  <th title="Manufacturing company">🏭 Manufacturer</th>
+                  <th title="Supply vendor">🚚 Supplier</th>
+                  <th title="Storage requirements">🌡️ Storage Condition</th>
+                  <th title="Date added">📥 Date Added</th>
+                  {isAdmin && <th title="Available actions">⚡ Actions</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {medicines.filter(Boolean).map((m) => {
                   const isExpired = m.expiry && new Date(m.expiry) < new Date();
                   return (
                     <tr
@@ -635,7 +639,6 @@ export default function Medicines({ isAdmin }) {
                           title="Your purchase cost"
                           style={{
                             textAlign: "center",
-
                             padding: "0.5rem",
                             borderRadius: "6px",
                           }}
@@ -709,42 +712,94 @@ export default function Medicines({ isAdmin }) {
                       </td>
                     </tr>
                   );
-                })
-              ) : (
-                <tr>
-                  <td colSpan="14" className="no-data">
-                    No medicines found 😶
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                })}
+              </tbody>
+            </table>
+          </div>
 
+          {/* ✅ Number Pagination Controls - Same as Sold Medicines */}
           {totalPages > 1 && (
             <div className="pagination">
               <button
-                className="pagination-btn prev"
+                onClick={() => goToPage(currentPage - 1)}
                 disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => p - 1)}
+                className="pagination-btn prev-next"
               >
-                ⬅ Prev
+                ←
               </button>
-              <span className="pagination-info">
-                Page {currentPage} of {totalPages}
-              </span>
+
+              <div className="page-numbers">
+                {/* Show first page */}
+                {currentPage > 3 && (
+                  <button onClick={() => goToPage(1)} className="page-number">
+                    1
+                  </button>
+                )}
+
+                {/* Show ellipsis if needed */}
+                {currentPage > 4 && <span className="page-ellipsis">...</span>}
+
+                {/* Show pages around current page */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((page) => {
+                    return Math.abs(page - currentPage) <= 2;
+                  })
+                  .map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => goToPage(page)}
+                      className={`page-number ${
+                        page === currentPage ? "active" : ""
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+
+                {/* Show ellipsis if needed */}
+                {currentPage < totalPages - 3 && (
+                  <span className="page-ellipsis">...</span>
+                )}
+
+                {/* Show last page */}
+                {currentPage < totalPages - 2 && (
+                  <button
+                    onClick={() => goToPage(totalPages)}
+                    className="page-number"
+                  >
+                    {totalPages}
+                  </button>
+                )}
+              </div>
+
               <button
-                className="pagination-btn next"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((p) => p + 1)}
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage >= totalPages}
+                className="pagination-btn prev-next"
               >
-                Next ➡
+                →
               </button>
             </div>
+          )}
+        </>
+      ) : (
+        <div className="no-records">
+          <div className="no-records-icon">😔</div>
+          <h3>No {isSearching ? "matching" : "medicines"} found</h3>
+          <p>
+            {isSearching
+              ? `No results found for "${searchTerm}". Try different search terms.`
+              : "No medicines available in inventory"}
+          </p>
+          {isSearching && (
+            <button className="clear-search-btn" onClick={clearSearch}>
+              Clear Search
+            </button>
           )}
         </div>
       )}
 
-      {/* Add/Edit Popup */}
+      {/* Keep all your existing popup code exactly as is */}
       {(showAddPopup || showEditPopup) && (
         <div className="popup-overlay">
           <Draggable handle=".popup-header" nodeRef={popupRef}>
