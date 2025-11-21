@@ -3,6 +3,7 @@ import "../styles/headerfooter.css";
 import { NavLink, useNavigate } from "react-router-dom";
 import NotificationBell from "./NotificationBell"; // Import the bell component
 import { logoutAdmin } from "../api/medicineapi";
+import logo from "../assets/logo.png";
 
 export default function Header({ isAdmin, setIsAdmin }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -26,7 +27,7 @@ export default function Header({ isAdmin, setIsAdmin }) {
         {/* 🔹 Brand Logo */}
         <div className="brand">
           <div className="logo" aria-hidden>
-            <img src="/logo.png" alt="Charity Medical Logo" />
+            <img src={logo} alt="Charity Medical Logo" />
           </div>
           <div className="brand-text">
             <span className="org-name">Noor Sardar</span>
@@ -68,7 +69,7 @@ export default function Header({ isAdmin, setIsAdmin }) {
           {isAdmin && (
             <div className="user-section">
               <button className="avatar" title="Noor Sardar Admin">
-                <img src="./logo.png" alt="Admin avatar" />
+                <img src={logo} alt="Admin avatar" />
               </button>
             </div>
           )}
