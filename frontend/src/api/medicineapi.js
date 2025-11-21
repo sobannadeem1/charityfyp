@@ -46,19 +46,40 @@ export const getMedicinesWithPagination = async (
     throw error;
   }
 };
-// ✅ Keep this for backward compatibility - used by NotificationContext
+// In medicineapi.js
 export const getAllMedicines = async () => {
   try {
-    console.log("🟢 API Call - Getting ALL medicines for expiry check");
+    console.log("Fetching ALL medicines for dashboard & notifications");
 
-    // Use a large limit to get all medicines for expiry checking
-    const res = await getMedicinesWithPagination(1, 10000, "");
+    const response = await getMedicinesWithPagination(1, 10000, "");
 
-    console.log("🟢 All medicines fetched for expiry check");
-    return res.data || [];
+    // THIS IS THE REAL FIX — EXTRACT THE ARRAY!
+    let medicines = [];
+
+    if (response && response.data && Array.isArray(response.data)) {
+      medicines = response.data;
+    } else if (Array.isArray(response)) {
+      medicines = response;
+    } else if (response && Array.isArray(response.medicines)) {
+      medicines = response.medicines;
+    }
+
+    // FINAL CLEANUP: Force all numeric fields to be safe numbers
+    const cleaned = medicines.map((med) => ({
+      ...med,
+      name: String(med.name || "Unknown Medicine").trim() || "Unknown",
+      unitsAvailable: Number(med.unitsAvailable ?? med.quantity ?? 0) || 0,
+      unitsPerPackage: Number(med.unitsPerPackage ?? 0) || 1,
+      quantity: Number(med.quantity ?? 0) || 0,
+      expiry: med.expiry || null,
+      category: String(med.category || "General"),
+    }));
+
+    console.log(`Cleaned & safe: ${cleaned.length} medicines`);
+    return cleaned;
   } catch (error) {
-    console.error("🔴 Error fetching all medicines:", error);
-    throw error;
+    console.error("getAllMedicines failed:", error);
+    return [];
   }
 };
 export const getMedicineById = async (id) => {
