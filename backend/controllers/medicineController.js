@@ -202,11 +202,10 @@ export const sellMedicine = async (req, res) => {
     // Save updated medicine
     await medicine.save();
 
-    // Create sale record
     const sale = await Sale.create({
       medicine: medicine._id,
       medicineName: medicine.name,
-      quantitySold: unitsSold,
+      quantitySold: quantitySold, // ← FIXED: use original input
       packagesSold: packagesUsed,
       sellType: sellType,
       unitPrice: unitPrice,
@@ -214,8 +213,8 @@ export const sellMedicine = async (req, res) => {
       soldBy: "operator",
       packSize: medicine.packSize,
       soldAt: new Date(),
-      originalQuantity: quantitySold, // Original quantity entered by user
-      originalSellType: sellType, // Original sell type
+      originalQuantity: quantitySold,
+      originalSellType: sellType,
       unitsPerPackage: medicine.unitsPerPackage,
     });
 
