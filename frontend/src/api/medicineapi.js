@@ -4,13 +4,14 @@ import axios from "axios";
 const isLocal = window.location.hostname === "localhost";
 
 // ✅ Base URLs for both
-const BASE_URL = isLocal
+export const BASE_URL = isLocal
   ? "http://localhost:5000/api"
   : "https://charityfyp-jm4i.vercel.app/api";
 
 const BASE_MEDICINES = `${BASE_URL}/medicines`;
 const BASE_ADMIN = `${BASE_URL}/admin`;
 const BASE_INVOICES = `${BASE_URL}/invoices`;
+const BASE_DONATIONS = `${BASE_URL}/donations`;
 
 // ✅ Always send cookies (important for authentication)
 axios.defaults.withCredentials = true;
