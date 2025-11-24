@@ -227,11 +227,27 @@
 }
 
 .date-cell {
-  color: #7f8c8d;
-  font-size: clamp(0.8rem, 1.5vw, 0.9rem); /* Responsive: 12.8px - 14.4px */
+  font-family: "Poppins", "Segoe UI", sans-serif !important;
+
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #2c3e50;
   white-space: nowrap;
+  text-align: center;
+  padding: 12px 8px !important;
+  background: linear-gradient(135deg, #f8fdff 0%, #e8f5ff 100%);
+  border-left: 4px solid #3498db;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(52, 152, 219, 0.15);
+  transition: all 0.2s ease;
 }
-/* spinner loader */
+
+/* Hover effect (optional but looks premium) */
+.date-cell:hover {
+  background: linear-gradient(135deg, #e3f2ff 0%, #d0ecff 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.25);
+}
 
 /* loader css */
 /* Loader Styles */

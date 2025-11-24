@@ -193,155 +193,289 @@ export default function SoldMedicines() {
         const invoiceWindow = window.open("", "_blank", "width=800,height=900");
 
         const invoiceContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Invoice - ${saleRecord.name}</title>
-        <style>
-          @media print {
-            .no-print { display: none !important; }
-            body { margin: 0; padding: 15px; font-size: 14px; }
-            .invoice-container { border: none; box-shadow: none; }
-          }
-          body { 
-            font-family: Arial, sans-serif; 
-            margin: 30px; 
-            color: #333;
-            max-width: 700px;
-          }
-          .invoice-container {
-            border: 2px solid #3498db;
-            border-radius: 10px;
-            padding: 25px;
-            background: white;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-          }
-          .invoice-header { 
-            text-align: center; 
-            border-bottom: 2px solid #3498db; 
-            padding-bottom: 20px; 
-            margin-bottom: 25px;
-          }
-          .invoice-table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin: 20px 0;
-            font-size: 14px;
-          }
-          .invoice-table th { 
-            background: #3498db; 
-            color: white;
-            padding: 12px;
-            text-align: left;
-            border: 1px solid #2980b9;
-          }
-          .invoice-table td { 
-            padding: 12px;
-            border: 1px solid #ddd;
-          }
-          .total-section { 
-            text-align: right; 
-            margin-top: 25px; 
-            font-size: 1.2em;
-            font-weight: bold;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border: 1px solid #ddd;
-          }
-          .print-section {
-            text-align: center;
-            margin: 30px 0;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border: 1px solid #ddd;
-          }
-          .print-btn {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            transition: background 0.3s;
-          }
-          .print-btn:hover {
-            background: #2980b9;
-          }
-          .shortcut-hint {
-            color: #666;
-            font-size: 12px;
-            margin-top: 8px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="invoice-container">
-          <div class="invoice-header">
-            <h1 style="margin: 0; color: #2c3e50;">💊 Noor Sardar HealthCare Center</h1>
-            <h2 style="margin: 10px 0; color: #3498db;">MEDICINE SALES INVOICE</h2>
-            <p style="margin: 0; color: #7f8c8d;">Invoice #INV-${
-              saleRecord._id?.slice(-8)?.toUpperCase() || "N/A"
-            }</p>
-          </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Invoice - ${saleRecord.name}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f4f7fa;
+      color: #2c3e50;
+      line-height: 1.6;
+      padding: 20px;
+    }
 
-          <div style="margin: 15px 0; padding: 15px; background: #e8f4fd; border-radius: 6px;">
-            <strong>Sale Date:</strong> ${new Date(
-              saleRecord.soldAt
-            ).toLocaleString()}<br>
-            <strong>Sold By:</strong> ${saleRecord.soldBy || "Operator"}
-          </div>
+    @media print {
+      body { background: white; padding: 10px; }
+      .no-print { display: none !important; }
+      .invoice-box { box-shadow: none; border: 2px solid #3498db; }
+    }
 
-          <table class="invoice-table">
-            <thead>
-              <tr>
-                <th>Medicine Details</th>
-                <th>Quantity</th>
-                <th>Unit Price (PKR)</th>
-                <th>Total Amount (PKR)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>
-                  <strong>${saleRecord.name}</strong><br/>
-                  <small style="color: #666;">${
-                    saleRecord.packSize || "No package info"
-                  }</small>
-                </td>
-                <td>${saleInfo.displayText}</td>
-                <td>${displayUnitPrice.toFixed(2)}</td>
-                <td><strong>${totalAmount.toFixed(2)}</strong></td>
-              </tr>
-            </tbody>
-          </table>
+    .invoice-box {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+      border: 3px solid #3498db;
+    }
 
-          <div class="total-section">
-            <div style="font-size: 1.3em; color: #27ae60;">
-              Grand Total: <strong>PKR ${totalAmount.toFixed(2)}</strong>
-            </div>
-          </div>
+    .header {
+      background: linear-gradient(135deg, #3498db, #2980b9);
+      color: white;
+      padding: 30px 25px;
+      text-align: center;
+    }
 
-          <div class="print-section no-print">
-            <button class="print-btn" onclick="window.print()">
-              🖨️ PRINT INVOICE NOW
-            </button>
-            <div class="shortcut-hint">
-              💡 Quick tip: Press <strong>Ctrl + P</strong> (Windows) or <strong>Cmd + P</strong> (Mac) to print
-            </div>
-          </div>
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
 
-          <div style="margin-top: 40px; text-align: center; color: #666; font-size: 14px; border-top: 1px solid #ddd; padding-top: 20px;">
-            <p>Thank you for your purchase! 🎉</p>
-            <p><em>This is a computer-generated invoice</em></p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
+    .header h2 {
+      font-size: 20px;
+      opacity: 0.95;
+      font-weight: 400;
+    }
+
+    .invoice-no {
+      background: rgba(255,255,255,0.2);
+      display: inline-block;
+      padding: 8px 20px;
+      border-radius: 50px;
+      font-weight: bold;
+      margin-top: 15px;
+      backdrop-filter: blur(5px);
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      padding: 25px;
+      background: #f8fdff;
+      border-bottom: 1px dashed #ddd;
+    }
+
+    .info-item {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      border-left: 4px solid #3498db;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .info-item strong {
+      color: #2c3e50;
+      display: block;
+      margin-bottom: 5px;
+      font-size: 14px;
+      opacity: 0.8;
+    }
+
+    .table-container {
+      padding: 25px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 16px;
+    }
+
+    th {
+      background: #3498db;
+      color: white;
+      padding: 15px 12px;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    td {
+      padding: 15px 12px;
+      border-bottom: 1px solid #eee;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f8f9fa;
+    }
+
+    .medicine-name {
+      font-weight: bold;
+      color: #2c3e50;
+      font-size: 17px;
+    }
+
+    .pack-info {
+      color: #7f8c8d;
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .total-section {
+      background: linear-gradient(135deg, #27ae60, #2ecc71);
+      color: white;
+      padding: 25px;
+      text-align: right;
+      font-size: 22px;
+      font-weight: bold;
+      border-radius: 0 0 12px 12px;
+    }
+
+    .total-amount {
+      font-size: 28px !important;
+      text-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+
+    .print-section {
+      text-align: center;
+      padding: 30px 25px;
+      background: #f8f9fa;
+      border-top: 1px dashed #ddd;
+    }
+
+    .print-btn {
+      background: linear-gradient(135deg, #3498db, #2980b9);
+      color: white;
+      border: none;
+      padding: 16px 40px;
+      font-size: 18px;
+      font-weight: bold;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 6px 15px rgba(52, 152, 219, 0.4);
+      transition: all 0.3s;
+    }
+
+    .print-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px rgba(52, 152, 219, 0.5);
+    }
+
+    .footer {
+      text-align: center;
+      padding: 30px 25px;
+      color: #7f8c8d;
+      font-size: 14px;
+      border-top: 1px solid #eee;
+      background: #f8f9fa;
+    }
+
+    .highlight {
+      color: #27ae60;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="invoice-box">
+    <!-- Header -->
+    <div class="header">
+      <h1>Noor Sardar HealthCare Center</h1>
+      <h2>MEDICINE SALES INVOICE</h2>
+      <div class="invoice-no">
+        Invoice #INV-${saleRecord._id?.slice(-8).toUpperCase() || "N/A"}
+      </div>
+    </div>
+
+    <!-- Info Grid -->
+    <div class="info-grid">
+      <div class="info-item">
+        <strong>Sale Date & Time</strong>
+        ${new Date(saleRecord.soldAt).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        })} at 
+        ${new Date(saleRecord.soldAt).toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        })}
+      </div>
+      <div class="info-item">
+        <strong>Served By</strong>
+        ${saleRecord.soldBy || "Pharmacy Staff"}
+      </div>
+    </div>
+
+    <!-- Medicine Table -->
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Medicine Details</th>
+            <th style="text-align: center;">Quantity</th>
+            <th style="text-align: right;">Unit Price</th>
+            <th style="text-align: right;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <div class="medicine-name">${saleRecord.name}</div>
+              <div class="pack-info">
+                ${
+                  saleRecord.packSize
+                    ? `${saleRecord.packSize}`
+                    : "Standard Pack"
+                }
+                ${saleRecord.strength ? ` • ${saleRecord.strength}` : ""}
+              </div>
+            </td>
+            <td style="text-align: center; font-weight: bold;">
+              ${saleInfo.displayText}
+            </td>
+            <td style="text-align: right;">PKR ${displayUnitPrice.toFixed(
+              2
+            )}</td>
+            <td style="text-align: right; font-weight: bold; color: #27ae60;">
+              PKR ${totalAmount.toFixed(2)}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Grand Total -->
+    <div class="total-section">
+      <div>
+        GRAND TOTAL: <span class="total-amount">PKR ${totalAmount.toFixed(
+          2
+        )}</span>
+      </div>
+    </div>
+
+    <!-- Print Button -->
+    <div class="print-section no-print">
+      <button class="print-btn" onclick="window.print()">
+        PRINT INVOICE
+      </button>
+      <p style="margin-top: 12px; color: #666;">
+        Tip: Press <strong>Ctrl + P</strong> (or <strong>Cmd + P</strong> on Mac) to print quickly
+      </p>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <p>Thank you for trusting <span class="highlight">Noor Sardar HealthCare Center</span> </p>
+      <p><em>This is a computer-generated invoice • No signature required</em></p>
+      <p style="margin-top: 15px; font-size: 12px; opacity: 0.7;">
+        For queries: Contact Pharmacy Desk • Open 24/7
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+`;
 
         invoiceWindow.document.write(invoiceContent);
         invoiceWindow.document.close();
@@ -480,11 +614,16 @@ export default function SoldMedicines() {
                         </small>
                       </td>
                       <td className="date-cell">
-                        {new Date(r.soldAt).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "2-digit",
-                          year: "numeric",
-                        })}
+                        {new Date(r.soldAt)
+                          .toLocaleString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                            hour12: true,
+                          })
+                          .replace(",", ".")}
                       </td>
                       <td className="invoice-action">
                         <button

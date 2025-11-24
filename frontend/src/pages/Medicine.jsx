@@ -1129,7 +1129,11 @@ export default function Medicines({ isAdmin }) {
                                               <div className="time">
                                                 {new Date(
                                                   historyItem.updatedAt
-                                                ).toLocaleTimeString()}
+                                                ).toLocaleTimeString("en-US", {
+                                                  hour: "2-digit",
+                                                  minute: "2-digit",
+                                                  hour12: true,
+                                                })}
                                               </div>
                                             </div>
                                           ) : (
@@ -1237,13 +1241,6 @@ export default function Medicines({ isAdmin }) {
                   </div>
                 </div>
               </div>
-
-              <p>
-                <small style={{ color: "#666", fontStyle: "italic" }}>
-                  💡 When you edit stock quantity, both packages and individual
-                  units update automatically
-                </small>
-              </p>
             </div>
 
             {/* Conditional Quantity Type Selector */}
