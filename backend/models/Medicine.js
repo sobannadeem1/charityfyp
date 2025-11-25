@@ -24,7 +24,6 @@ const medicineSchema = new mongoose.Schema(
       required: true,
     },
     packSize: { type: String, trim: true, default: "" },
-    dosageForm: { type: String, trim: true },
     strength: { type: String, trim: true },
     expiry: { type: Date, required: true },
     quantity: { type: Number, required: true, min: 0 }, // Physical packages count

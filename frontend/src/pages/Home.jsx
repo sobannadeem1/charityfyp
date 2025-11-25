@@ -74,7 +74,7 @@ export default function Home() {
   }, []);
   const fetchMedicines = async () => {
     try {
-      const data = await getAllMedicines(); // ← already cleaned in API file
+      const data = await getAllMedicines();
       setMedicines(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to load medicines:", err);
@@ -180,7 +180,7 @@ export default function Home() {
             value={expiringSoon} // ← number
             color="linear-gradient(135deg,#f59e0b,#fbbf24)"
             icon={<FaExclamationTriangle />}
-            onClick={() => navigate("/medicines")}
+            onClick={() => navigate("/expiring-soon")}
           />
 
           <HoverRollCard

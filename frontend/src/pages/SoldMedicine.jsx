@@ -7,7 +7,6 @@ import { FaChartBar, FaDollarSign } from "react-icons/fa";
 
 export default function SoldMedicines() {
   const [soldRecords, setSoldRecords] = useState([]);
-  const [filtered, setFiltered] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -15,6 +14,8 @@ export default function SoldMedicines() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
+  const [sortSalesBy, setSortSalesBy] = useState("date-newest");
+  const [filterMonth, setFilterMonth] = useState("all");
   const pageSize = 10;
 
   const navigate = useNavigate();
@@ -26,7 +27,6 @@ export default function SoldMedicines() {
     const match = packSizeStr.match(/\b(\d+)\b/);
     return match ? parseInt(match[1]) : 1;
   }, []);
-
   const getPricePerUnit = useCallback(
     (salePrice, packSize) => {
       if (!salePrice) return 0;
@@ -35,7 +35,6 @@ export default function SoldMedicines() {
     },
     [getUnitsPerPackage]
   );
-
   const calculateTotalAmount = useCallback(
     (record) => {
       if (record.total && record.total > 0) {
@@ -53,6 +52,38 @@ export default function SoldMedicines() {
     },
     [getPricePerUnit]
   );
+  const displayedSales = useMemo(() => {
+    let list = [...soldRecords];
+
+    // Month filter
+    if (filterMonth !== "all") {
+      const [year, month] = filterMonth.split("-");
+      list = list.filter((r) => {
+        const d = new Date(r.soldAt);
+        return d.getFullYear() === +year && d.getMonth() + 1 === +month;
+      });
+    }
+
+    // Sorting
+    list.sort((a, b) => {
+      switch (sortSalesBy) {
+        case "date-newest":
+          return new Date(b.soldAt) - new Date(a.soldAt);
+        case "date-oldest":
+          return new Date(a.soldAt) - new Date(b.soldAt);
+        case "revenue-high":
+          return calculateTotalAmount(b) - calculateTotalAmount(a);
+        case "revenue-low":
+          return calculateTotalAmount(a) - calculateTotalAmount(b);
+        case "quantity-high":
+          return b.quantitySold - a.quantitySold;
+        default:
+          return 0;
+      }
+    });
+
+    return list;
+  }, [soldRecords, filterMonth, sortSalesBy, calculateTotalAmount]);
 
   const getDisplayUnitPrice = useCallback(
     (record) => {
@@ -122,7 +153,6 @@ export default function SoldMedicines() {
       });
 
       setSoldRecords(data);
-      setFiltered(data);
 
       // Set pagination info from backend
       if (res.pagination) {
@@ -520,6 +550,54 @@ export default function SoldMedicines() {
               onChange={handleSearch}
             />
           </div>
+          <div className="sold-filter-bar">
+            <select
+              value={sortSalesBy}
+              onChange={(e) => setSortSalesBy(e.target.value)}
+              className="filter-select"
+            >
+              <option value="date-newest">Newest First</option>
+              <option value="date-oldest">Oldest First</option>
+              <option value="revenue-high">Highest Revenue</option>
+              <option value="revenue-low">Lowest Revenue</option>
+              <option value="quantity-high">Most Quantity</option>
+            </select>
+
+            <select
+              value={filterMonth}
+              onChange={(e) => setFilterMonth(e.target.value)}
+              className="filter-select"
+            >
+              <option value="all">All Months</option>
+              {/* Generate last 12 months */}
+              {Array.from({ length: 12 }, (_, i) => {
+                const d = new Date();
+                d.setMonth(d.getMonth() - i);
+                const value = `${d.getFullYear()}-${String(
+                  d.getMonth() + 1
+                ).padStart(2, "0")}`;
+                const label = d.toLocaleDateString("default", {
+                  month: "long",
+                  year: "numeric",
+                });
+                return (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                );
+              })}
+            </select>
+
+            <button
+              onClick={() => {
+                setSortSalesBy("date-newest");
+                setFilterMonth("all");
+              }}
+              className="reset-btn"
+            >
+              Reset
+            </button>
+          </div>
         </div>
       </div>
 
@@ -544,7 +622,7 @@ export default function SoldMedicines() {
               : "Loading sold medicines..."}
           </p>
         </div>
-      ) : filtered.length > 0 ? (
+      ) : displayedSales.length > 0 ? (
         <>
           <div className="sold-table-wrapper">
             <table className="sold-table">
@@ -560,7 +638,7 @@ export default function SoldMedicines() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r) => {
+                {displayedSales.map((r) => {
                   const saleInfo = getSaleTypeInfo(r);
                   const totalAmount = calculateTotalAmount(r);
                   const displayUnitPrice = getDisplayUnitPrice(r);
@@ -715,11 +793,19 @@ export default function SoldMedicines() {
       ) : (
         <div className="no-records">
           <div className="no-records-icon">😔</div>
-          <h3>No {isSearching ? "matching" : "sold"} records found</h3>
+          <h3>
+            No {isSearching || filterMonth !== "all" ? "matching" : "sold"}{" "}
+            records found
+          </h3>
           <p>
             {isSearching
-              ? `No results found for "${search}". Try different search terms.`
-              : "Try adjusting your search terms or check back later"}
+              ? `No results for "${search}"`
+              : filterMonth !== "all"
+              ? `No sales in ${new Date(filterMonth + "-01").toLocaleDateString(
+                  "default",
+                  { month: "long", year: "numeric" }
+                )}`
+              : "No sales recorded yet"}
           </p>
           {isSearching && (
             <button className="clear-search-btn" onClick={clearSearch}>

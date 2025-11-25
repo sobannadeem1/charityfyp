@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import {
   getMedicinesWithPagination,
   addMedicine,
@@ -31,11 +31,14 @@ export default function Medicines({ isAdmin }) {
   const itemsPerPage = 10;
   const popupRef = useRef(null);
   const sellPopupRef = useRef(null);
+  const [sortOption, setSortOption] = useState("date-newest");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [filterExpiryMonth, setFilterExpiryMonth] = useState("all");
+  const [filterStockStatus, setFilterStockStatus] = useState("all");
   const [formData, setFormData] = useState({
     name: "",
     category: "",
     packSize: "",
-    dosageForm: "",
     strength: "",
     expiry: "",
     quantity: "",
@@ -119,6 +122,94 @@ export default function Medicines({ isAdmin }) {
       setLoading(false);
     }
   };
+  const resetFilters = () => {
+    setSortOption("date-newest");
+    setFilterCategory("all");
+    setFilterExpiryMonth("all");
+    setFilterStockStatus("all");
+  };
+  // === Get unique values for dropdowns ===
+  const categories = [
+    ...new Set(medicines.map((m) => m.category).filter(Boolean)),
+  ];
+
+  const expiryMonths = [
+    ...new Set(
+      medicines
+        .filter((m) => m.expiry)
+        .map((m) => {
+          const d = new Date(m.expiry);
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+            2,
+            "0"
+          )}`;
+        })
+    ),
+  ].sort((a, b) => b.localeCompare(a)); // newest first
+  // === NEW: Client-side filtering + sorting (Safe & Fast) ===
+  const displayedMedicines = useMemo(() => {
+    let list = [...medicines];
+
+    // Category Filter
+    if (filterCategory !== "all") {
+      list = list.filter((m) => m.category === filterCategory);
+    }
+
+    // Expiry Month Filter
+    if (filterExpiryMonth !== "all") {
+      const [year, month] = filterExpiryMonth.split("-");
+      list = list.filter((m) => {
+        if (!m.expiry) return false;
+        const d = new Date(m.expiry);
+        return (
+          d.getFullYear() === parseInt(year) &&
+          d.getMonth() + 1 === parseInt(month)
+        );
+      });
+    }
+
+    // Stock Status Filter
+    if (filterStockStatus === "low") {
+      list = list.filter((m) => m.quantity <= 5);
+    } else if (filterStockStatus === "expired") {
+      list = list.filter((m) => m.expiry && new Date(m.expiry) < new Date());
+    }
+
+    // Sorting
+    list.sort((a, b) => {
+      switch (sortOption) {
+        case "name-asc":
+          return a.name.localeCompare(b.name);
+        case "name-desc":
+          return b.name.localeCompare(a.name);
+        case "price-low":
+          return a.salePrice - b.salePrice;
+        case "price-high":
+          return b.salePrice - a.salePrice;
+        case "quantity-low":
+          return a.quantity - b.quantity;
+        case "quantity-high":
+          return b.quantity - a.quantity;
+        case "expiry-soon":
+          return (
+            new Date(a.expiry || "9999-12-31") -
+            new Date(b.expiry || "9999-12-31")
+          );
+        case "date-newest":
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        default:
+          return 0;
+      }
+    });
+
+    return list;
+  }, [
+    medicines,
+    sortOption,
+    filterCategory,
+    filterExpiryMonth,
+    filterStockStatus,
+  ]);
 
   // ✅ UPDATED: Load data when component mounts or page changes
   useEffect(() => {
@@ -352,7 +443,6 @@ export default function Medicines({ isAdmin }) {
         name: "",
         category: "",
         packSize: "",
-        dosageForm: "",
         strength: "",
         expiry: "",
         quantity: "",
@@ -381,7 +471,6 @@ export default function Medicines({ isAdmin }) {
       name: medicine.name || "",
       category: medicine.category || "",
       packSize: medicine.packSize || "",
-      dosageForm: medicine.dosageForm || "",
       strength: medicine.strength || "",
       expiry: medicine.expiry
         ? new Date(medicine.expiry).toISOString().split("T")[0]
@@ -415,7 +504,6 @@ export default function Medicines({ isAdmin }) {
         "name",
         "category",
         "packSize",
-        "dosageForm",
         "strength",
         "expiry",
         "quantity",
@@ -554,7 +642,6 @@ export default function Medicines({ isAdmin }) {
                     name: "",
                     category: "",
                     packSize: "",
-                    dosageForm: "",
                     strength: "",
                     expiry: "",
                     quantity: "",
@@ -577,42 +664,120 @@ export default function Medicines({ isAdmin }) {
         </div>
       </div>
 
+      <div className="filter-sort-bar">
+        <div className="filter-group">
+          {/* Sort */}
+          <select
+            value={sortOption}
+            onChange={(e) => setSortOption(e.target.value)}
+            className="filter-select"
+          >
+            <option value="name-asc">Name (A → Z)</option>
+            <option value="name-desc">Name (Z → A)</option>
+            <option value="price-low">Price: Low → High</option>
+            <option value="price-high">Price: High → Low</option>
+            <option value="quantity-low">Stock: Low → High</option>
+            <option value="quantity-high">Stock: High → Low</option>
+            <option value="expiry-soon">Expiry: Soonest First</option>
+            <option value="date-newest">Newest First</option>
+          </select>
+
+          {/* Category */}
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="filter-select"
+          >
+            <option value="all">All Categories</option>
+            {categories.map((cat) => (
+              <option key={cat} value={cat}>
+                {getCategoryEmoji(cat)} {cat}
+              </option>
+            ))}
+          </select>
+
+          {/* Expiry Month */}
+          <select
+            value={filterExpiryMonth}
+            onChange={(e) => setFilterExpiryMonth(e.target.value)}
+            className="filter-select"
+          >
+            <option value="all">All Expiry Dates</option>
+            {expiryMonths.map((date) => {
+              const [y, m] = date.split("-");
+              const monthName = new Date(y, m - 1).toLocaleString("default", {
+                month: "long",
+              });
+              return (
+                <option key={date} value={date}>
+                  {monthName} {y}
+                </option>
+              );
+            })}
+          </select>
+
+          {/* Stock Status */}
+          <select
+            value={filterStockStatus}
+            onChange={(e) => setFilterStockStatus(e.target.value)}
+            className="filter-select"
+          >
+            <option value="all">All Stock</option>
+            <option value="low">Low Stock (less than or equal to 5)</option>
+            <option value="expired">Expired Only</option>
+          </select>
+        </div>
+
+        <button onClick={resetFilters} className="reset-filters-btn">
+          Reset Filters
+        </button>
+      </div>
+
       {loading ? (
         <div className="loader-container">
           <div className="spinner"></div>
         </div>
-      ) : medicines.length > 0 ? (
+      ) : displayedMedicines.length > 0 ? (
         <>
           <div className="table-wrapper">
             <table className="medicine-table">
               <thead>
                 <tr>
-                  <th title="Medicine brand/generic name">💊 Medicine Name</th>
-                  <th title="Therapeutic category">📂 Category</th>
-                  <th title="Dosage form">💊 Dosage Form</th>
-                  <th title="Strength/concentration">⚡ Strength</th>
-                  <th title="Package contents">📦 Pack Size</th>
-                  <th title="Expiration date">📅 Expiry Date</th>
-                  <th title="Available packages in stock">🔢 Stock Quantity</th>
+                  <th title="Medicine brand/generic name">Medicine Name</th>
+                  <th title="Therapeutic category">Category</th>
+                  <th title="Strength/concentration">Strength</th>
+                  <th title="Package contents">Pack Size</th>
+                  <th title="Expiration date">Expiry Date</th>
+                  <th title="Available packages in stock">Stock Quantity</th>
                   {isAdmin && (
-                    <th title="Your cost per package">🛒 Purchase Price</th>
+                    <th title="Your cost per package">Purchase Price</th>
                   )}
-                  <th title="Your price per package">💵 Sale Price</th>
-                  <th title="Manufacturing company">🏭 Manufacturer</th>
-                  <th title="Supply vendor">🚚 Supplier</th>
-                  <th title="Storage requirements">🌡️ Storage Condition</th>
-                  <th title="Date added">📥 Date Added</th>
-                  {isAdmin && <th title="Available actions">⚡ Actions</th>}
+                  <th title="Your price per package">Sale Price</th>
+                  <th title="Manufacturing company">Manufacturer</th>
+                  <th title="Supply vendor">Supplier</th>
+                  <th title="Storage requirements">Storage Condition</th>
+                  <th title="Date added">Date Added</th>
+                  {isAdmin && <th title="Available actions">Actions</th>}
                 </tr>
               </thead>
               <tbody>
-                {medicines.filter(Boolean).map((m) => {
+                {displayedMedicines.map((m) => {
                   const isExpired = m.expiry && new Date(m.expiry) < new Date();
+                  const isLowStock = m.quantity <= 5;
+
                   return (
                     <tr
                       key={m._id}
-                      className={isExpired ? "expired-row" : ""}
-                      title={isExpired ? "Expired medicine" : ""}
+                      className={`${isExpired ? "expired-row" : ""} ${
+                        isLowStock && !isExpired ? "low-stock-row" : ""
+                      }`}
+                      title={
+                        isExpired
+                          ? "Expired medicine"
+                          : isLowStock
+                          ? "Low stock"
+                          : ""
+                      }
                     >
                       <td>
                         <div className="medicine-name-badge">
@@ -622,17 +787,48 @@ export default function Medicines({ isAdmin }) {
                           <span className="medicine-name">{m.name}</span>
                         </div>
                       </td>
-                      <td>{m.category}</td>
-                      <td>{m.dosageForm}</td>
-                      <td>{m.strength}</td>
-                      <td>{m.packSize}</td>
+                      <td>{m.category || "-"}</td>
+                      <td>{m.strength || "-"}</td>
+                      <td>{m.packSize || "-"}</td>
                       <td>
                         {m.expiry
-                          ? new Date(m.expiry).toLocaleDateString()
+                          ? new Date(m.expiry).toLocaleDateString("en-GB", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })
                           : "N/A"}
                       </td>
-                      <td className="quantity-cell">
-                        {Math.floor(m.quantity)}
+                      <td
+                        className={`quantity-cell ${
+                          isLowStock ? "low-stock" : ""
+                        }`}
+                      >
+                        <span
+                          style={{
+                            fontWeight: "bold",
+                            fontSize: "1.15em",
+                            color: "#111827",
+                          }}
+                        >
+                          {Math.floor(m.quantity)}
+                        </span>
+                        {isLowStock && !isExpired && (
+                          <span
+                            style={{
+                              color: "#d97706",
+                              fontWeight: "600",
+                              fontSize: "0.9em",
+                              marginLeft: "8px",
+                              background: "#fffbeb",
+                              padding: "2px 8px",
+                              borderRadius: "6px",
+                              border: "1px solid #fcd34d",
+                            }}
+                          >
+                            Low Stock
+                          </span>
+                        )}
                       </td>
                       {isAdmin && (
                         <td
@@ -643,13 +839,15 @@ export default function Medicines({ isAdmin }) {
                             borderRadius: "6px",
                           }}
                         >
-                          {m.purchasePrice}
+                          {m.purchasePrice !== undefined
+                            ? m.purchasePrice
+                            : "-"}
                         </td>
                       )}
-                      <td>{m.salePrice}</td>
-                      <td>{m.manufacturer}</td>
-                      <td>{m.supplier}</td>
-                      <td>{m.storageCondition}</td>
+                      <td>{m.salePrice || "-"}</td>
+                      <td>{m.manufacturer || "-"}</td>
+                      <td>{m.supplier || "-"}</td>
+                      <td>{m.storageCondition || "-"}</td>
                       <td>
                         <div className="date-cell">
                           {m.createdAt ? (
@@ -680,36 +878,34 @@ export default function Medicines({ isAdmin }) {
                           )}
                         </div>
                       </td>
-                      <td className="action-btns">
-                        {isAdmin && (
-                          <>
-                            <button
-                              className="edit-btn"
-                              onClick={() => handleEdit(m)}
-                              disabled={isSubmitting}
-                              title="Edit medicine"
-                            >
-                              {isSubmitting ? "⏳ Processing..." : "✏️ Edit"}
-                            </button>
-                            <button
-                              className="sell-btn"
-                              onClick={() => handleSell(m)}
-                              disabled={isSubmitting}
-                              title="Sell medicine"
-                            >
-                              {isSubmitting ? "⏳ Processing..." : "💰 Sell"}
-                            </button>
-                            <button
-                              className="delete-btn"
-                              onClick={() => handleDelete(m)}
-                              disabled={isSubmitting}
-                              title="Delete medicine"
-                            >
-                              {isSubmitting ? "⏳ Processing..." : "🗑️ Delete"}
-                            </button>
-                          </>
-                        )}
-                      </td>
+                      {isAdmin && (
+                        <td className="action-btns">
+                          <button
+                            className="edit-btn"
+                            onClick={() => handleEdit(m)}
+                            disabled={isSubmitting}
+                            title="Edit medicine"
+                          >
+                            {isSubmitting ? "Processing..." : "Edit"}
+                          </button>
+                          <button
+                            className="sell-btn"
+                            onClick={() => handleSell(m)}
+                            disabled={isSubmitting}
+                            title="Sell medicine"
+                          >
+                            {isSubmitting ? "Processing..." : "Sell"}
+                          </button>
+                          <button
+                            className="delete-btn"
+                            onClick={() => handleDelete(m)}
+                            disabled={isSubmitting}
+                            title="  Delete medicine"
+                          >
+                            {isSubmitting ? "Processing..." : "Delete"}
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -717,7 +913,7 @@ export default function Medicines({ isAdmin }) {
             </table>
           </div>
 
-          {/* ✅ Number Pagination Controls - Same as Sold Medicines */}
+          {/* Pagination - Same beautiful style */}
           {totalPages > 1 && (
             <div className="pagination">
               <button
@@ -729,21 +925,15 @@ export default function Medicines({ isAdmin }) {
               </button>
 
               <div className="page-numbers">
-                {/* Show first page */}
                 {currentPage > 3 && (
                   <button onClick={() => goToPage(1)} className="page-number">
                     1
                   </button>
                 )}
-
-                {/* Show ellipsis if needed */}
                 {currentPage > 4 && <span className="page-ellipsis">...</span>}
 
-                {/* Show pages around current page */}
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter((page) => {
-                    return Math.abs(page - currentPage) <= 2;
-                  })
+                  .filter((page) => Math.abs(page - currentPage) <= 2)
                   .map((page) => (
                     <button
                       key={page}
@@ -756,12 +946,9 @@ export default function Medicines({ isAdmin }) {
                     </button>
                   ))}
 
-                {/* Show ellipsis if needed */}
                 {currentPage < totalPages - 3 && (
                   <span className="page-ellipsis">...</span>
                 )}
-
-                {/* Show last page */}
                 {currentPage < totalPages - 2 && (
                   <button
                     onClick={() => goToPage(totalPages)}
@@ -784,16 +971,31 @@ export default function Medicines({ isAdmin }) {
         </>
       ) : (
         <div className="no-records">
-          <div className="no-records-icon">😔</div>
-          <h3>No {isSearching ? "matching" : "medicines"} found</h3>
+          <div className="no-records-icon">No results</div>
+          <h3>
+            No {isSearching ? "matching" : ""} medicines found
+            {(filterCategory !== "all" ||
+              filterExpiryMonth !== "all" ||
+              filterStockStatus !== "all") &&
+              " for current filters"}
+          </h3>
           <p>
             {isSearching
-              ? `No results found for "${searchTerm}". Try different search terms.`
-              : "No medicines available in inventory"}
+              ? `No results for "${searchTerm}".`
+              : "Try adjusting your search or filters."}
           </p>
-          {isSearching && (
-            <button className="clear-search-btn" onClick={clearSearch}>
-              Clear Search
+          {(isSearching ||
+            filterCategory !== "all" ||
+            filterExpiryMonth !== "all" ||
+            filterStockStatus !== "all") && (
+            <button
+              className="clear-search-btn"
+              onClick={() => {
+                clearSearch();
+                resetFilters();
+              }}
+            >
+              Clear All Filters & Search
             </button>
           )}
         </div>
@@ -850,15 +1052,6 @@ export default function Medicines({ isAdmin }) {
                     <option>Other</option>
                   </select>
                   <small className="form-hint">Choose medicine category</small>
-
-                  <input
-                    name="dosageForm"
-                    placeholder="💊 Dosage Form"
-                    value={formData.dosageForm}
-                    onChange={handleChange}
-                    className="form-input"
-                  />
-                  <small className="form-hint">Physical form of medicine</small>
 
                   <input
                     name="strength"
@@ -1022,7 +1215,6 @@ export default function Medicines({ isAdmin }) {
                                         name: "Medicine Name",
                                         category: "Category",
                                         packSize: "Pack Size",
-                                        dosageForm: "Dosage Form",
                                         strength: "Strength",
                                         expiry: "Expiry Date",
                                         quantity: "Quantity",

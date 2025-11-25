@@ -9,7 +9,6 @@ export const addMedicine = async (req, res) => {
       name,
       category,
       packSize,
-      dosageForm,
       strength,
       expiry,
       quantity,
@@ -28,7 +27,6 @@ export const addMedicine = async (req, res) => {
       name,
       category,
       packSize: packSize || "",
-      dosageForm: dosageForm || "",
       strength: strength || "",
       expiry: new Date(expiry),
       quantity: Number(quantity),
@@ -337,7 +335,6 @@ export const getAllMedicines = async (req, res) => {
           { name: { $regex: search, $options: "i" } },
           { category: { $regex: search, $options: "i" } },
           { manufacturer: { $regex: search, $options: "i" } },
-          { dosageForm: { $regex: search, $options: "i" } },
         ],
       };
     }
@@ -403,7 +400,6 @@ export const updateMedicine = async (req, res) => {
       "name",
       "category",
       "packSize",
-      "dosageForm",
       "strength",
       "expiry",
       "quantity",
