@@ -117,26 +117,62 @@ export default function Home() {
   const displayPackages = safeTotalPackages.toLocaleString();
   const displayPatients = estimatedPatients.toLocaleString();
 
-  // Top 5 for chart
+  // ULTRA-ACCURATE TOP 5 — ONLY liquids get "Bottles", tablets/capsules get "Units"
   const top5 = [...activeMedicines]
-    .sort(
-      (a, b) =>
-        (Number(b.unitsAvailable) || 0) - (Number(a.unitsAvailable) || 0)
-    )
-    .slice(0, 5)
-    .map((m) => ({
-      name:
-        String(m.name || "Unknown").substring(0, 15) +
-        (m.name?.length > 15 ? "..." : ""),
-      units: Number(m.unitsAvailable) || 0,
-    }));
+    .map((m) => {
+      const units = Number(m.unitsAvailable) || 0;
+      const perPack = Number(m.unitsPerPackage) || 1;
+
+      // PRECISE liquid detection — only these are bottles/vials
+      const isLiquid =
+        /\b(syrup|injection|drop|suspension|solution|infusion|ampoule|vial|bottle|oral solution|elixir|emulsion|lotion|spray|inhaler)\b/i.test(
+          (m.category || "") + " " + (m.packSize || "") + " " + (m.name || "")
+        );
+
+      // Also check packSize for ml, liter, vial, bottle — but NOT for tablets/capsules
+      const hasLiquidPackaging =
+        /\b(\d+\s*(ml|l|liter|vial|bottle|ampoule|drop))\b/i.test(
+          m.packSize || ""
+        );
+
+      const isActuallyLiquid = isLiquid || hasLiquidPackaging;
+
+      // For tablets, capsules, strips → always show total units
+      const isTabletForm = /\b(tablet|capsule|caplet|strip|tab|cap)\b/i.test(
+        (m.category || "") + " " + (m.packSize || "")
+      );
+
+      let displayValue, displayType;
+
+      if (isActuallyLiquid && !isTabletForm) {
+        // Liquids → show number of bottles/vials
+        displayValue = Math.floor(units / perPack) || 0;
+        displayType = "Bottles";
+      } else {
+        // Everything else (tablets, capsules, ointments, etc.) → show total units
+        displayValue = units;
+        displayType = "Units";
+      }
+
+      return {
+        name:
+          String(m.name || "Unknown").substring(0, 18) +
+          (m.name?.length > 18 ? "..." : ""),
+        value: displayValue,
+        type: displayType,
+        originalUnits: units,
+        packages: Math.floor(units / perPack) || 0,
+      };
+    })
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5);
 
   const chartData = {
     labels: top5.map((x) => x.name),
     datasets: [
       {
-        label: "Units Available",
-        data: top5.map((x) => x.units),
+        label: "Stock Available",
+        data: top5.map((x) => x.value),
         backgroundColor: [
           "#36b5f0",
           "#ff7e5f",
@@ -144,7 +180,9 @@ export default function Home() {
           "#a855f7",
           "#f59e0b",
         ],
-        borderRadius: 8,
+        borderRadius: 10,
+        borderWidth: 2,
+        borderColor: "#fff",
       },
     ],
   };
@@ -154,8 +192,31 @@ export default function Home() {
     plugins: {
       title: {
         display: true,
-        text: "Top 5 Medicines by Units",
-        font: { size: 16 },
+        text: "Top 5 Medicines by Stock",
+        font: { size: 18, weight: "bold" },
+        color: "#1f2937",
+      },
+      tooltip: {
+        callbacks: {
+          label: function (context) {
+            const item = top5[context.dataIndex];
+            if (item.type === "Bottles") {
+              return `${item.value} Bottles (${item.packages} × ${
+                item.originalUnits / item.packages
+              }ml each)`;
+            }
+            return `${item.value.toLocaleString()} Units (${
+              item.packages
+            } Packages)`;
+          },
+        },
+      },
+      legend: { display: false },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: { stepSize: 1 },
       },
     },
   };

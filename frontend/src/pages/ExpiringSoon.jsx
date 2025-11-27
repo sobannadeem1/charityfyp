@@ -25,50 +25,82 @@ export default function ExpiringSoon() {
     return packageQuantity * unitsPerPackage;
   };
 
+  // Add this right after your useState declarations
   useEffect(() => {
     fetchExpiring();
-  }, []);
+  }, []); // ← keep this
 
   const fetchExpiring = async () => {
     try {
       setLoading(true);
+      console.log(
+        "Fetching expiring medicines at",
+        new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" })
+      );
       const res = await getAllMedicines();
-      const data = Array.isArray(res) ? res : res.data || [];
+      console.log("API Response:", res);
+
+      let medicines = [];
+      if (Array.isArray(res)) {
+        medicines = res;
+      } else if (res?.data && Array.isArray(res.data)) {
+        medicines = res.data;
+      } else if (res?.medicines && Array.isArray(res.medicines)) {
+        medicines = res.medicines;
+      } else if (res?.success && Array.isArray(res.medicines)) {
+        medicines = res.medicines;
+      } else {
+        console.warn("Unexpected API response format:", res);
+        medicines = [];
+      }
+
+      if (medicines.length === 0) {
+        console.warn("No medicines returned from API");
+      }
 
       const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-      // ✅ FIX: Filter only medicines with POSITIVE stock
-      const filtered = data.filter((m) => {
-        if (!m.expiry) return false;
+      const filtered = medicines
+        .filter((m) => {
+          if (!m.expiry || !m.quantity) {
+            console.log(
+              "Skipping medicine due to missing expiry or quantity:",
+              m
+            );
+            return false;
+          }
+          const hasStock = Number(m.quantity) > 0;
+          const expiryDate = new Date(m.expiry);
+          const diffDays = Math.ceil(
+            (expiryDate - today) / (1000 * 60 * 60 * 24)
+          );
+          return hasStock && diffDays >= 0 && diffDays <= 30;
+        })
+        .map((m) => {
+          const packageQty = Math.floor(Number(m.quantity));
+          const unitsPerPack = getUnitsPerPackage(m);
+          return {
+            ...m,
+            quantity: packageQty,
+            totalUnits: packageQty * unitsPerPack,
+            unitsPerPackage: unitsPerPack,
+          };
+        });
 
-        // Check if medicine has ACTUAL stock (not sold out)
-        const hasStock = Number(m.quantity) > 0;
-
-        const expiry = new Date(m.expiry);
-        const diffDays = (expiry - today) / (1000 * 60 * 60 * 24);
-
-        return hasStock && diffDays <= 30 && diffDays >= 0;
-      });
-
-      // Enhanced data with unit calculations
-      const enhancedData = filtered.map((medicine) => {
-        const packageQuantity = Math.floor(Number(medicine.quantity));
-        const unitsPerPackage = getUnitsPerPackage(medicine);
-
-        return {
-          ...medicine,
-          quantity: packageQuantity,
-          totalUnits: packageQuantity * unitsPerPackage,
-          unitsPerPackage: unitsPerPackage,
-        };
-      });
-
-      setExpiring(enhancedData);
+      console.log("Filtered expiring medicines:", filtered);
+      setExpiring(filtered);
     } catch (err) {
-      console.error(err);
+      console.error(
+        "Fetch error at",
+        new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" }),
+        err
+      );
       toast.error("Failed to load expiring medicines");
+      setExpiring([]); // Ensure state is set even on error
     } finally {
       setLoading(false);
+      console.log("Loading state set to false");
     }
   };
 
