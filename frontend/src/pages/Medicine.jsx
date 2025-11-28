@@ -35,6 +35,11 @@ export default function Medicines({ isAdmin }) {
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterExpiryMonth, setFilterExpiryMonth] = useState("all");
   const [filterStockStatus, setFilterStockStatus] = useState("all");
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [selectAll, setSelectAll] = useState(false);
+  const [showBulkSellPopup, setShowBulkSellPopup] = useState(false);
+  const [bulkSellQuantity, setBulkSellQuantity] = useState("");
+  const [bulkQuantityType, setBulkQuantityType] = useState("packages");
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -48,7 +53,70 @@ export default function Medicines({ isAdmin }) {
     supplier: "",
     storageCondition: "Room Temperature",
   });
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
 
+    showConfirmation(
+      "Delete Multiple Medicines",
+      `Are you sure you want to delete ${selectedIds.size} selected medicines? This cannot be undone.`,
+      async () => {
+        try {
+          setIsSubmitting(true);
+          const promises = Array.from(selectedIds).map((id) =>
+            deleteMedicine(id)
+          );
+          await Promise.all(promises);
+
+          toast.success(`Deleted ${selectedIds.size} medicines successfully`);
+          setSelectedIds(new Set());
+          setSelectAll(false);
+          fetchMedicines(currentPage, searchTerm);
+        } catch (error) {
+          console.error("Bulk delete error:", error);
+          toast.error("Some items could not be deleted");
+        } finally {
+          setIsSubmitting(false);
+        }
+      }
+    );
+  };
+  const handleBulkSell = async () => {
+    const qty = parseInt(bulkSellQuantity);
+    if (!qty || qty <= 0) return toast.error("Enter valid quantity");
+
+    try {
+      setIsSubmitting(true);
+
+      const selectedMedicines = displayedMedicines.filter((m) =>
+        selectedIds.has(m._id)
+      );
+      const insufficient = selectedMedicines.filter((m) => m.quantity < qty);
+
+      if (insufficient.length > 0) {
+        toast.error(
+          `Not enough stock for: ${insufficient.map((m) => m.name).join(", ")}`
+        );
+        return;
+      }
+
+      const promises = selectedMedicines.map((m) =>
+        sellMedicine(m._id, qty, "packages")
+      );
+      await Promise.all(promises);
+
+      toast.success(`Sold ${qty} packages of ${selectedIds.size} medicines!`);
+      setSelectedIds(new Set());
+      setSelectAll(false);
+      setShowBulkSellPopup(false);
+      setBulkSellQuantity("");
+      fetchMedicines(currentPage, searchTerm);
+    } catch (error) {
+      toast.error("Bulk sell failed");
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   // Click outside handlers (keep as is)
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -740,30 +808,81 @@ export default function Medicines({ isAdmin }) {
       ) : displayedMedicines.length > 0 ? (
         <>
           <div className="table-wrapper">
+            {/* BULK ACTION BAR - Shows when items selected */}
+            {selectedIds.size > 0 && (
+              <div className="bulk-action-bar">
+                <div className="bulk-info">
+                  <strong>{selectedIds.size}</strong> medicine
+                  {selectedIds.size > 1 ? "s" : ""} selected
+                </div>
+                <div className="bulk-buttons">
+                  <button
+                    className="bulk-sell-btn"
+                    onClick={() => setShowBulkSellPopup(true)}
+                  >
+                    Sell Selected
+                  </button>
+                  <button
+                    className="bulk-delete-btn"
+                    onClick={handleBulkDelete}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? "Deleting..." : "Delete Selected"}
+                  </button>
+                  <button
+                    className="bulk-cancel-btn"
+                    onClick={() => {
+                      setSelectedIds(new Set());
+                      setSelectAll(false);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
             <table className="medicine-table">
               <thead>
                 <tr>
-                  <th title="Medicine brand/generic name">Medicine Name</th>
-                  <th title="Therapeutic category">Category</th>
-                  <th title="Strength/concentration">Strength</th>
-                  <th title="Package contents">Pack Size</th>
-                  <th title="Expiration date">Expiry Date</th>
-                  <th title="Available packages in stock">Stock Quantity</th>
-                  {isAdmin && (
-                    <th title="Your cost per package">Purchase Price</th>
-                  )}
-                  <th title="Your price per package">Sale Price</th>
-                  <th title="Manufacturing company">Manufacturer</th>
-                  <th title="Supply vendor">Supplier</th>
-                  <th title="Storage requirements">Storage Condition</th>
-                  <th title="Date added">Date Added</th>
-                  {isAdmin && <th title="Available actions">Actions</th>}
+                  <th>
+                    <input
+                      type="checkbox"
+                      checked={selectAll}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setSelectAll(checked);
+                        if (checked) {
+                          const allIds = new Set(
+                            displayedMedicines.map((m) => m._id)
+                          );
+                          setSelectedIds(allIds);
+                        } else {
+                          setSelectedIds(new Set());
+                        }
+                      }}
+                      title="Select all on this page"
+                    />
+                  </th>
+                  <th>Medicine Name</th>
+                  <th>Category</th>
+                  <th>Strength</th>
+                  <th>Pack Size</th>
+                  <th>Expiry Date</th>
+                  <th>Stock Quantity</th>
+                  {isAdmin && <th>Purchase Price</th>}
+                  <th>Sale Price</th>
+                  <th>Manufacturer</th>
+                  <th>Supplier</th>
+                  <th>Storage Condition</th>
+                  <th>Date Added</th>
+                  {isAdmin && <th>Actions</th>}
                 </tr>
               </thead>
               <tbody>
                 {displayedMedicines.map((m) => {
                   const isExpired = m.expiry && new Date(m.expiry) < new Date();
                   const isLowStock = m.quantity <= 5;
+                  const isSelected = selectedIds.has(m._id);
 
                   return (
                     <tr
@@ -779,6 +898,24 @@ export default function Medicines({ isAdmin }) {
                           : ""
                       }
                     >
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {
+                            const newSelected = new Set(selectedIds);
+                            if (isSelected) {
+                              newSelected.delete(m._id);
+                            } else {
+                              newSelected.add(m._id);
+                            }
+                            setSelectedIds(newSelected);
+                            setSelectAll(
+                              newSelected.size === displayedMedicines.length
+                            );
+                          }}
+                        />
+                      </td>
                       <td>
                         <div className="medicine-name-badge">
                           <span className="medicine-icon">
@@ -970,29 +1107,92 @@ export default function Medicines({ isAdmin }) {
           )}
         </>
       ) : (
-        <div className="no-records">
-          <div className="no-records-icon">No results</div>
-          <h3>
+        <div
+          style={{
+            textAlign: "center",
+            padding: "4rem 1.5rem",
+            background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
+            borderRadius: "1rem",
+            margin: "3rem auto",
+            maxWidth: "540px",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
+            border: "1px solid #e2e8f420",
+          }}
+        >
+          {/* Modern empty state icon */}
+          <div
+            style={{
+              fontSize: "4.5rem",
+              marginBottom: "1.5rem",
+              opacity: 0.6,
+            }}
+          >
+            No results
+          </div>
+
+          <h3
+            style={{
+              fontSize: "1.75rem",
+              fontWeight: "600",
+              color: "#1e293b",
+              margin: "0 0 1rem 0",
+              lineHeight: "1.3",
+            }}
+          >
             No {isSearching ? "matching" : ""} medicines found
             {(filterCategory !== "all" ||
               filterExpiryMonth !== "all" ||
-              filterStockStatus !== "all") &&
-              " for current filters"}
+              filterStockStatus !== "all") && (
+              <span style={{ color: "#64748b", fontWeight: "normal" }}>
+                {" "}
+                for current filters
+              </span>
+            )}
           </h3>
-          <p>
+
+          <p
+            style={{
+              fontSize: "1.1rem",
+              color: "#64748b",
+              margin: "0 0 2rem 0",
+              lineHeight: "1.6",
+            }}
+          >
             {isSearching
               ? `No results for "${searchTerm}".`
               : "Try adjusting your search or filters."}
           </p>
+
           {(isSearching ||
             filterCategory !== "all" ||
             filterExpiryMonth !== "all" ||
             filterStockStatus !== "all") && (
             <button
-              className="clear-search-btn"
               onClick={() => {
                 clearSearch();
                 resetFilters();
+              }}
+              style={{
+                padding: "0.85rem 2rem",
+                fontSize: "1rem",
+                fontWeight: "600",
+                color: "white",
+                background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                border: "none",
+                borderRadius: "0.75rem",
+                cursor: "pointer",
+                boxShadow: "0 4px 14px rgba(59,130,246,0.35)",
+                transition: "all 0.25s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-3px)";
+                e.currentTarget.style.boxShadow =
+                  "0 10px 24px rgba(59,130,246,0.45)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow =
+                  "0 4px 14px rgba(59,130,246,0.35)";
               }}
             >
               Clear All Filters & Search
@@ -1549,6 +1749,64 @@ export default function Medicines({ isAdmin }) {
                 disabled={isSubmitting}
               >
                 ❌ Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showBulkSellPopup && (
+        <div className="popup-overlay">
+          <div className="popup" ref={sellPopupRef}>
+            <h2>Sell {selectedIds.size} Selected Medicines</h2>
+
+            <div className="bulk-sell-info">
+              <p>
+                <strong>Selected:</strong> {selectedIds.size} medicines
+              </p>
+              <p>
+                <strong>Warning:</strong> All will be sold as complete packages
+              </p>
+            </div>
+
+            <label>
+              <strong>Quantity per medicine (packages):</strong>
+            </label>
+            <input
+              type="number"
+              value={bulkSellQuantity}
+              onChange={(e) => setBulkSellQuantity(e.target.value)}
+              placeholder="e.g. 2 (sell 2 packages of each)"
+              min="1"
+              className="input-field"
+              style={{ width: "100%", padding: "12px", fontSize: "1.1em" }}
+            />
+
+            {bulkSellQuantity && parseInt(bulkSellQuantity) > 0 && (
+              <div className="total-calculation">
+                <p>
+                  <strong>Total Packages to Sell:</strong>{" "}
+                  {selectedIds.size * parseInt(bulkSellQuantity)}
+                </p>
+              </div>
+            )}
+
+            <div className="popup-buttons">
+              <button
+                className="save-btn"
+                onClick={handleBulkSell}
+                disabled={!bulkSellQuantity || isSubmitting}
+              >
+                {isSubmitting ? "Processing..." : "Confirm Bulk Sell"}
+              </button>
+              <button
+                className="cancel-btn"
+                onClick={() => {
+                  setShowBulkSellPopup(false);
+                  setBulkSellQuantity("");
+                }}
+                disabled={isSubmitting}
+              >
+                Cancel
               </button>
             </div>
           </div>

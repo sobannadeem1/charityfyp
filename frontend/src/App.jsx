@@ -35,9 +35,8 @@ const App = () => {
   // Show nothing or a loader until we know auth status
   if (isAdmin === null) {
     return (
-      <div className="full-screen-loader">
+      <div className="loader-container">
         <div className="spinner"></div>
-        <p>Loading app...</p>
       </div>
     );
   }
@@ -52,7 +51,11 @@ const App = () => {
 
           <main className="main-content">
             <Suspense
-              fallback={<div className="page-loader">Loading page...</div>}
+              fallback={
+                <div className="loader-container">
+                  <div className="spinner"></div>
+                </div>
+              }
             >
               <Routes>
                 <Route path="/" element={<Home />} />

@@ -139,54 +139,128 @@
   transform: translateY(-0.125rem); /* -2px */
   box-shadow: 0 0.375rem 1.25rem rgba(52, 152, 219, 0.4); /* 6px 20px */
 }
-
-/* Summary Cards */
 .summary-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(15.625rem, 1fr)); /* 250px */
-  gap: 1.5rem; /* 24px */
-  margin-bottom: 2.5rem; /* 40px */
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.75rem;
+  margin: 2rem auto;
+  max-width: 1200px;
+  padding: 0 1rem;
 }
 
+/* This is the REAL fix — never collapses */
 .summary-card {
-  background: linear-gradient(135deg, #ffffff, #f8f9fa);
-  padding: 1.5rem; /* 24px */
-  border-radius: 1rem; /* 16px */
-  box-shadow: 0 0.25rem 1.25rem rgba(0, 0, 0, 0.1); /* 4px 20px */
-  border: 0.0625rem solid rgba(255, 255, 255, 0.5); /* 1px */
   display: flex;
   align-items: center;
-  gap: 1rem; /* 16px */
+  gap: 1.5rem;
+  padding: 2rem 1.75rem;
+  background: white;
+  border-radius: 1.5rem;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  border: 1px solid #f0f0f0;
+  position: relative;
+  overflow: hidden;
+  min-height: 140px;
+  /* These two lines = bulletproof */
+  min-width: 280px !important;
+  contain: layout style paint;
+}
+
+.icon-placeholder {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 14px;
+}
+
+.icon-placeholder svg {
+  width: 36px;
+  height: 36px;
+}
+
+/* 3. Force icon to always occupy space – even before SVG loads */
+.summary-icon {
+  flex-shrink: 0; /* never shrink */
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.02); /* subtle placeholder */
+  border-radius: 12px;
   transition: all 0.3s ease;
 }
 
+/* Ensure SVG fills the box perfectly */
+.summary-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Hover effects (optional but nice) */
 .summary-card:hover {
-  transform: translateY(-0.3125rem); /* -5px */
-  box-shadow: 0 0.5rem 1.875rem rgba(0, 0, 0, 0.15); /* 8px 30px */
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+}
+.summary-card:hover .summary-icon {
+  transform: scale(1.12);
+  background: rgba(0, 0, 0, 0.06);
 }
 
-.summary-icon {
-  font-size: 2.5rem; /* 40px */
-  background: linear-gradient(135deg, #3498db, #2980b9);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+/* Left accent bar for highlighted cards */
+.summary-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: transparent;
+  transition: all 0.3s ease;
+  border-radius: 0 4px 4px 0;
+}
+.summary-card.highlight::before {
+  background: linear-gradient(180deg, #3498db, #2980b9);
+}
+.summary-card:hover::before {
+  width: 7px;
 }
 
+/* Text styles (unchanged) */
 .summary-content h3 {
-  margin: 0 0 0.5rem 0; /* 0 0 8px 0 */
-  font-size: clamp(0.8rem, 1.5vw, 0.9rem); /* Responsive: 12.8px - 14.4px */
-  color: #7f8c8d;
+  font-size: 0.875rem;
   font-weight: 600;
+  color: #7f8c8d;
   text-transform: uppercase;
-  letter-spacing: 0.03125rem; /* 0.5px */
+  letter-spacing: 1.2px;
+  margin: 0 0 0.5rem;
 }
-
-.summary-content p {
-  margin: 0;
-  font-size: clamp(1.5rem, 3vw, 1.8rem); /* Responsive: 24px - 28.8px */
+.big-value {
+  font-size: 2.5rem;
   font-weight: 700;
   color: #2c3e50;
+  margin: 0.25rem 0;
+  line-height: 1;
+}
+.summary-subtitle {
+  font-size: 0.925rem;
+  color: #95a5a6;
+  font-weight: 500;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .summary-cards {
+    grid-template-columns: 1fr;
+  }
+  .big-value {
+    font-size: 2.2rem;
+  }
 }
 
 /* Table Styles */
@@ -806,4 +880,76 @@
     transition: none;
     transform: none;
   }
+}
+.group-row {
+  background: #f8fdff !important;
+  border-left: 4px solid #3498db;
+}
+
+.group-row:hover {
+  background: #eef5ff !important;
+}
+
+.bulk-badge {
+  background: #3498db;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+  display: inline-block;
+  margin-bottom: 10px;
+}
+
+.group-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.group-item {
+  padding: 6px 0;
+  border-bottom: 1px dashed #ddd;
+}
+
+.group-item:last-child {
+  border-bottom: none;
+}
+
+.group-packages {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.package-tag {
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  display: inline-block;
+  width: fit-content;
+}
+
+.quantity-item {
+  margin: 6px 0;
+  font-size: 14px;
+}
+
+.highlight-total {
+  font-size: 1.4em !important;
+  font-weight: bold !important;
+  color: #27ae60 !important;
+}
+
+.invoice-btn.bulk {
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+  color: white;
+  font-weight: bold;
+}
+
+.invoice-btn.bulk:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(39, 174, 96, 0.4);
 }

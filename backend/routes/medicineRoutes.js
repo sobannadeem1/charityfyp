@@ -8,6 +8,9 @@ import {
   sellMedicine,
   getAllSales,
   getSalesByMedicine,
+  deleteSelectedSales,
+  deleteSaleGroup,
+  deleteAllSales,
 } from "../controllers/medicineController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 
@@ -25,4 +28,18 @@ medicineRouter.put("/:id", authMiddleware, updateMedicine);
 medicineRouter.patch("/:id/sell", authMiddleware, sellMedicine);
 medicineRouter.delete("/:id", authMiddleware, deleteMedicine);
 
+// =============================
+// DELETE SALE RECORDS (Admin Only)
+// =============================
+medicineRouter.delete(
+  "/sales/group/:timestamp/:soldBy",
+  authMiddleware,
+  deleteSaleGroup
+);
+medicineRouter.post(
+  "/sales/delete-selected",
+  authMiddleware,
+  deleteSelectedSales
+);
+medicineRouter.delete("/sales/all", authMiddleware, deleteAllSales);
 export default medicineRouter;

@@ -2,10 +2,6 @@
 import Invoice from "../models/Invoice.js";
 import Medicine from "../models/Medicine.js";
 
-/**
- * Helper: adjust stock by an array of { medicineId, delta }
- * delta can be negative (reduce) or positive (increase)
- */
 async function adjustStock(adjustments) {
   // adjustments: [{ medicineId, delta }]
   const ops = adjustments.map(async (a) => {
@@ -203,24 +199,89 @@ export const updateInvoice = async (req, res) => {
   }
 };
 
-// Delete invoice: restore stock and remove invoice
+// 1. DELETE SINGLE INVOICE (Individual Delete)
 export const deleteInvoice = async (req, res) => {
   try {
-    const invoiceId = req.params.id;
-    const invoice = await Invoice.findById(invoiceId);
-    if (!invoice) return res.status(404).json({ message: "Invoice not found" });
+    const invoice = await Invoice.findById(req.params.id);
+    if (!invoice) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Invoice not found" });
+    }
 
-    // restore stock for each item
-    const restoreOps = invoice.items.map((it) => ({
-      medicineId: it.medicine,
-      delta: it.quantity, // add back
+    // Restore stock
+    await restoreStockForInvoice(invoice);
+
+    // Delete the invoice
+    await invoice.deleteOne(); // or await Invoice.findByIdAndDelete(id)
+
+    res.json({
+      success: true,
+      message: "Invoice deleted & stock restored",
+    });
+  } catch (error) {
+    console.error("Delete single invoice error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+const restoreStockForInvoice = async (invoice) => {
+  const restoreOps = invoice.items.map((item) => ({
+    medicineId: item.medicine,
+    delta: +item.quantity, // add back the sold quantity
+  }));
+  // Bulk update stock
+  for (const op of restoreOps) {
+    await Medicine.findByIdAndUpdate(op.medicineId, {
+      $inc: { quantity: op.delta },
+    });
+  }
+};
+// 2. DELETE ALL INVOICES (Clear All)
+export const deleteAllInvoices = async (req, res) => {
+  try {
+    // Get ALL invoices with their items
+    const allInvoices = await Invoice.find().select("items");
+
+    // Restore stock for every item in every invoice
+    const allRestoreOps = [];
+
+    allInvoices.forEach((invoice) => {
+      invoice.items.forEach((item) => {
+        allRestoreOps.push({
+          medicineId: item.medicine,
+          quantityToAddBack: item.quantity,
+        });
+      });
+    });
+
+    // Group by medicine to avoid too many DB calls
+    const stockMap = {};
+    allRestoreOps.forEach((op) => {
+      const id = op.medicineId.toString();
+      stockMap[id] = (stockMap[id] || 0) + op.quantityToAddBack;
+    });
+
+    // Bulk restore stock
+    const bulkOps = Object.entries(stockMap).map(([medId, qty]) => ({
+      updateOne: {
+        filter: { _id: medId },
+        update: { $inc: { quantity: qty } },
+      },
     }));
-    await adjustStock(restoreOps);
 
-    await invoice.remove();
-    res.json({ success: true, message: "Invoice deleted and stock restored" });
-  } catch (err) {
-    console.error("deleteInvoice error:", err);
+    if (bulkOps.length > 0) {
+      await Medicine.bulkWrite(bulkOps);
+    }
+
+    // Now delete all invoices
+    await Invoice.deleteMany({});
+
+    res.json({
+      success: true,
+      message: `All ${allInvoices.length} invoices deleted & stock fully restored`,
+    });
+  } catch (error) {
+    console.error("Delete all invoices error:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
