@@ -844,25 +844,26 @@ export default function Medicines({ isAdmin }) {
             <table className="medicine-table">
               <thead>
                 <tr>
-                  <th>
-                    <input
-                      type="checkbox"
-                      checked={selectAll}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setSelectAll(checked);
-                        if (checked) {
-                          const allIds = new Set(
-                            displayedMedicines.map((m) => m._id)
-                          );
-                          setSelectedIds(allIds);
-                        } else {
-                          setSelectedIds(new Set());
-                        }
-                      }}
-                      title="Select all on this page"
-                    />
-                  </th>
+                  {isAdmin && (
+                    <th style={{ width: "50px" }}>
+                      <input
+                        type="checkbox"
+                        checked={selectAll}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setSelectAll(checked);
+                          if (checked) {
+                            setSelectedIds(
+                              new Set(displayedMedicines.map((m) => m._id))
+                            );
+                          } else {
+                            setSelectedIds(new Set());
+                          }
+                        }}
+                        title="Select all on this page"
+                      />
+                    </th>
+                  )}
                   <th>Medicine Name</th>
                   <th>Category</th>
                   <th>Strength</th>
@@ -898,24 +899,26 @@ export default function Medicines({ isAdmin }) {
                           : ""
                       }
                     >
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => {
-                            const newSelected = new Set(selectedIds);
-                            if (isSelected) {
-                              newSelected.delete(m._id);
-                            } else {
-                              newSelected.add(m._id);
-                            }
-                            setSelectedIds(newSelected);
-                            setSelectAll(
-                              newSelected.size === displayedMedicines.length
-                            );
-                          }}
-                        />
-                      </td>
+                      {isAdmin && (
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(m._id)}
+                            onChange={() => {
+                              const newSelected = new Set(selectedIds);
+                              if (selectedIds.has(m._id)) {
+                                newSelected.delete(m._id);
+                              } else {
+                                newSelected.add(m._id);
+                              }
+                              setSelectedIds(newSelected);
+                              setSelectAll(
+                                newSelected.size === displayedMedicines.length
+                              );
+                            }}
+                          />
+                        </td>
+                      )}
                       <td>
                         <div className="medicine-name-badge">
                           <span className="medicine-icon">

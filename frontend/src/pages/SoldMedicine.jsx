@@ -163,12 +163,18 @@ export default function SoldMedicines() {
   const getDisplayUnitPrice = useCallback(
     (record) => {
       const sellType = record.originalSellType || record.sellType;
-      return sellType === "packages"
-        ? record.salePrice
-        : getPricePerUnit(record.salePrice, record.packSize);
+      if (sellType === "units") {
+        return getPricePerUnit(record.salePrice, record.packSize);
+      }
+      return record.salePrice; // packages
     },
     [getPricePerUnit]
   );
+
+  const getUnitLabel = useCallback((record) => {
+    const sellType = record.originalSellType || record.sellType;
+    return sellType === "units" ? "per unit" : "per package";
+  }, []);
 
   const getSaleTypeInfo = useCallback(
     (record) => {
@@ -309,6 +315,10 @@ export default function SoldMedicines() {
           .map((item) => {
             const info = getSaleTypeInfo(item);
             const unitPrice = getDisplayUnitPrice(item);
+            const unitLabel =
+              item.originalSellType || item.sellType === "units"
+                ? "unit"
+                : "package";
             const total = calculateTotalAmount(item);
 
             return `
@@ -895,11 +905,8 @@ td:first-child {
                         {group.items.map((item) => (
                           <div key={item._id}>
                             PKR {getDisplayUnitPrice(item).toFixed(2)}
-                            <small>
-                              {item.originalSellType ||
-                              item.sellType === "units"
-                                ? "per unit"
-                                : "per pkg"}
+                            <small style={{ color: "#666", fontSize: "0.8em" }}>
+                              {getUnitLabel(item)}
                             </small>
                           </div>
                         ))}
