@@ -38,8 +38,10 @@ export default function Medicines({ isAdmin }) {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [selectAll, setSelectAll] = useState(false);
   const [showBulkSellPopup, setShowBulkSellPopup] = useState(false);
-  const [bulkSellQuantity, setBulkSellQuantity] = useState("");
-  const [bulkQuantityType, setBulkQuantityType] = useState("packages");
+  // Add this new state (put it with your other useState declarations)
+const [bulkSellData, setBulkSellData] = useState({}); // { medicineId: { quantity: "", type: "packages" } }
+  const searchTimeoutRef = useRef(null);
+const abortControllerRef = useRef(null);
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -80,43 +82,60 @@ export default function Medicines({ isAdmin }) {
       }
     );
   };
-  const handleBulkSell = async () => {
-    const qty = parseInt(bulkSellQuantity);
-    if (!qty || qty <= 0) return toast.error("Enter valid quantity");
+ const handleBulkSell = async () => {
+  const selectedMedicines = displayedMedicines.filter((m) =>
+    selectedIds.has(m._id)
+  );
 
-    try {
-      setIsSubmitting(true);
+  const invalid = selectedMedicines.filter(
+    (m) => !bulkSellData[m._id]?.quantity || parseInt(bulkSellData[m._id].quantity) <= 0
+  );
 
-      const selectedMedicines = displayedMedicines.filter((m) =>
-        selectedIds.has(m._id)
-      );
-      const insufficient = selectedMedicines.filter((m) => m.quantity < qty);
+  if (invalid.length > 0) {
+    return toast.error("Please enter valid quantity for all selected medicines");
+  }
 
-      if (insufficient.length > 0) {
-        toast.error(
-          `Not enough stock for: ${insufficient.map((m) => m.name).join(", ")}`
-        );
-        return;
+  try {
+    setIsSubmitting(true);
+    const promises = selectedMedicines.map((m) => {
+      const { quantity, type = "packages" } = bulkSellData[m._id] || {};
+      const qty = parseInt(quantity);
+
+      if (type === "packages" && qty > m.quantity) {
+        throw new Error(`Not enough packages for ${m.name}`);
+      }
+      if (type === "units") {
+        const totalUnits = m.quantity * getUnitsPerPackage(m);
+        if (qty > totalUnits) {
+          throw new Error(`Not enough units for ${m.name}`);
+        }
       }
 
-      const promises = selectedMedicines.map((m) =>
-        sellMedicine(m._id, qty, "packages")
-      );
-      await Promise.all(promises);
+      return sellMedicine(m._id, qty, type);
+    });
 
-      toast.success(`Sold ${qty} packages of ${selectedIds.size} medicines!`);
-      setSelectedIds(new Set());
-      setSelectAll(false);
-      setShowBulkSellPopup(false);
-      setBulkSellQuantity("");
-      fetchMedicines(currentPage, searchTerm);
-    } catch (error) {
-      toast.error("Bulk sell failed");
-      console.error(error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    await Promise.all(promises);
+   // SUCCESS!
+    toast.success(`Successfully sold ${selectedMedicines.length} medicines!`);
+
+    // CLEAR ALL BULK DATA
+    setSelectedIds(new Set());
+    setSelectAll(false);
+    setShowBulkSellPopup(false);
+    setBulkSellData({});
+
+    // REFRESH INVENTORY
+    fetchMedicines(currentPage);
+
+    // THIS LINE: Navigate to /sold page
+    navigate("/sold");
+  } catch (error) {
+    toast.error(error.message || "Bulk sell failed");
+    console.error(error);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
   // Click outside handlers (keep as is)
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -154,48 +173,57 @@ export default function Medicines({ isAdmin }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showAddPopup, showEditPopup, showSellPopup, isSubmitting]);
 
-  // ✅ UPDATED: Fetch medicines with pagination and search
-  const fetchMedicines = async (page = 1, search = "") => {
-    try {
-      setLoading(true);
-      const res = await getMedicinesWithPagination(page, itemsPerPage, search);
-      const data = Array.isArray(res.data) ? res.data : res.data || [];
+const fetchMedicines = async (page = 1) => {
+  if (abortControllerRef.current) {
+    abortControllerRef.current.abort();
+  }
+  const controller = new AbortController();
+  abortControllerRef.current = controller;
 
-      console.log("📦 LOADED MEDICINES:", {
-        page: page,
-        records: data.length,
-        pagination: res.pagination,
-        isSearching: !!search.trim(),
-      });
+  try {
+    setLoading(true);
 
-      // Fix quantities to integers
-      const fixedData = data.map((m) => ({
+    const response = await getMedicinesWithPagination({
+      page,
+      limit: itemsPerPage,
+      search: searchTerm,
+      category: filterCategory === "all" ? "" : filterCategory,
+      expiryMonth: filterExpiryMonth === "all" ? "" : filterExpiryMonth,
+      stockStatus: filterStockStatus === "all" ? "" : filterStockStatus,
+      sortBy: sortOption,
+      signal: controller.signal,
+    });
+
+    if (!controller.signal.aborted) {
+      const data = response.data || [];
+      const fixedData = data.map(m => ({
         ...m,
         quantity: Math.floor(Number(m.quantity)),
-      }));
+      })).filter(m => Number(m.quantity) > 0);
 
-      setMedicines(fixedData.filter((m) => Number(m.quantity) > 0));
-      setIsSearching(!!search.trim());
-
-      // Set pagination info from backend
-      if (res.pagination) {
-        setTotalPages(res.pagination.totalPages || 1);
-        setTotalRecords(res.pagination.totalMedicines || 0);
-        setCurrentPage(res.pagination.currentPage || page);
-      }
-    } catch (error) {
-      console.error("Error fetching medicines:", error);
-      toast.error("Failed to load medicines");
-    } finally {
-      setLoading(false);
+      setMedicines(fixedData);
+      setTotalPages(response.pagination?.totalPages || 1);
+      setTotalRecords(response.pagination?.totalMedicines || 0);
+      setCurrentPage(response.pagination?.currentPage || page);
+      setIsSearching(!!searchTerm.trim());
     }
-  };
-  const resetFilters = () => {
-    setSortOption("date-newest");
-    setFilterCategory("all");
-    setFilterExpiryMonth("all");
-    setFilterStockStatus("all");
-  };
+  } catch (err) {
+    if (err.name !== "AbortError") {
+      toast.error("Failed to load medicines");
+    }
+  } finally {
+    if (!controller.signal.aborted) setLoading(false);
+  }
+};
+
+const resetFilters = () => {
+  setSortOption("date-newest");
+  setFilterCategory("all");
+  setFilterExpiryMonth("all");
+  setFilterStockStatus("all");
+  setCurrentPage(1);
+  fetchMedicines(1);
+};
   // === Get unique values for dropdowns ===
   const categories = [
     ...new Set(medicines.map((m) => m.category).filter(Boolean)),
@@ -214,98 +242,53 @@ export default function Medicines({ isAdmin }) {
         })
     ),
   ].sort((a, b) => b.localeCompare(a)); // newest first
-  // === NEW: Client-side filtering + sorting (Safe & Fast) ===
-  const displayedMedicines = useMemo(() => {
-    let list = [...medicines];
+ const displayedMedicines = useMemo(() => {
+  let list = [...medicines];
 
-    // Category Filter
-    if (filterCategory !== "all") {
-      list = list.filter((m) => m.category === filterCategory);
+  // Only keep client-side sorting (fast & safe)
+  list.sort((a, b) => {
+    switch (sortOption) {
+      case "name-asc": return a.name.localeCompare(b.name);
+      case "name-desc": return b.name.localeCompare(a.name);
+      case "price-low": return a.salePrice - b.salePrice;
+      case "price-high": return b.salePrice - b.salePrice;
+      case "quantity-low": return a.quantity - b.quantity;
+      case "quantity-high": return b.quantity - a.quantity;
+      case "expiry-soon": return new Date(a.expiry || "9999") - new Date(b.expiry || "9999");
+      case "date-newest": return new Date(b.createdAt) - new Date(a.createdAt);
+      default: return 0;
     }
+  });
 
-    // Expiry Month Filter
-    if (filterExpiryMonth !== "all") {
-      const [year, month] = filterExpiryMonth.split("-");
-      list = list.filter((m) => {
-        if (!m.expiry) return false;
-        const d = new Date(m.expiry);
-        return (
-          d.getFullYear() === parseInt(year) &&
-          d.getMonth() + 1 === parseInt(month)
-        );
-      });
-    }
-
-    // Stock Status Filter
-    if (filterStockStatus === "low") {
-      list = list.filter((m) => m.quantity <= 5);
-    } else if (filterStockStatus === "expired") {
-      list = list.filter((m) => m.expiry && new Date(m.expiry) < new Date());
-    }
-
-    // Sorting
-    list.sort((a, b) => {
-      switch (sortOption) {
-        case "name-asc":
-          return a.name.localeCompare(b.name);
-        case "name-desc":
-          return b.name.localeCompare(a.name);
-        case "price-low":
-          return a.salePrice - b.salePrice;
-        case "price-high":
-          return b.salePrice - a.salePrice;
-        case "quantity-low":
-          return a.quantity - b.quantity;
-        case "quantity-high":
-          return b.quantity - a.quantity;
-        case "expiry-soon":
-          return (
-            new Date(a.expiry || "9999-12-31") -
-            new Date(b.expiry || "9999-12-31")
-          );
-        case "date-newest":
-          return new Date(b.createdAt) - new Date(a.createdAt);
-        default:
-          return 0;
-      }
-    });
-
-    return list;
-  }, [
-    medicines,
-    sortOption,
-    filterCategory,
-    filterExpiryMonth,
-    filterStockStatus,
-  ]);
-
-  // ✅ UPDATED: Load data when component mounts or page changes
-  useEffect(() => {
-    fetchMedicines(currentPage, searchTerm);
-  }, [currentPage]);
-
-  // ✅ UPDATED: Search functionality with server-side search
-  const handleSearch = (e) => {
-    const val = e.target.value;
-    setSearchTerm(val);
-
-    // Reset to page 1 when search changes
-    setCurrentPage(1);
-
-    // Use debounce to avoid too many API calls
-    const timeoutId = setTimeout(() => {
-      fetchMedicines(1, val);
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
+  return list;
+}, [medicines, sortOption]);
+useEffect(() => {
+  setCurrentPage(1);
+  fetchMedicines(1);
+}, [searchTerm, filterCategory, filterExpiryMonth, filterStockStatus, sortOption]);
+ useEffect(() => {
+  fetchMedicines(currentPage);
+}, [currentPage]);
+useEffect(() => {
+  return () => {
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    if (abortControllerRef.current) abortControllerRef.current.abort();
   };
+}, []);
 
-  // ✅ Clear search and return to normal pagination
-  const clearSearch = () => {
-    setSearchTerm("");
-    setCurrentPage(1);
-    fetchMedicines(1, "");
-  };
+ const handleSearch = (e) => {
+  const val = e.target.value;
+  setSearchTerm(val);
+  // Remove timeout completely — let useEffect above handle it
+};
+
+ const clearSearch = () => {
+  setSearchTerm("");
+  setCurrentPage(1);
+  if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+  if (abortControllerRef.current) abortControllerRef.current.abort();
+  fetchMedicines(1);
+};
 
   // ✅ Pagination controls
   const goToPage = (page) => {
@@ -1763,64 +1746,160 @@ export default function Medicines({ isAdmin }) {
           </div>
         </div>
       )}
-      {showBulkSellPopup && (
-        <div className="popup-overlay">
-          <div className="popup" ref={sellPopupRef}>
-            <h2>Sell {selectedIds.size} Selected Medicines</h2>
+    {showBulkSellPopup && (
+  <div className="popup-overlay">
+    <div className="popup bulk-sell-popup modern-bulk-sell">
+      <h2>
+        Bulk Sell ({selectedIds.size}) Medicine{selectedIds.size > 1 ? "s" : ""}
+      </h2>
 
-            <div className="bulk-sell-info">
-              <p>
-                <strong>Selected:</strong> {selectedIds.size} medicines
-              </p>
-              <p>
-                <strong>Warning:</strong> All will be sold as complete packages
-              </p>
-            </div>
+      <div className="bulk-medicines-scroll">
+        {displayedMedicines
+          .filter((m) => selectedIds.has(m._id))
+          .map((medicine) => {
+            const unitsPerPack = getUnitsPerPackage(medicine);
+            const canSellUnits = ["Tablet", "Capsule", "Injection"].includes(medicine.category);
+            const data = bulkSellData[medicine._id] || { quantity: "", type: "packages" };
+            const maxPackages = Math.floor(medicine.quantity);
+            const maxUnits = maxPackages * unitsPerPack;
 
-            <label>
-              <strong>Quantity per medicine (packages):</strong>
-            </label>
-            <input
-              type="number"
-              value={bulkSellQuantity}
-              onChange={(e) => setBulkSellQuantity(e.target.value)}
-              placeholder="e.g. 2 (sell 2 packages of each)"
-              min="1"
-              className="input-field"
-              style={{ width: "100%", padding: "12px", fontSize: "1.1em" }}
-            />
+            return (
+              <div key={medicine._id} className="bulk-med-item">
+                <div className="bulk-med-header">
+                  <span className="med-emoji">{getCategoryEmoji(medicine.category)}</span>
+                  <strong>{medicine.name}</strong>
+                  {medicine.packSize && <small className="pack-size">({medicine.packSize})</small>}
+                </div>
 
-            {bulkSellQuantity && parseInt(bulkSellQuantity) > 0 && (
-              <div className="total-calculation">
-                <p>
-                  <strong>Total Packages to Sell:</strong>{" "}
-                  {selectedIds.size * parseInt(bulkSellQuantity)}
-                </p>
+                <div className="stock-info">
+                  <span>
+                    <strong>Stock:</strong> {maxPackages} package{maxPackages !== 1 ? "s" : ""}
+                    {canSellUnits && <> → {maxUnits} units</>}
+                  </span>
+                  <span>
+                    <strong>Price/Package:</strong> PKR {medicine.salePrice}
+                  </span>
+                  {canSellUnits && (
+                    <span className="unit-price">
+                      <strong>Price/Unit:</strong> PKR {getPricePerUnit(medicine).toFixed(2)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Radio Buttons - NOW WORKING */}
+                {canSellUnits && (
+                  <div className="quantity-type-radio">
+                    <label className={data.type === "packages" ? "active" : ""}>
+                      <input
+                        type="radio"
+                        name={`type-${medicine._id}`}
+                        value="packages"
+                        checked={data.type === "packages"}
+                        onChange={() => {
+                          setBulkSellData(prev => ({
+                            ...prev,
+                            [medicine._id]: { ...prev[medicine._id], type: "packages" } || { quantity: "", type: "packages" }
+                          }));
+                        }}
+                      />
+                      <span>Packages</span>
+                    </label>
+                    <label className={data.type === "units" ? "active" : ""}>
+                      <input
+                        type="radio"
+                        name={`type-${medicine._id}`}
+                        value="units"
+                        checked={data.type === "units"}
+                        onChange={() => {
+                          setBulkSellData(prev => ({
+                            ...prev,
+                            [medicine._id]: { ...prev[medicine._id], type: "units" } || { quantity: "", type: "units" }
+                          }));
+                        }}
+                      />
+                      <span>Units</span>
+                    </label>
+                  </div>
+                )}
+
+                {/* Quantity Input */}
+                <div className="quantity-input-wrapper">
+                  <input
+                    type="number"
+                    placeholder={
+                      data.type === "units"
+                        ? `Max: ${maxUnits} units`
+                        : `Max: ${maxPackages} packages`
+                    }
+                    value={data.quantity}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || /^\d+$/.test(val)) {
+                        setBulkSellData(prev => ({
+                          ...prev,
+                          [medicine._id]: { ...prev[medicine._id], quantity: val } || { quantity: val, type: "packages" }
+                        }));
+                      }
+                    }}
+                    min="1"
+                    max={data.type === "units" ? maxUnits : maxPackages}
+                    className="bulk-qty-input"
+                  />
+                  {data.quantity && parseInt(data.quantity) > 0 && (
+                    <div className="item-total">
+                      PKR {calculateTotal(medicine, parseInt(data.quantity), data.type).toFixed(2)}
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
+            );
+          })}
+      </div>
 
-            <div className="popup-buttons">
-              <button
-                className="save-btn"
-                onClick={handleBulkSell}
-                disabled={!bulkSellQuantity || isSubmitting}
-              >
-                {isSubmitting ? "Processing..." : "Confirm Bulk Sell"}
-              </button>
-              <button
-                className="cancel-btn"
-                onClick={() => {
-                  setShowBulkSellPopup(false);
-                  setBulkSellQuantity("");
-                }}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+      {/* Grand Total */}
+      {Object.values(bulkSellData).some(item => item.quantity && parseInt(item.quantity) > 0) && (
+        <div className="grand-total-bar">
+          <strong>
+            Grand Total: PKR{" "}
+            {Object.entries(bulkSellData)
+              .filter(([id, data]) => selectedIds.has(id) && data.quantity && parseInt(data.quantity) > 0)
+              .reduce((sum, [id, data]) => {
+                const med = displayedMedicines.find(m => m._id === id);
+                return sum + (med ? calculateTotal(med, parseInt(data.quantity), data.type) : 0);
+              }, 0)
+              .toFixed(2)}
+          </strong>
         </div>
       )}
+
+      <div className="popup-buttons bulk">
+        <button
+          className="confirm-bulk-btn"
+          onClick={handleBulkSell}
+          disabled={
+            isSubmitting ||
+            Object.keys(bulkSellData).length === 0 ||
+            displayedMedicines
+              .filter(m => selectedIds.has(m._id))
+              .some(m => !bulkSellData[m._id]?.quantity || parseInt(bulkSellData[m._id].quantity) <= 0)
+          }
+        >
+          {isSubmitting ? "Processing..." : `Confirm Bulk Sell (${selectedIds.size})`}
+        </button>
+        <button
+          className="cancel-bulk-btn"
+          onClick={() => {
+            setShowBulkSellPopup(false);
+            setBulkSellData({}); // Clear all
+          }}
+          disabled={isSubmitting}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo,useRef } from "react";
 import { getSalesWithPagination } from "../api/medicineapi.js"; // You'll need to create this API function
 import "../styles/SoldMedicine.css";
 import { toast } from "sonner";
@@ -20,6 +20,11 @@ export default function SoldMedicines() {
   const pageSize = 10;
 
   const navigate = useNavigate();
+  
+  // Add this ref at the top with your other useRefs
+  const abortControllerRef = useRef(null);
+  const searchTimeoutRef = useRef(null);
+  
 
   // ✅ Keep all your existing calculation functions (they're working fine)
   const getUnitsPerPackage = useCallback((packSize) => {
@@ -207,85 +212,95 @@ export default function SoldMedicines() {
     [getUnitsPerPackage, getPricePerUnit]
   );
 
-  // ✅ FIXED: Fetch with pagination - now handles both normal and search
-  const fetchSoldRecords = async (page = 1, searchTerm = "") => {
-    try {
-      setLoading(true);
 
-      let res;
-      if (searchTerm.trim()) {
-        // ✅ FIXED: Correct parameter order - searchTerm, page, pageSize
-        res = await getSalesWithPagination(page, pageSize, searchTerm);
-        setIsSearching(true);
-      } else {
-        // ✅ FIXED: Correct parameter order - page, pageSize
-        res = await getSalesWithPagination(page, pageSize);
-        setIsSearching(false);
-      }
+// UPDATE your fetchSoldRecords like this:
+const fetchSoldRecords = async (page = 1) => {
+  // Cancel previous request
+  if (abortControllerRef.current) {
+    abortControllerRef.current.abort();
+  }
 
-      const data = Array.isArray(res.data) ? res.data : res.data || [];
+  const controller = new AbortController();
+  abortControllerRef.current = controller;
 
-      console.log("📦 LOADED RECORDS:", {
-        search: searchTerm,
-        page: page,
-        records: data.length,
-        pagination: res.pagination,
-        isSearching: !!searchTerm.trim(),
-      });
+  try {
+    setLoading(true);
 
-      setSoldRecords(data);
+    const response = await getSalesWithPagination({
+      page,
+      limit: pageSize,
+      search: search.trim() || undefined,
+      month: filterMonth !== "all" ? filterMonth : undefined,
+      sort: sortSalesBy,
+      signal: controller.signal, // ← THIS IS THE MAGIC
+    });
 
-      // Set pagination info from backend
-      if (res.pagination) {
-        setTotalPages(res.pagination.totalPages || 1);
-        setTotalRecords(
-          res.pagination.totalSales || res.pagination.totalRecords || 0
-        );
-        setCurrentPage(res.pagination.currentPage || page);
-      }
+    // Only update if this is the latest request
+    if (!controller.signal.aborted) {
+      setSoldRecords(response.data || []);
+      setTotalPages(response.pagination?.totalPages || 1);
+      setTotalRecords(response.pagination?.totalSales || 0);
+      setCurrentPage(response.pagination?.currentPage || page);
+      setTotalRevenue(response.summary?.totalRevenue || 0);
+    }
 
-      const total = data.reduce(
-        (acc, item) => acc + calculateTotalAmount(item),
-        0
-      );
-      setTotalRevenue(total);
-
-      setTotalRevenue(total);
-    } catch (err) {
-      console.error("Error fetching records:", err);
-      toast.error("Failed to load records.");
-    } finally {
+  } catch (err) {
+    if (err.name === "AbortError") {
+      console.log("Request cancelled");
+      return;
+    }
+    console.error("Fetch failed:", err);
+  } finally {
+    if (!controller.signal.aborted) {
       setLoading(false);
     }
+  }
+};
+
+useEffect(() => {
+  fetchSoldRecords(currentPage);
+}, [currentPage, search, filterMonth, sortSalesBy]);
+
+
+const handleSearch = (e) => {
+  const val = e.target.value;
+  setSearch(val);
+  setCurrentPage(1);
+
+  // Cancel any pending search
+  if (searchTimeoutRef.current) {
+    clearTimeout(searchTimeoutRef.current);
+  }
+
+  // Cancel any in-flight API call
+  if (abortControllerRef.current) {
+    abortControllerRef.current.abort();
+  }
+
+  searchTimeoutRef.current = setTimeout(() => {
+    fetchSoldRecords(1);
+  }, 400); // slightly faster
+};
+
+// Also clear timeout when component unmounts
+useEffect(() => {
+  return () => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
   };
+}, []);
 
-  // ✅ UPDATED: Load data when component mounts or page/search changes
-  useEffect(() => {
-    fetchSoldRecords(currentPage, search);
-  }, [currentPage]);
-
-  // ✅ UPDATED: Search functionality with server-side search
-  const handleSearch = (e) => {
-    const val = e.target.value;
-    setSearch(val);
-
-    // Reset to page 1 when search changes
-    setCurrentPage(1);
-
-    // Use debounce to avoid too many API calls
-    const timeoutId = setTimeout(() => {
-      fetchSoldRecords(1, val);
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
-  };
-
-  // ✅ Clear search and return to normal pagination
-  const clearSearch = () => {
-    setSearch("");
-    setCurrentPage(1);
-    fetchSoldRecords(1, "");
-  };
+const clearSearch = () => {
+  setSearch("");
+  setCurrentPage(1);
+  if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+  if (abortControllerRef.current) abortControllerRef.current.abort();
+  fetchSoldRecords(1);
+};
+useEffect(() => {
+  setIsSearching(!!search.trim());
+}, [search]);
 
   // ✅ Pagination controls
   const goToPage = (page) => {
@@ -684,10 +699,7 @@ td:first-child {
   );
 
   const summaryData = useMemo(() => {
-    const filteredRevenue = soldRecords.reduce(
-      (sum, item) => sum + calculateTotalAmount(item),
-      0
-    );
+    
 
     return [
       {
@@ -714,20 +726,15 @@ td:first-child {
             </svg>
           </div>
         ),
-        title:
-          filterMonth !== "all" || isSearching
-            ? "Filtered Revenue"
-            : "Total Revenue",
-        value: `PKR ${filteredRevenue.toLocaleString("en-US", {
-          minimumFractionDigits: 2,
-        })}`,
-        subtitle: isSearching
-          ? "current results"
-          : filterMonth !== "all"
-          ? "this month"
-          : "all sales",
-        color: "#27ae60",
-        highlight: true,
+       title: search.trim() || filterMonth !== "all" ? "Filtered Revenue" : "Total Revenue",
+  value: `PKR ${totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+  subtitle: search.trim()
+    ? `Results: "${search}"`
+    : filterMonth !== "all"
+    ? "Current month"
+    : "All time sales",
+  color: "#27ae60",
+  highlight: true,
       },
     ];
   }, [

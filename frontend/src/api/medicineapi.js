@@ -1,9 +1,7 @@
 import axios from "axios";
 
-// ✅ Detect environment (localhost vs production)
+// Detect environment
 const isLocal = window.location.hostname === "localhost";
-
-// ✅ Base URLs for both
 export const BASE_URL = isLocal
   ? "http://localhost:5000/api"
   : "https://charityfyp-jm4i.vercel.app/api";
@@ -13,76 +11,95 @@ const BASE_ADMIN = `${BASE_URL}/admin`;
 const BASE_INVOICES = `${BASE_URL}/invoices`;
 const BASE_DONATIONS = `${BASE_URL}/donations`;
 
-// ✅ Always send cookies (important for authentication)
+// Always send cookies for auth
 axios.defaults.withCredentials = true;
 
 /* ==============================
-   💊 Medicines APIs
+   Medicines APIs
 ============================== */
+
 export const addMedicine = async (data) => {
   const res = await axios.post(BASE_MEDICINES, data);
   return res.data;
 };
 
-export const getMedicinesWithPagination = async (
+// MAIN FIX: Now supports ALL filters + abort controller
+export const getMedicinesWithPagination = async ({
   page = 1,
   limit = 10,
-  search = ""
-) => {
+  search = "",
+  category = "",
+  expiryMonth = "",
+  stockStatus = "",
+  sortBy = "date-newest",
+  signal // for aborting previous requests
+} = {}) => {
   try {
-    console.log(`🟢 API Call - Medicines with Pagination:`, {
+    console.log("Calling API with filters:", {
       page,
       limit,
       search,
+      category,
+      expiryMonth,
+      stockStatus,
+      sortBy,
     });
+
+    const params = new URLSearchParams();
+    params.append("page", page);
+    params.append("limit", limit);
+
+    if (search) params.append("search", search);
+    if (category && category !== "all") params.append("category", category);
+    if (expiryMonth && expiryMonth !== "all") params.append("expiryMonth", expiryMonth);
+    if (stockStatus && stockStatus !== "all") params.append("stockStatus", stockStatus);
+    params.append("sortBy", sortBy);
 
     const res = await axios.get(`${BASE_MEDICINES}/`, {
-      params: { page, limit, search },
+      params,
+      signal, // This cancels previous request when typing fast
     });
 
-    console.log("🟢 Medicines data fetched successfully");
-    return res.data; // This now includes data + pagination info
+    console.log("Medicines fetched successfully", res.data);
+    return res.data; // { success: true, data: [...], pagination: { ... } }
   } catch (error) {
-    console.error("🔴 Error fetching medicines:", error);
+    if (error.name === "AbortError" || error.name === "CanceledError") {
+      console.log("Request canceled (normal during fast typing)");
+      return null;
+    }
+    console.error("Error fetching medicines:", error);
     throw error;
   }
 };
-// In medicineapi.js
+
+// Keep this for dashboard/low-stock notifications (fetches all)
 export const getAllMedicines = async () => {
   try {
-    console.log("Fetching ALL medicines for dashboard & notifications");
+    const response = await getMedicinesWithPagination({
+      page: 1,
+      limit: 10000,
+      search: "",
+    });
 
-    const response = await getMedicinesWithPagination(1, 10000, "");
+    if (!response || !response.data) return [];
 
-    // THIS IS THE REAL FIX — EXTRACT THE ARRAY!
-    let medicines = [];
+    const medicines = Array.isArray(response.data) ? response.data : response.data;
 
-    if (response && response.data && Array.isArray(response.data)) {
-      medicines = response.data;
-    } else if (Array.isArray(response)) {
-      medicines = response;
-    } else if (response && Array.isArray(response.medicines)) {
-      medicines = response.medicines;
-    }
-
-    // FINAL CLEANUP: Force all numeric fields to be safe numbers
-    const cleaned = medicines.map((med) => ({
+    return medicines.map((med) => ({
       ...med,
-      name: String(med.name || "Unknown Medicine").trim() || "Unknown",
-      unitsAvailable: Number(med.unitsAvailable ?? med.quantity ?? 0) || 0,
-      unitsPerPackage: Number(med.unitsPerPackage ?? 0) || 1,
-      quantity: Number(med.quantity ?? 0) || 0,
+      name: String(med.name || "Unknown").trim(),
+      quantity: Number(med.quantity ?? 0),
+      unitsAvailable: Number(med.unitsAvailable ?? med.quantity ?? 0),
+      unitsPerPackage: Number(med.unitsPerPackage ?? 1),
       expiry: med.expiry || null,
       category: String(med.category || "General"),
     }));
-
-    console.log(`Cleaned & safe: ${cleaned.length} medicines`);
-    return cleaned;
   } catch (error) {
     console.error("getAllMedicines failed:", error);
     return [];
   }
 };
+
 export const getMedicineById = async (id) => {
   const res = await axios.get(`${BASE_MEDICINES}/${id}`);
   return res.data;
@@ -90,7 +107,7 @@ export const getMedicineById = async (id) => {
 
 export const updateMedicine = async (id, data) => {
   const res = await axios.put(`${BASE_MEDICINES}/${id}`, data);
-  return res.data.data;
+  return res.data.data || res.data;
 };
 
 export const deleteMedicine = async (id) => {
@@ -100,28 +117,13 @@ export const deleteMedicine = async (id) => {
 
 export const sellMedicine = async (id, quantitySold, sellType = "packages") => {
   try {
-    console.log("🟢 API Call - Sell Medicine:", {
-      id,
-      quantitySold,
-      sellType,
-    });
-
     const res = await axios.patch(`${BASE_MEDICINES}/${id}/sell`, {
       quantitySold,
       sellType,
     });
-
-    console.log("🟢 API Success:", res.data);
     return res.data;
   } catch (error) {
-    console.error("🔴 API Error Complete Response:", {
-      status: error.response?.status,
-      data: error.response?.data,
-      headers: error.response?.headers,
-      config: error.config,
-    });
-
-    // Throw the complete error
+    console.error("Sell error:", error.response?.data || error);
     throw error;
   }
 };
@@ -142,48 +144,36 @@ export const getSalesWithPagination = async (
   searchTerm = ""
 ) => {
   try {
-    console.log(`🟢 API Call - Sales with Pagination:`, {
-      page,
-      limit,
-      searchTerm,
-    });
-
     const res = await axios.get(`${BASE_MEDICINES}/sold/records`, {
       params: { page, limit, q: searchTerm },
     });
-
-    console.log("🟢 Sales data fetched successfully");
     return res.data;
   } catch (error) {
-    console.error("🔴 Error fetching sales:", error);
+    console.error("Error fetching sales:", error);
     throw error;
   }
 };
 
 /* ==============================
-   👨‍💻 Admin APIs
+   Admin APIs
 ============================== */
 export const loginAdmin = async (formData) => {
-  const res = await axios.post(`${BASE_ADMIN}/login`, formData, {
-    withCredentials: true,
-  });
+  const res = await axios.post(`${BASE_ADMIN}/login`, formData);
   return res.data;
 };
 
 export const logoutAdmin = async () => {
-  const res = await axios.post(`${BASE_ADMIN}/logout`, null, {
-    withCredentials: true,
-  });
+  const res = await axios.post(`${BASE_ADMIN}/logout`);
   return res.data;
 };
 
 export const getCurrentAdmin = async () => {
-  const res = await axios.get(`${BASE_ADMIN}/me`, { withCredentials: true });
+  const res = await axios.get(`${BASE_ADMIN}/me`);
   return res.data;
 };
 
 /* ==============================
-   🧾 Invoices APIs
+   Invoices APIs
 ============================== */
 export const getAllInvoices = async () => {
   const res = await axios.get(BASE_INVOICES);

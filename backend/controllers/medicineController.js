@@ -230,42 +230,74 @@ export const sellMedicine = async (req, res) => {
   }
 };
 
-// ✅ Unified sales controller that handles both normal and search
+// ✅ FINAL PROFESSIONAL getAllSales - FULLY SUPPORTS ALL FILTERS
 export const getAllSales = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
-    const searchTerm = req.query.q || req.query.search || ""; // Support both parameter names
+    const limit = parseInt(req.query.limit) || 10;
+    const searchTerm = (req.query.q || req.query.search || "").trim();
+    const monthFilter = req.query.month || ""; // "2025-12"
+    const sortBy = req.query.sort || "date-newest"; // date-newest, revenue-high, etc.
+
     const skip = (page - 1) * limit;
 
-    console.log(
-      `📊 Fetching sales - Page: ${page}, Limit: ${limit}, Search: "${searchTerm}"`
-    );
+    // Build base query
+    let query = {};
 
-    // Build search query - empty if no search term
-    let searchQuery = {};
-    if (searchTerm && searchTerm.trim() !== "") {
-      searchQuery = {
-        $or: [
-          { medicineName: { $regex: searchTerm, $options: "i" } },
-          { "medicine.name": { $regex: searchTerm, $options: "i" } },
-          { "medicine.category": { $regex: searchTerm, $options: "i" } },
-          { "medicine.manufacturer": { $regex: searchTerm, $options: "i" } },
-        ],
-      };
+    // 1. Search filter
+    if (searchTerm) {
+      query.$or = [
+        { medicineName: { $regex: searchTerm, $options: "i" } },
+        { "medicine.name": { $regex: searchTerm, $options: "i" } },
+        { "medicine.category": { $regex: searchTerm, $options: "i" } },
+        { "medicine.manufacturer": { $regex: searchTerm, $options: "i" } },
+      ];
     }
 
-    // Get total count for pagination info
-    const totalSales = await Sale.countDocuments(searchQuery);
+    // 2. Month filter
+    if (monthFilter && monthFilter !== "all") {
+      const [year, month] = monthFilter.split("-");
+      const startDate = new Date(`${year}-${month}-01T00:00:00.000Z`);
+      const endDate = new Date(startDate);
+      endDate.setMonth(endDate.getMonth() + 1);
 
-    const sales = await Sale.find(searchQuery)
-      .sort({ soldAt: -1 })
-      .populate("medicine", "name category manufacturer salePrice packSize")
+      query.soldAt = { $gte: startDate, $lt: endDate };
+    }
+
+    // 3. Sorting
+    let sortOption = {};
+    switch (sortBy) {
+      case "date-newest":
+        sortOption = { soldAt: -1 };
+        break;
+      case "date-oldest":
+        sortOption = { soldAt: 1 };
+        break;
+      case "revenue-high":
+        sortOption = { totalAmount: -1 };
+        break;
+      case "revenue-low":
+        sortOption = { totalAmount: 1 };
+        break;
+      case "quantity-high":
+        sortOption = { quantitySold: -1 };
+        break;
+      default:
+        sortOption = { soldAt: -1 };
+    }
+
+    // Get total count for pagination
+    const totalSales = await Sale.countDocuments(query);
+
+    // Fetch paginated + filtered + sorted data
+    const sales = await Sale.find(query)
+      .sort(sortOption)
       .skip(skip)
       .limit(limit)
+      .populate("medicine", "name category manufacturer salePrice packSize strength")
       .lean();
 
-    // Format sales data
+    // Format response (same as before)
     const formattedSales = sales.map((s) => ({
       _id: s._id,
       name: s.medicineName || s.medicine?.name || "Unknown",
@@ -273,17 +305,23 @@ export const getAllSales = async (req, res) => {
       manufacturer: s.medicine?.manufacturer || "-",
       quantitySold: s.quantitySold,
       salePrice: s.medicine?.salePrice || 0,
-      unitPrice: s.unitPrice || 0,
+      packSize: s.packSize || s.medicine?.packSize || "Standard",
+      strength: s.medicine?.strength || "",
       total: s.totalAmount || 0,
       soldAt: s.soldAt,
-      soldBy: s.soldBy,
-      note: s.note,
-      packSize: s.packSize || s.medicine?.packSize || "-",
-      sellType: s.sellType || s.originalSellType || "packages",
-      originalQuantity: s.originalQuantity || s.quantitySold,
-      unitsPerPackage: s.unitsPerPackage || 1,
+      soldBy: s.soldBy || "Staff",
+      sellType: s.originalSellType || s.sellType || "packages",
       originalSellType: s.originalSellType || s.sellType || "packages",
+      unitsPerPackage: s.unitsPerPackage || 1,
     }));
+
+    // Calculate accurate total revenue for filtered results (for summary cards)
+    const revenueAggregation = await Sale.aggregate([
+      { $match: query },
+      { $group: { _id: null, totalRevenue: { $sum: "$totalAmount" } } },
+    ]);
+
+    const totalRevenue = revenueAggregation[0]?.totalRevenue || 0;
 
     res.status(200).json({
       success: true,
@@ -292,13 +330,21 @@ export const getAllSales = async (req, res) => {
         currentPage: page,
         totalPages: Math.ceil(totalSales / limit),
         totalSales,
+        totalRecords: totalSales,
         hasNextPage: page < Math.ceil(totalSales / limit),
         hasPrevPage: page > 1,
       },
+      summary: {
+        totalRevenue,
+      },
     });
   } catch (error) {
-    console.error("Error fetching sales:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Error in getAllSales:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch sales",
+      error: error.message,
+    });
   }
 };
 
@@ -316,41 +362,74 @@ export const getSalesByMedicine = async (req, res) => {
 };
 
 // ✅ Update getAllMedicines to support pagination and search
+// REPLACE your current getAllMedicines with THIS ONE
 export const getAllMedicines = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const search = req.query.search || "";
+    const search = (req.query.search || "").trim();
+    const category = (req.query.category || "").trim();
+    const expiryMonth = (req.query.expiryMonth || "").trim(); // "2025-12"
+    const stockStatus = (req.query.stockStatus || "").trim(); // "low", "expired"
+    const sortBy = req.query.sortBy || "date-newest";
+
     const skip = (page - 1) * limit;
 
-    console.log(
-      `📦 Fetching medicines - Page: ${page}, Limit: ${limit}, Search: "${search}"`
-    );
+    // Build dynamic query
+    let query = { quantity: { $gt: 0 } }; // only show medicines with stock
 
-    // Build search query
-    let query = {};
-    if (search && search.trim() !== "") {
-      query = {
-        $or: [
-          { name: { $regex: search, $options: "i" } },
-          { category: { $regex: search, $options: "i" } },
-          { manufacturer: { $regex: search, $options: "i" } },
-        ],
-      };
+    // SEARCH
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { category: { $regex: search, $options: "i" } },
+        { manufacturer: { $regex: search, $options: "i" } },
+        { supplier: { $regex: search, $options: "i" } },
+      ];
     }
 
-    // Get total count for pagination info
+    // CATEGORY FILTER
+    if (category && category !== "all") {
+      query.category = { $regex: `^${category}$`, $options: "i" };
+    }
+
+    // EXPIRY MONTH FILTER
+    if (expiryMonth && expiryMonth !== "all") {
+      const [year, month] = expiryMonth.split("-");
+      const startDate = new Date(`${year}-${month}-01`);
+      const endDate = new Date(startDate);
+      endDate.setMonth(endDate.getMonth() + 1);
+      query.expiry = { $gte: startDate, $lt: endDate };
+    }
+
+    // STOCK STATUS FILTER
+    if (stockStatus === "low") {
+      query.quantity = { $lte: 5, $gt: 0 };
+    } else if (stockStatus === "expired") {
+      query.expiry = { $lt: new Date() };
+    }
+
+    // SORTING
+    let sortOption = { createdAt: -1 }; // default newest
+    switch (sortBy) {
+      case "name-asc": sortOption = { name: 1 }; break;
+      case "name-desc": sortOption = { name: -1 }; break;
+      case "price-low": sortOption = { salePrice: 1 }; break;
+      case "price-high": sortOption = { salePrice: -1 }; break;
+      case "quantity-low": sortOption = { quantity: 1 }; break;
+      case "quantity-high": sortOption = { quantity: -1 }; break;
+      case "expiry-soon": sortOption = { expiry: 1 }; break;
+      case "date-newest":
+      default: sortOption = { createdAt: -1 };
+    }
+
     const totalMedicines = await Medicine.countDocuments(query);
 
-    // Get paginated results
     const medicines = await Medicine.find(query)
-      .sort({ createdAt: -1 })
+      .sort(sortOption)
       .skip(skip)
-      .limit(limit);
-
-    console.log(
-      `✅ Medicines fetched - Found: ${totalMedicines} total, Returning: ${medicines.length} records`
-    );
+      .limit(parseInt(limit))
+      .lean();
 
     res.status(200).json({
       success: true,
@@ -364,10 +443,10 @@ export const getAllMedicines = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching medicines:", error);
+    console.error("Error in getAllMedicines:", error);
     res.status(500).json({
       success: false,
-      message: "Server error while fetching medicines",
+      message: "Server error",
       error: error.message,
     });
   }

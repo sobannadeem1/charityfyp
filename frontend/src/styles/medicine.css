@@ -1319,74 +1319,229 @@
   color: #d97706;
   font-weight: bold;
 }
-/* Bulk Action Bar - Fixed at top when items selected */
+.modern-bulk-sell {
+  max-width: 560px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.bulk-medicines-scroll {
+  max-height: 65vh;
+  overflow-y: auto;
+  padding-right: 8px;
+  margin: 16px 0;
+}
+
+.bulk-med-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+  transition: all 0.2s;
+}
+
+.bulk-med-item:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.bulk-med-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 1.1em;
+}
+
+.med-emoji {
+  font-size: 1.4em;
+}
+
+.pack-size {
+  color: #64748b;
+  font-weight: normal;
+}
+
+.stock-info {
+  font-size: 0.9em;
+  color: #475569;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+  margin-bottom: 10px;
+}
+
+.unit-price {
+  color: #059669;
+  font-weight: 600;
+}
+
+.quantity-type-radio {
+  display: flex;
+  gap: 16px;
+  margin: 10px 0;
+  font-size: 0.95em;
+}
+
+.quantity-type-radio label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.quantity-type-radio label.active {
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.quantity-type-radio input {
+  margin: 0;
+}
+
+.quantity-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bulk-qty-input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 2px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 1em;
+}
+
+.bulk-qty-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 123, 246, 0.15);
+}
+
+.item-total {
+  font-weight: bold;
+  color: #059669;
+  white-space: nowrap;
+}
+
+.grand-total-bar {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 1.3em;
+  margin: 16px 0;
+  font-weight: bold;
+}
+
+.popup-buttons.bulk {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.confirm-bulk-btn {
+  background: #10b981;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-weight: bold;
+  font-size: 1.05em;
+}
+
+.confirm-bulk-btn:hover:not(:disabled) {
+  background: #059669;
+}
+
+.cancel-bulk-btn {
+  background: #e2e8f0;
+  color: #475569;
+  padding: 12px 20px;
+  border-radius: 10px;
+}
+/* ============================================= */
+/* BULK ACTION BAR (when medicines are selected) */
+/* ============================================= */
+
 .bulk-action-bar {
   position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  z-index: 40;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
   color: white;
-  padding: 1rem 1.5rem;
-  border-radius: 0 0 12px 12px;
-  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.25);
+  padding: 14px 20px;
+  border-radius: 12px;
+  margin: 16px 0;
+  box-shadow: 0 8px 25px rgba(59, 123, 246, 0.25);
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 1rem;
-  z-index: 40;
+  gap: 16px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   animation: slideDown 0.4s ease-out;
-  font-weight: 500;
 }
 
-/* Slide-in animation */
 @keyframes slideDown {
   from {
-    transform: translateY(-100%);
     opacity: 0;
+    transform: translateY(-20px);
   }
   to {
-    transform: translateY(0);
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
-/* Selected count info */
 .bulk-info {
-  font-size: 1.1rem;
+  font-size: 1.1em;
+  font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 10px;
 }
 
 .bulk-info strong {
-  font-size: 1.35rem;
-  font-weight: 700;
-  min-width: 32px;
-  color: #dbeafe;
+  background: rgba(255, 255, 255, 0.25);
+  padding: 6px 12px;
+  border-radius: 50px;
+  font-size: 1.2em;
+  min-width: 50px;
+  text-align: center;
+  backdrop-filter: blur(5px);
 }
 
-/* Button group */
 .bulk-buttons {
   display: flex;
-  gap: 0.75rem;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
-/* Shared button styles */
-.bulk-buttons button {
-  padding: 0.65rem 1.3rem;
+.bulk-sell-btn,
+.bulk-delete-btn,
+.bulk-cancel-btn {
+  padding: 10px 20px;
   border: none;
   border-radius: 10px;
-  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.25s ease;
-  min-width: 110px;
+  font-size: 0.95em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-/* Sell Button */
 .bulk-sell-btn {
   background: #10b981;
   color: white;
@@ -1398,7 +1553,6 @@
   box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
 }
 
-/* Delete Button */
 .bulk-delete-btn {
   background: #ef4444;
   color: white;
@@ -1411,39 +1565,29 @@
 }
 
 .bulk-delete-btn:disabled {
-  background: #fca5a5;
+  background: #94a3b8;
   cursor: not-allowed;
   transform: none;
 }
 
-/* Cancel Button */
 .bulk-cancel-btn {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.25);
   color: white;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
 .bulk-cancel-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.35);
   transform: translateY(-2px);
 }
 
-/* Responsive - Stack on mobile */
-@media (max-width: 640px) {
+/* Responsive for small screens */
+@media (max-width: 768px) {
   .bulk-action-bar {
     flex-direction: column;
     text-align: center;
-    padding: 1rem;
   }
-
   .bulk-buttons {
-    width: 100%;
     justify-content: center;
-  }
-
-  .bulk-buttons button {
-    flex: 1;
-    min-width: 100px;
   }
 }
