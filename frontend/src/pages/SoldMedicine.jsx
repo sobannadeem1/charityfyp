@@ -807,7 +807,6 @@ td:first-child {
           <div
             key={index}
             className={`summary-card ${card.highlight ? "highlight" : ""}`}
-            style={{ minWidth: 280, flex: "1" }} // ← THIS LINE IS THE KILLER
           >
             <div className="summary-icon" style={{ color: card.color }}>
               <div className="icon-placeholder">{card.svgIcon}</div>

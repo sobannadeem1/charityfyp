@@ -616,54 +616,60 @@ export default function Medicines({ isAdmin }) {
   };
 
   const confirmSell = async () => {
-    const quantity = parseInt(sellQuantity, 10);
-    if (!quantity || quantity <= 0) return toast.error("Invalid quantity!");
+  const quantity = parseInt(sellQuantity, 10);
+  if (!quantity || quantity <= 0) return toast.error("Invalid quantity!");
 
-    if (isSubmitting) {
-      toast.info("Please wait, another operation in progress...");
-      return;
-    }
+  if (isSubmitting) {
+    toast.info("Please wait, processing...");
+    return;
+  }
 
-    try {
-      setIsSubmitting(true);
+  try {
+    setIsSubmitting(true);
 
-      const unitsPerPackage = getUnitsPerPackage(currentMedicine);
+    const unitsPerPackage = getUnitsPerPackage(currentMedicine);
 
-      if (quantityType === "packages") {
-        if (quantity > currentMedicine.quantity) {
-          toast.error(
-            `Not enough packages! Only ${Math.floor(
-              currentMedicine.quantity
-            )} available.`
-          );
-          return;
-        }
-        await sellMedicine(currentMedicine._id, quantity, "packages");
-        toast.success(`Sold ${quantity} packages successfully 💸`);
-      } else {
-        const totalUnitsAvailable =
-          Math.floor(currentMedicine.quantity) * unitsPerPackage;
-        if (quantity > totalUnitsAvailable) {
-          toast.error(
-            `Not enough units! Only ${totalUnitsAvailable} available.`
-          );
-          return;
-        }
-        await sellMedicine(currentMedicine._id, quantity, "units");
-        toast.success(`Sold ${quantity} units successfully 💊`);
+    let soldAmount, soldType, soldUnitLabel;
+
+    if (quantityType === "packages") {
+      if (quantity > currentMedicine.quantity) {
+        toast.error(`Only ${Math.floor(currentMedicine.quantity)} package(s) in stock!`);
+        return;
       }
-
-      setSellQuantity("");
-      setQuantityType("packages");
-      setShowSellPopup(false);
-      fetchMedicines(currentPage, searchTerm); // ✅ UPDATED: Refresh current view
-    } catch (error) {
-      console.error("🔴 SELL ERROR:", error);
-      toast.error(error.response?.data?.message || "Error selling medicine");
-    } finally {
-      setIsSubmitting(false);
+      await sellMedicine(currentMedicine._id, quantity, "packages");
+      soldAmount = quantity;
+      soldType = "packages";
+      soldUnitLabel = quantity === 1 ? "package" : "packages";
+    } else {
+      const totalUnits = Math.floor(currentMedicine.quantity) * unitsPerPackage;
+      if (quantity > totalUnits) {
+        toast.error(`Only ${totalUnits} unit(s) available!`);
+        return;
+      }
+      await sellMedicine(currentMedicine._id, quantity, "units");
+      soldAmount = quantity;
+      soldType = "units";
+      soldUnitLabel = quantity === 1 ? "unit" : "units";
     }
-  };
+
+    // Success + redirect
+    toast.success(`Sold ${soldAmount} ${soldUnitLabel} successfully!`);
+
+    // Cleanup
+    setSellQuantity("");
+    setQuantityType("packages");
+    setShowSellPopup(false);
+
+    // INSTANT REDIRECT
+    navigate("/sold");
+
+  } catch (error) {
+    console.error("SELL ERROR:", error);
+    toast.error(error.response?.data?.message || "Failed to sell medicine");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   // Emoji mapping based on medicine category
   const getCategoryEmoji = (category) => {

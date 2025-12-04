@@ -163,7 +163,10 @@
   min-height: 140px;
   /* These two lines = bulletproof */
   min-width: 280px !important;
-  contain: layout style paint;
+  transform: translateZ(0);           /* Forces GPU acceleration */
+  backface-visibility: hidden;        /* Prevents flicker */
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .icon-placeholder {
@@ -202,10 +205,9 @@
   display: block;
 }
 
-/* Hover effects (optional but nice) */
 .summary-card:hover {
   transform: translateY(-8px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
 }
 .summary-card:hover .summary-icon {
   transform: scale(1.12);
@@ -228,9 +230,8 @@
   background: linear-gradient(180deg, #3498db, #2980b9);
 }
 .summary-card:hover::before {
-  width: 7px;
+  background: linear-gradient(180deg, #2980b9, #1e6fa3);
 }
-
 /* Text styles (unchanged) */
 .summary-content h3 {
   font-size: 0.875rem;
