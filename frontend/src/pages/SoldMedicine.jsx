@@ -95,23 +95,23 @@ const [pendingInvoiceData, setPendingInvoiceData] = useState(null);
   }, [soldRecords, filterMonth, sortSalesBy, calculateTotalAmount]);
   // FIXED: Group FIRST, then apply filters/sorting on GROUPS
   const groupedDisplayedSales = useMemo(() => {
-    // Step 1: Group ALL records by exact timestamp + soldBy (before any filtering)
     const allGroups = {};
-    soldRecords.forEach((record) => {
-      const timeKey = new Date(record.soldAt).toISOString().slice(0, 19);
-      const key = `${timeKey}_${record.soldBy || "unknown"}`;
+  soldRecords.forEach((record) => {
+    // FIXED: Group by MINUTE, not millisecond
+    const timeKey = new Date(record.soldAt).toISOString().slice(0, 16); // ← THIS LINE
+    const key = `${timeKey}_${record.soldBy || "unknown"}`;
 
-      if (!allGroups[key]) {
-        allGroups[key] = {
-          key,
-          soldAt: record.soldAt,
-          soldBy: record.soldBy || "Staff",
-          items: [],
-          timestamp: new Date(record.soldAt).getTime(), // for sorting
-        };
-      }
-      allGroups[key].items.push(record);
-    });
+    if (!allGroups[key]) {
+      allGroups[key] = {
+        key,
+        soldAt: record.soldAt,
+        soldBy: record.soldBy || "Staff",
+        items: [],
+        timestamp: new Date(record.soldAt).getTime(),
+      };
+    }
+    allGroups[key].items.push(record);
+  });
 
     let groups = Object.values(allGroups);
 
