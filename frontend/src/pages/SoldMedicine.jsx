@@ -20,7 +20,7 @@ export default function SoldMedicines() {
   const [showPatientPrompt, setShowPatientPrompt] = useState(false);
 const [patientName, setPatientName] = useState("");
 const [pendingInvoiceData, setPendingInvoiceData] = useState(null);
-  const pageSize = 10;
+  const pageSize = 20;
 
   const navigate = useNavigate();
   

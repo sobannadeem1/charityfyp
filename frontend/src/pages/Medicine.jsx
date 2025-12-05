@@ -28,7 +28,7 @@ export default function Medicines({ isAdmin }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const navigate = useNavigate();
-  const itemsPerPage = 10;
+  const itemsPerPage = 20;
   const popupRef = useRef(null);
   const sellPopupRef = useRef(null);
   const [sortOption, setSortOption] = useState("date-newest");
