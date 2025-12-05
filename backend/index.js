@@ -28,10 +28,10 @@ app.use(cookieParser());
 connectDB();
 
 // Routes
-app.use("/api/admin", router);
-app.use("/api/medicines", medicineRouter);
-app.use("/api/invoices", invoiceRouter);
-app.use("/api/donations", Donation); 
+app.use("/admin", router);
+app.use("/medicines", medicineRouter);
+app.use("/invoices", invoiceRouter);
+app.use("/donations", Donation); 
 
 app.get("/", (req, res) => {
   res.send("✅ API is running fine...");

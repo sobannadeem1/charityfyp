@@ -95,12 +95,15 @@ const abortControllerRef = useRef(null);
     return toast.error("Please enter valid quantity for all selected medicines");
   }
 
+  setIsSubmitting(true); // ← This disables button
+
   try {
-    setIsSubmitting(true);
-    const promises = selectedMedicines.map((m) => {
+    // FIXED: Use async function inside map
+    const sellPromises = selectedMedicines.map(async (m) => {
       const { quantity, type = "packages" } = bulkSellData[m._id] || {};
       const qty = parseInt(quantity);
 
+      // Validate stock
       if (type === "packages" && qty > m.quantity) {
         throw new Error(`Not enough packages for ${m.name}`);
       }
@@ -111,27 +114,25 @@ const abortControllerRef = useRef(null);
         }
       }
 
-      return sellMedicine(m._id, qty, type);
+      // This now properly awaits
+      await sellMedicine(m._id, qty, type);
     });
 
-    await Promise.all(promises);
-   // SUCCESS!
+    await Promise.all(sellPromises);
+
     toast.success(`Successfully sold ${selectedMedicines.length} medicines!`);
 
-    // CLEAR ALL BULK DATA
+    // Cleanup
     setSelectedIds(new Set());
     setSelectAll(false);
     setShowBulkSellPopup(false);
     setBulkSellData({});
-
-    // REFRESH INVENTORY
     fetchMedicines(currentPage);
-
-    // THIS LINE: Navigate to /sold page
     navigate("/sold");
+
   } catch (error) {
     toast.error(error.message || "Bulk sell failed");
-    console.error(error);
+    console.error("Bulk sell error:", error);
   } finally {
     setIsSubmitting(false);
   }

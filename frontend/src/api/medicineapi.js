@@ -3,8 +3,8 @@ import axios from "axios";
 // Detect environment
 const isLocal = window.location.hostname === "localhost";
 export const BASE_URL = isLocal
-  ? "http://localhost:5000/api"
-  : "https://charityfyp-jm4i.vercel.app/api";
+  ? "http://localhost:5000/"
+  : "https://charityfyp-jm4i.vercel.app/";
 
 const BASE_MEDICINES = `${BASE_URL}/medicines`;
 const BASE_ADMIN = `${BASE_URL}/admin`;
@@ -138,29 +138,17 @@ export const getSalesByMedicine = async (id) => {
   return res.data;
 };
 
-export const getSalesWithPagination = async ({
+export const getSalesWithPagination = async (
   page = 1,
   limit = 10,
-  search = "",
-  month = "",
-  sort = "date-newest",
-  signal
-} = {}) => {
+  searchTerm = ""
+) => {
   try {
-    const params = new URLSearchParams();
-    params.append("page", page);
-    params.append("limit", limit);
-    if (search) params.append("search", search);
-    if (month && month !== "all") params.append("month", month);
-    params.append("sort", sort);
-
     const res = await axios.get(`${BASE_MEDICINES}/sold/records`, {
-      params,
-      signal,
+      params: { page, limit, q: searchTerm },
     });
     return res.data;
   } catch (error) {
-    if (error.name === "AbortError") return null;
     console.error("Error fetching sales:", error);
     throw error;
   }
