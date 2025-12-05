@@ -806,11 +806,21 @@ useEffect(() => {
                 </div>
                 <div className="bulk-buttons">
                   <button
-                    className="bulk-sell-btn"
-                    onClick={() => setShowBulkSellPopup(true)}
-                  >
-                    Sell Selected
-                  </button>
+  className="bulk-sell-btn"
+  onClick={() => {
+    // Pre-fill with default: packages + empty quantity
+    const initialData = {};
+    displayedMedicines
+      .filter(m => selectedIds.has(m._id))
+      .forEach(m => {
+        initialData[m._id] = { quantity: "", type: "packages" };
+      });
+    setBulkSellData(initialData);
+    setShowBulkSellPopup(true);
+  }}
+>
+  Sell Selected
+</button>
                   <button
                     className="bulk-delete-btn"
                     onClick={handleBulkDelete}
@@ -1786,71 +1796,88 @@ useEffect(() => {
                   )}
                 </div>
 
-                {/* Radio Buttons - NOW WORKING */}
-                {canSellUnits && (
-                  <div className="quantity-type-radio">
-                    <label className={data.type === "packages" ? "active" : ""}>
-                      <input
-                        type="radio"
-                        name={`type-${medicine._id}`}
-                        value="packages"
-                        checked={data.type === "packages"}
-                        onChange={() => {
-                          setBulkSellData(prev => ({
-                            ...prev,
-                            [medicine._id]: { ...prev[medicine._id], type: "packages" } || { quantity: "", type: "packages" }
-                          }));
-                        }}
-                      />
-                      <span>Packages</span>
-                    </label>
-                    <label className={data.type === "units" ? "active" : ""}>
-                      <input
-                        type="radio"
-                        name={`type-${medicine._id}`}
-                        value="units"
-                        checked={data.type === "units"}
-                        onChange={() => {
-                          setBulkSellData(prev => ({
-                            ...prev,
-                            [medicine._id]: { ...prev[medicine._id], type: "units" } || { quantity: "", type: "units" }
-                          }));
-                        }}
-                      />
-                      <span>Units</span>
-                    </label>
-                  </div>
-                )}
+               {canSellUnits && (
+  <div className="quantity-type-radio">
+    <label className={data.type === "packages" ? "active" : ""}>
+      <input
+        type="radio"
+        name={`type-${medicine._id}`}
+        value="packages"
+        checked={data.type === "packages"}
+        onChange={() => {
+          setBulkSellData(prev => ({
+            ...prev,
+            [medicine._id]: {
+              ...prev[medicine._id],
+              type: "packages",
+              quantity: prev[medicine._id]?.quantity || ""  // preserve quantity
+            }
+          }));
+        }}
+      />
+      <span>Packages</span>
+    </label>
+    <label className={data.type === "units" ? "active" : ""}>
+      <input
+        type="radio"
+        name={`type-${medicine._id}`}
+        value="units"
+        checked={data.type === "units"}
+        onChange={() => {
+          setBulkSellData(prev => ({
+            ...prev,
+            [medicine._id]: {
+              ...prev[medicine._id],
+              type: "units",
+              quantity: prev[medicine._id]?.quantity || ""
+            }
+          }));
+        }}
+      />
+      <span>Units</span>
+    </label>
+  </div>
+)}
 
-                {/* Quantity Input */}
-                <div className="quantity-input-wrapper">
-                  <input
-                    type="number"
-                    placeholder={
-                      data.type === "units"
-                        ? `Max: ${maxUnits} units`
-                        : `Max: ${maxPackages} packages`
-                    }
-                    value={data.quantity}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === "" || /^\d+$/.test(val)) {
-                        setBulkSellData(prev => ({
-                          ...prev,
-                          [medicine._id]: { ...prev[medicine._id], quantity: val } || { quantity: val, type: "packages" }
-                        }));
-                      }
-                    }}
-                    min="1"
-                    max={data.type === "units" ? maxUnits : maxPackages}
-                    className="bulk-qty-input"
-                  />
-                  {data.quantity && parseInt(data.quantity) > 0 && (
-                    <div className="item-total">
-                      PKR {calculateTotal(medicine, parseInt(data.quantity), data.type).toFixed(2)}
-                    </div>
-                  )}
-                </div>
+                {/* Quantity Input - FIXED VERSION */}
+<div className="quantity-input-wrapper">
+  <input
+    type="number"
+    placeholder={
+      data.type === "units"
+        ? `Max: ${maxUnits} units`
+        : `Max: ${maxPackages} packages`
+    }
+    value={data.quantity}
+    onChange={(e) => {
+      const val = e.target.value;
+      if (val === "" || /^\d+$/.test(val)) {
+        // THIS IS THE FIX: Always preserve current type!
+        setBulkSellData(prev => ({
+          ...prev,
+          [medicine._id]: {
+            quantity: val,
+            type: prev[medicine._id]?.type || "packages"  // ← Critical line!
+          }
+        }));
+      }
+    }}
+    min="1"
+    max={data.type === "units" ? maxUnits : maxPackages}
+    className="bulk-qty-input"
+  />
+
+  {/* TOTAL - Now uses the ACTUAL current type from state */}
+  {data.quantity && parseInt(data.quantity) > 0 && (
+    <div className="item-total">
+      PKR {(() => {
+        const qty = parseInt(data.quantity);
+        const currentType = bulkSellData[medicine._id]?.type || "packages";
+        return calculateTotal(medicine, qty, currentType).toFixed(2);
+      })()}
+    </div>
+  )}
+</div>
               </div>
             );
           })}

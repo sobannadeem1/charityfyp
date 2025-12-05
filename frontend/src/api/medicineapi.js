@@ -138,17 +138,29 @@ export const getSalesByMedicine = async (id) => {
   return res.data;
 };
 
-export const getSalesWithPagination = async (
+export const getSalesWithPagination = async ({
   page = 1,
   limit = 10,
-  searchTerm = ""
-) => {
+  search = "",
+  month = "",
+  sort = "date-newest",
+  signal
+} = {}) => {
   try {
+    const params = new URLSearchParams();
+    params.append("page", page);
+    params.append("limit", limit);
+    if (search) params.append("search", search);
+    if (month && month !== "all") params.append("month", month);
+    params.append("sort", sort);
+
     const res = await axios.get(`${BASE_MEDICINES}/sold/records`, {
-      params: { page, limit, q: searchTerm },
+      params,
+      signal,
     });
     return res.data;
   } catch (error) {
+    if (error.name === "AbortError") return null;
     console.error("Error fetching sales:", error);
     throw error;
   }

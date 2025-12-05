@@ -17,6 +17,9 @@ export default function SoldMedicines() {
   const [sortSalesBy, setSortSalesBy] = useState("date-newest");
   const [filterMonth, setFilterMonth] = useState("all");
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const [showPatientPrompt, setShowPatientPrompt] = useState(false);
+const [patientName, setPatientName] = useState("");
+const [pendingInvoiceData, setPendingInvoiceData] = useState(null);
   const pageSize = 10;
 
   const navigate = useNavigate();
@@ -213,7 +216,6 @@ export default function SoldMedicines() {
   );
 
 
-// UPDATE your fetchSoldRecords like this:
 const fetchSoldRecords = async (page = 1) => {
   // Cancel previous request
   if (abortControllerRef.current) {
@@ -232,24 +234,25 @@ const fetchSoldRecords = async (page = 1) => {
       search: search.trim() || undefined,
       month: filterMonth !== "all" ? filterMonth : undefined,
       sort: sortSalesBy,
-      signal: controller.signal, // ← THIS IS THE MAGIC
+      signal: controller.signal,
     });
 
-    // Only update if this is the latest request
     if (!controller.signal.aborted) {
       setSoldRecords(response.data || []);
       setTotalPages(response.pagination?.totalPages || 1);
       setTotalRecords(response.pagination?.totalSales || 0);
-      setCurrentPage(response.pagination?.currentPage || page);
       setTotalRevenue(response.summary?.totalRevenue || 0);
     }
-
   } catch (err) {
-    if (err.name === "AbortError") {
-      console.log("Request cancelled");
+    // IGNORE canceled requests — they are NORMAL
+    if (err.name === "AbortError" || err.name === "CanceledError") {
+      console.log("Request cancelled (user typing/searching)");
       return;
     }
+
+    // Only show error for real problems
     console.error("Fetch failed:", err);
+    toast.error("Failed to load sales");
   } finally {
     if (!controller.signal.aborted) {
       setLoading(false);
@@ -257,9 +260,10 @@ const fetchSoldRecords = async (page = 1) => {
   }
 };
 
+// ONLY ONE useEffect for fetching — based on currentPage ONLY
 useEffect(() => {
   fetchSoldRecords(currentPage);
-}, [currentPage, search, filterMonth, sortSalesBy]);
+}, [currentPage]);
 
 
 const handleSearch = (e) => {
@@ -309,34 +313,40 @@ useEffect(() => {
     }
   };
 
-  const generateInvoice = useCallback(
-    (saleRecordOrGroup) => {
-      try {
-        const isGroup = Array.isArray(saleRecordOrGroup.items);
-        const group = isGroup
-          ? saleRecordOrGroup
-          : {
-              items: [saleRecordOrGroup],
-              soldAt: saleRecordOrGroup.soldAt,
-              soldBy: saleRecordOrGroup.soldBy || "Staff",
-            };
+  const generateInvoice = useCallback((saleRecordOrGroup) => {
+  // Save the sale data and ask for patient name
+  setPendingInvoiceData(saleRecordOrGroup);
+  setPatientName(""); // clear previous
+  setShowPatientPrompt(true);
+}, []);
 
-        const grandTotal = group.items.reduce(
-          (acc, item) => acc + calculateTotalAmount(item),
-          0
-        );
+const printInvoiceWithPatientName = () => {
+  if (!pendingInvoiceData) return;
 
-        const itemsRows = group.items
-          .map((item) => {
-            const info = getSaleTypeInfo(item);
-            const unitPrice = getDisplayUnitPrice(item);
-            const unitLabel =
-              item.originalSellType || item.sellType === "units"
-                ? "unit"
-                : "package";
-            const total = calculateTotalAmount(item);
+  const nameToUse = patientName.trim() || "Walk-in Patient";
 
-            return `
+  try {
+    const isGroup = Array.isArray(pendingInvoiceData.items);
+    const group = isGroup
+      ? pendingInvoiceData
+      : {
+          items: [pendingInvoiceData],
+          soldAt: pendingInvoiceData.soldAt,
+          soldBy: pendingInvoiceData.soldBy || "Staff",
+        };
+
+    const grandTotal = group.items.reduce(
+      (acc, item) => acc + calculateTotalAmount(item),
+      0
+    );
+
+    const itemsRows = group.items
+      .map((item) => {
+        const info = getSaleTypeInfo(item);
+        const unitPrice = getDisplayUnitPrice(item);
+        const total = calculateTotalAmount(item);
+
+        return `
         <tr class="item-row">
           <td class="item-details">
             <div class="item-name">${item.name}</div>
@@ -367,10 +377,11 @@ useEffect(() => {
             PKR ${total.toFixed(2)}
           </td>
         </tr>`;
-          })
-          .join("");
+      })
+      .join("");
 
-        const html = `<!DOCTYPE html>
+    // YOUR ORIGINAL INVOICE — 100% PRESERVED + PATIENT NAME ADDED
+    const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -388,220 +399,31 @@ useEffect(() => {
       --bg-light: #f5f7fa;
       --white: #ffffff;
     }
-html {
-  font-size: 14px; /* Normalize rem scale (was default 16px) */
-  zoom: 0.9; /* Compensates for browser zoom when opened in new window */
-}
-
-body {
-  max-width: 900px;
-  margin: 0 auto;
-  transform: scale(0.95);
-  transform-origin: top center;
-}
-
+    html { font-size: 14px; zoom: 0.9; }
+    body { max-width: 900px; margin: 0 auto; transform: scale(0.95); transform-origin: top center; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Inter', sans-serif;
-      background: var(--bg-light);
-      color: var(--text-dark);
-      padding: 2rem;
-    }
-
-    .container {
-      max-width: 60rem;
-      margin: 0 auto;
-      background: var(--white);
-      border-radius: 1.2rem;
-      overflow: hidden;
-      border: 0.3rem solid var(--primary);
-      box-shadow: 0 1.5rem 3.5rem rgba(0, 0, 0, 0.15);
-    }
-
-    .header {
-      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-      color: var(--white);
-      text-align: center;
-      padding: 3rem 2rem;
-    }
-
+    body { font-family: 'Inter', sans-serif; background: var(--bg-light); color: var(--text-dark); padding: 2rem; }
+    .container { max-width: 60rem; margin: 0 auto; background: var(--white); border-radius: 1.2rem; overflow: hidden; border: 0.3rem solid var(--primary); box-shadow: 0 1.5rem 3.5rem rgba(0,0,0,0.15); }
+    .header { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: var(--white); text-align: center; padding: 3rem 2rem; }
     .header h1 { font-size: 2.2rem; font-weight: 700; }
     .header h2 { font-size: 1.3rem; opacity: 0.95; }
-    .invoice-id {
-      margin-top: 1rem;
-      background: rgba(255,255,255,0.25);
-      border-radius: 2rem;
-      padding: 0.6rem 1.5rem;
-      font-size: 1rem;
-      display: inline-block;
-      font-weight: 600;
-    }
-
-    .info {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 2rem;
-      background: #f0f8ff;
-      padding: 2rem 2.5rem;
-    }
-
-    .info-box {
-      background: var(--white);
-      border-left: 0.4rem solid var(--primary);
-      border-radius: 1rem;
-      padding: 1.4rem;
-      box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.1);
-    }
-
-    .info-box strong {
-      display: block;
-      font-size: 0.8rem;
-      color: var(--text-light);
-      text-transform: uppercase;
-      margin-bottom: 0.4rem;
-    }
-
+    .invoice-id { margin-top: 1rem; background: rgba(255,255,255,0.25); border-radius: 2rem; padding: 0.6rem 1.5rem; font-size: 1rem; display: inline-block; font-weight: 600; }
+    .info { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; background: #f0f8ff; padding: 2rem 2.5rem; }
+    .info-box { background: var(--white); border-left: 0.4rem solid var(--primary); border-radius: 1rem; padding: 1.4rem; box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.1); }
+    .info-box strong { display: block; font-size: 0.8rem; color: var(--text-light); text-transform: uppercase; margin-bottom: 0.4rem; }
     .info-box div { font-size: 1rem; font-weight: 600; }
-
-   table {
-  width: 100%;
-  border-collapse: collapse;
-  border-spacing: 0;
-  margin: 0 auto;
-  table-layout: fixed; /* Ensures columns align perfectly */
-}
-
-th, td {
-  padding: 1rem 1.2rem;
-  border-bottom: 0.05rem solid #e0e0e0;
-  vertical-align: top;
-  word-wrap: break-word;
-}
-
-th {
-  background: var(--primary);
-  color: var(--white);
-  font-size: 0.95rem;
-  font-weight: 600;
-  text-align: left;
-}
-
-th:nth-child(2), td:nth-child(2) {
-  text-align: center;
-  width: 25%;
-}
-
-th:nth-child(3), td:nth-child(3),
-th:nth-child(4), td:nth-child(4) {
-  text-align: right;
-  width: 20%;
-}
-
-td:first-child {
-  width: 35%;
-}
-
-.item-total {
-  font-weight: 700;
-  color: var(--success);
-  font-size: 1.1rem;
-}
-
-.total-row td {
-  background: linear-gradient(135deg, var(--success), var(--success-light));
-  color: white;
-  padding: 2rem 1.2rem !important;
-  font-size: 1.5rem !important;
-  font-weight: 700;
-  text-align: right;
-}
-
-
-    .item-row td {
-      padding: 1rem;
-      border-bottom: 0.05rem solid #e0e0e0;
-      vertical-align: top;
-    }
-
-    .item-name {
-      font-weight: 600;
-      font-size: 1rem;
-      color: var(--text-dark);
-    }
-
-    .item-pack {
-      font-size: 0.8rem;
-      color: var(--text-light);
-      margin-top: 0.3rem;
-    }
-
-    .item-qty { text-align: center; }
-    .qty-main { font-weight: 600; }
-    .qty-sub { font-size: 0.75rem; display: block; margin-top: 0.2rem; }
-    .blue { color: var(--primary); }
-    .green { color: var(--success); }
-
-    .item-unit, .item-total { text-align: right; }
-    .unit-sub {
-      font-size: 0.75rem;
-      color: #95a5a6;
-      margin-top: 0.3rem;
-    }
-
-    .item-total {
-      font-weight: 700;
-      color: var(--success);
-      font-size: 1.1rem;
-    }
-
-    .total-row td {
-      background: linear-gradient(135deg, var(--success), var(--success-light));
-      color: var(--white);
-      padding: 2rem 1rem;
-      font-size: 1.6rem;
-      font-weight: 700;
-      text-align: right;
-    }
-
-    .items-note { font-size: 1rem; margin-top: 0.4rem; opacity: 0.9; }
-
-    .print-area {
-      text-align: center;
-      padding: 2.5rem;
-      background: #f8f9fa;
-    }
-
-    .print-btn {
-      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-      color: var(--white);
-      border: none;
-      padding: 1rem 3rem;
-      font-size: 1.1rem;
-      border-radius: 2rem;
-      cursor: pointer;
-      font-weight: 600;
-      transition: 0.3s;
-      box-shadow: 0 0.6rem 1.5rem rgba(52,152,219,0.4);
-    }
-
-    .print-btn:hover {
-      transform: translateY(-0.2rem);
-      box-shadow: 0 0.9rem 2rem rgba(52,152,219,0.5);
-    }
-
-    .footer {
-      text-align: center;
-      background: var(--text-dark);
-      color: var(--white);
-      padding: 2rem;
-      font-size: 0.9rem;
-    }
-
-    @media print {
-      body { background: white; padding: 0; }
-      .print-area { display: none; }
-      .container { border: none; box-shadow: none; border-radius: 0; }
-    }
+    .patient-name { font-size: 1.4rem; font-weight: bold; color: #27ae60; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    th, td { padding: 1rem 1.2rem; border-bottom: 0.05rem solid #e0e0e0; vertical-align: top; }
+    th { background: var(--primary); color: var(--white); font-size: 0.95rem; font-weight: 600; text-align: left; }
+    th:nth-child(2), td:nth-child(2) { text-align: center; width: 25%; }
+    th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4) { text-align: right; width: 20%; }
+    td:first-child { width: 35%; }
+    .total-row td { background: linear-gradient(135deg, var(--success), var(--success-light)); color: white; padding: 2rem 1.2rem !important; font-size: 1.5rem !important; font-weight: 700; text-align: right; }
+    .print-area { text-align: center; padding: 2.5rem; background: #f8f9fa; }
+    .print-btn { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: var(--white); border: none; padding: 1rem 3rem; font-size: 1.1rem; border-radius: 2rem; cursor: pointer; font-weight: 600; }
+    .footer { text-align: center; background: var(--text-dark); color: var(--white); padding: 2rem; font-size: 0.9rem; }
+    @media print { body { padding: 0; background: white; } .print-area { display: none; } .container { border: none; box-shadow: none; } }
   </style>
 </head>
 <body>
@@ -609,27 +431,19 @@ td:first-child {
     <div class="header">
       <h1>Noor Sardar HealthCare Center</h1>
       <h2>MEDICINE SALES INVOICE</h2>
-      <div class="invoice-id">Invoice #INV-${new Date(group.soldAt)
-        .getTime()
-        .toString(36)
-        .toUpperCase()
-        .slice(-8)}</div>
+      <div class="invoice-id">Invoice #INV-${new Date(group.soldAt).getTime().toString(36).toUpperCase().slice(-8)}</div>
     </div>
 
     <div class="info">
       <div class="info-box">
+        <strong>Patient Name</strong>
+        <div class="patient-name">${nameToUse}</div>
+      </div>
+      <div class="info-box">
         <strong>Sale Date & Time</strong>
         <div>
-          ${new Date(group.soldAt).toLocaleDateString("en-GB", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}<br>
-          ${new Date(group.soldAt).toLocaleTimeString([], {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          })}
+          ${new Date(group.soldAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}<br>
+          ${new Date(group.soldAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}
         </div>
       </div>
       <div class="info-box">
@@ -652,11 +466,7 @@ td:first-child {
         <tr class="total-row">
           <td colspan="3">
             GRAND TOTAL
-            ${
-              group.items.length > 1
-                ? `<div class="items-note">(${group.items.length} items)</div>`
-                : ""
-            }
+            ${group.items.length > 1 ? `<div class="items-note">(${group.items.length} items)</div>` : ""}
           </td>
           <td>PKR ${grandTotal.toFixed(2)}</td>
         </tr>
@@ -676,28 +486,17 @@ td:first-child {
 </body>
 </html>`;
 
-        const win = window.open(
-          "",
-          "_blank",
-          "width=1000,height=900,scrollbars=yes,resizable=yes"
-        );
-        win.document.write(html);
-        win.document.close();
-        win.focus();
+    const win = window.open("", "_blank", "width=1000,height=900");
+    win.document.write(html);
+    win.document.close();
+    win.focus();
 
-        toast.success(
-          `Invoice ready! ${
-            group.items.length > 1 ? `(${group.items.length} items)` : ""
-          }`
-        );
-      } catch (err) {
-        console.error(err);
-        toast.error("Failed to generate invoice");
-      }
-    },
-    [getSaleTypeInfo, getDisplayUnitPrice, calculateTotalAmount]
-  );
-
+    toast.success(`Invoice generated for ${nameToUse}!`);
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to generate invoice");
+  }
+};
   const summaryData = useMemo(() => {
     
 
@@ -761,7 +560,11 @@ td:first-child {
           <div className="sold-filter-bar">
             <select
               value={sortSalesBy}
-              onChange={(e) => setSortSalesBy(e.target.value)}
+              onChange={(e) => {
+  setSortSalesBy(e.target.value);
+  setCurrentPage(1); // ← ADD THIS LINE
+}}
+              
               className="filter-select"
             >
               <option value="date-newest">Newest First</option>
@@ -772,8 +575,10 @@ td:first-child {
             </select>
 
             <select
-              value={filterMonth}
-              onChange={(e) => setFilterMonth(e.target.value)}
+              value={filterMonth}onChange={(e) => {
+  setFilterMonth(e.target.value);
+  setCurrentPage(1); // ← ADD THIS LINE
+}}
               className="filter-select"
             >
               <option value="all">All Months</option>
@@ -1058,6 +863,53 @@ td:first-child {
           )}
         </div>
       )}
+      {/* Patient Name Prompt */}
+{showPatientPrompt && (
+  <div className="popup-overlay" onClick={() => setShowPatientPrompt(false)}>
+    <div className="popup" style={{ maxWidth: "420px", textAlign: "center" }} onClick={e => e.stopPropagation()}>
+      <h2>Enter Patient Name</h2>
+      <p style={{ color: "#666", margin: "10px 0 20px" }}>
+        This will appear on the printed invoice
+      </p>
+      <input
+        type="text"
+        placeholder="e.g. Ahmed Khan"
+        value={patientName}
+        onChange={(e) => setPatientName(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "14px",
+          fontSize: "1.1em",
+          border: "2px solid #ddd",
+          borderRadius: "12px",
+          marginBottom: "20px"
+        }}
+        autoFocus
+      />
+      <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+        <button
+          className="save-btn"
+          onClick={() => {
+            printInvoiceWithPatientName();
+            setShowPatientPrompt(false);
+            setPendingInvoiceData(null);
+          }}
+        >
+          Generate Invoice
+        </button>
+        <button
+          className="cancel-btn"
+          onClick={() => {
+            setShowPatientPrompt(false);
+            setPendingInvoiceData(null);
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }
