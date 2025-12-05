@@ -18,7 +18,6 @@ createRoot(document.getElementById("root")).render(
   <StrictMode>
     <NotificationProvider>
       <QueryClientProvider client={queryClient}>
-        <SpeedInsights />
         <App />
       </QueryClientProvider>
     </NotificationProvider>
