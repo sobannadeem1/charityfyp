@@ -3,8 +3,8 @@ import axios from "axios";
 // Detect environment
 const isLocal = window.location.hostname === "localhost";
 export const BASE_URL = isLocal
-  ? "http://localhost:5000/"
-  : "https://charityfyp-jm4i.vercel.app/";
+  ? "http://localhost:5000"
+  : "https://charityfyp-jm4i.vercel.app";
 
 const BASE_MEDICINES = `${BASE_URL}/medicines`;
 const BASE_ADMIN = `${BASE_URL}/admin`;
