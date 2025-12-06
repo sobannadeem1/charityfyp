@@ -137,22 +137,37 @@ export const getSalesByMedicine = async (id) => {
   const res = await axios.get(`${BASE_MEDICINES}/sales/${id}`);
   return res.data;
 };
+export const bulkSellMedicines = async (items) => {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error("No items to sell");
+  }
 
-export const getSalesWithPagination = async (
-  page = 1,
-  limit = 10,
-  searchTerm = ""
-) => {
   try {
-    const res = await axios.get(`${BASE_MEDICINES}/sold/records`, {
-      params: { page, limit, q: searchTerm },
-    });
+    const response = await axios.post(`${BASE_MEDICINES}/sales/bulk`, { items });
+
+    // Optional: Show success toast here or let component do it
+    // toast.success(`Bulk sale successful! ${response.data.data.transactionId}`);
+
+    return response.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.message ||
+      error.message ||
+      "Bulk sell failed";
+    throw new Error(message);
+  }
+};
+
+export const getSalesWithPagination = async (params = {}) => {
+  try {
+    const res = await axios.get(`${BASE_MEDICINES}/sold/records`, { params });
     return res.data;
   } catch (error) {
     console.error("Error fetching sales:", error);
     throw error;
   }
 };
+
 
 /* ==============================
    Admin APIs

@@ -20,7 +20,6 @@ export default function SoldMedicines() {
   const [showPatientPrompt, setShowPatientPrompt] = useState(false);
 const [patientName, setPatientName] = useState("");
 const [pendingInvoiceData, setPendingInvoiceData] = useState(null);
-  const pageSize = 20;
 
   const navigate = useNavigate();
   
@@ -61,112 +60,7 @@ const [pendingInvoiceData, setPendingInvoiceData] = useState(null);
     },
     [getPricePerUnit]
   );
-  const displayedSales = useMemo(() => {
-    let list = [...soldRecords];
-
-    // Month filter
-    if (filterMonth !== "all") {
-      const [year, month] = filterMonth.split("-");
-      list = list.filter((r) => {
-        const d = new Date(r.soldAt);
-        return d.getFullYear() === +year && d.getMonth() + 1 === +month;
-      });
-    }
-
-    // Sorting
-    list.sort((a, b) => {
-      switch (sortSalesBy) {
-        case "date-newest":
-          return new Date(b.soldAt) - new Date(a.soldAt);
-        case "date-oldest":
-          return new Date(a.soldAt) - new Date(b.soldAt);
-        case "revenue-high":
-          return calculateTotalAmount(b) - calculateTotalAmount(a);
-        case "revenue-low":
-          return calculateTotalAmount(a) - calculateTotalAmount(b);
-        case "quantity-high":
-          return b.quantitySold - a.quantitySold;
-        default:
-          return 0;
-      }
-    });
-
-    return list;
-  }, [soldRecords, filterMonth, sortSalesBy, calculateTotalAmount]);
-  // FIXED: Group FIRST, then apply filters/sorting on GROUPS
-  const groupedDisplayedSales = useMemo(() => {
-    const allGroups = {};
-  soldRecords.forEach((record) => {
-    // FIXED: Group by MINUTE, not millisecond
-    const timeKey = new Date(record.soldAt).toISOString().slice(0, 16); // ← THIS LINE
-    const key = `${timeKey}_${record.soldBy || "unknown"}`;
-
-    if (!allGroups[key]) {
-      allGroups[key] = {
-        key,
-        soldAt: record.soldAt,
-        soldBy: record.soldBy || "Staff",
-        items: [],
-        timestamp: new Date(record.soldAt).getTime(),
-      };
-    }
-    allGroups[key].items.push(record);
-  });
-
-    let groups = Object.values(allGroups);
-
-    // Step 2: Apply month filter on group level
-    if (filterMonth !== "all") {
-      const [year, month] = filterMonth.split("-");
-      const filterYear = +year;
-      const filterMonthNum = +month;
-
-      groups = groups.filter((group) => {
-        const d = new Date(group.soldAt);
-        return (
-          d.getFullYear() === filterYear && d.getMonth() + 1 === filterMonthNum
-        );
-      });
-    }
-
-    // Step 3: Sorting by group (not individual items)
-    groups.sort((a, b) => {
-      switch (sortSalesBy) {
-        case "date-newest":
-          return b.timestamp - a.timestamp;
-        case "date-oldest":
-          return a.timestamp - b.timestamp;
-        case "revenue-high":
-          const totalA = a.items.reduce(
-            (s, i) => s + calculateTotalAmount(i),
-            0
-          );
-          const totalB = b.items.reduce(
-            (s, i) => s + calculateTotalAmount(i),
-            0
-          );
-          return totalB - totalA;
-        case "revenue-low":
-          const totalA2 = a.items.reduce(
-            (s, i) => s + calculateTotalAmount(i),
-            0
-          );
-          const totalB2 = b.items.reduce(
-            (s, i) => s + calculateTotalAmount(i),
-            0
-          );
-          return totalA2 - totalB2;
-        case "quantity-high":
-          const qtyA = a.items.reduce((s, i) => s + i.quantitySold, 0);
-          const qtyB = b.items.reduce((s, i) => s + i.quantitySold, 0);
-          return qtyB - qtyA;
-        default:
-          return 0;
-      }
-    });
-
-    return groups;
-  }, [soldRecords, filterMonth, sortSalesBy, calculateTotalAmount]);
+  
 
   const getDisplayUnitPrice = useCallback(
     (record) => {
@@ -217,11 +111,7 @@ const [pendingInvoiceData, setPendingInvoiceData] = useState(null);
 
 
 const fetchSoldRecords = async (page = 1) => {
-  // Cancel previous request
-  if (abortControllerRef.current) {
-    abortControllerRef.current.abort();
-  }
-
+  if (abortControllerRef.current) abortControllerRef.current.abort();
   const controller = new AbortController();
   abortControllerRef.current = controller;
 
@@ -230,60 +120,53 @@ const fetchSoldRecords = async (page = 1) => {
 
     const response = await getSalesWithPagination({
       page,
-      limit: pageSize,
-      search: search.trim() || undefined,
+      limit: 10,
+      q: search.trim(),
       month: filterMonth !== "all" ? filterMonth : undefined,
       sort: sortSalesBy,
       signal: controller.signal,
     });
 
     if (!controller.signal.aborted) {
-      setSoldRecords(response.data || []);
-      setTotalPages(response.pagination?.totalPages || 1);
-      setTotalRecords(response.pagination?.totalSales || 0);
+      setSoldRecords(response.data || []); // keep same name, but now already grouped
+
       setTotalRevenue(response.summary?.totalRevenue || 0);
+      setTotalPages(response.pagination?.totalPages || 1);
+      setTotalRecords(response.pagination?.totalGroups || 0);
+      setCurrentPage(response.pagination.currentPage);
+
     }
   } catch (err) {
-    // IGNORE canceled requests — they are NORMAL
-    if (err.name === "AbortError" || err.name === "CanceledError") {
-      console.log("Request cancelled (user typing/searching)");
-      return;
-    }
-
-    // Only show error for real problems
-    console.error("Fetch failed:", err);
-    toast.error("Failed to load sales");
+    if (err.name !== "AbortError") toast.error("Failed to load sales");
   } finally {
-    if (!controller.signal.aborted) {
-      setLoading(false);
-    }
+    if (!controller.signal.aborted) setLoading(false);
   }
 };
 
-// ONLY ONE useEffect for fetching — based on currentPage ONLY
+// FINAL & PERFECT: One useEffect to rule them all
 useEffect(() => {
   fetchSoldRecords(currentPage);
-}, [currentPage]);
-
+}, [currentPage, search, filterMonth, sortSalesBy]);
 
 const handleSearch = (e) => {
   const val = e.target.value;
   setSearch(val);
   setCurrentPage(1);
 
-  // Cancel any pending search
-  if (searchTimeoutRef.current) {
-    clearTimeout(searchTimeoutRef.current);
+  // Cancel previous timeout & API call
+  if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+  if (abortControllerRef.current) abortControllerRef.current.abort();
+
+  // If search is cleared instantly → fetch immediately
+  if (val.trim() === "") {
+    fetchSoldRecords(1);
+    return;
   }
 
-  // Cancel any in-flight API call
-  if (abortControllerRef.current) {
-    abortControllerRef.current.abort();
-  }
-
+  // Debounce only when typing (not when clearing)
   searchTimeoutRef.current = setTimeout(() => {
     fetchSoldRecords(1);
-  }, 400); // slightly faster
+  }, 400);
 };
 
 // Also clear timeout when component unmounts
@@ -300,10 +183,10 @@ const clearSearch = () => {
   setCurrentPage(1);
   if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
   if (abortControllerRef.current) abortControllerRef.current.abort();
-  fetchSoldRecords(1);
+  fetchSoldRecords(1); // Immediate fetch with empty search
 };
 useEffect(() => {
-  setIsSearching(!!search.trim());
+  setIsSearching(search.trim().length > 0);
 }, [search]);
 
   // ✅ Pagination controls
@@ -497,52 +380,46 @@ const printInvoiceWithPatientName = () => {
     toast.error("Failed to generate invoice");
   }
 };
-  const summaryData = useMemo(() => {
-    
+const summaryData = useMemo(() => {
+  const isFiltered = search.trim() !== "" || filterMonth !== "all";
 
-    return [
-      {
-        svgIcon: (
-          <div className="icon-wrapper">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M4 10h2v7H4zm4 3h2v4H8zm4-5h2v9h-2zm4 2h2v7h-2z" />
-              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM5 19V5h14v14H5z" />
-            </svg>
-          </div>
-        ),
-        title: "Total Sold Items",
-        value: totalRecords.toLocaleString(),
-        subtitle: isSearching ? "matching results" : "all time",
-        color: "#3498db",
-        highlight: true,
-      },
-      {
-        svgIcon: (
-          <div className="icon-wrapper">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" />
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
-            </svg>
-          </div>
-        ),
-       title: search.trim() || filterMonth !== "all" ? "Filtered Revenue" : "Total Revenue",
-  value: `PKR ${totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
-  subtitle: search.trim()
-    ? `Results: "${search}"`
-    : filterMonth !== "all"
-    ? "Current month"
-    : "All time sales",
-  color: "#27ae60",
-  highlight: true,
-      },
-    ];
-  }, [
-    soldRecords,
-    totalRecords,
-    isSearching,
-    filterMonth,
-    calculateTotalAmount,
-  ]);
+  return [
+    {
+      svgIcon: (
+        <div className="icon-wrapper">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M4 10h2v7H4zm4 3h2v4H8zm4-5h2v9h-2zm4 2h2v7h-2z" />
+            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM5 19V5h14v14H5z" />
+          </svg>
+        </div>
+      ),
+      title: isFiltered ? "Filtered Transactions" : "Total Transactions",
+      value: totalRecords.toLocaleString(),
+      subtitle: isFiltered 
+        ? (search.trim() ? `Search: "${search.trim()}"` : `Month: ${new Date(filterMonth + "-01").toLocaleDateString("default", { month: "long", year: "numeric" })}`)
+        : "All time",
+      color: "#3498db",
+      highlight: true,
+    },
+    {
+      svgIcon: (
+        <div className="icon-wrapper">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" />
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
+          </svg>
+        </div>
+      ),
+      title: isFiltered ? "Filtered Revenue" : "Total Revenue",
+      value: `PKR ${totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      subtitle: isFiltered
+        ? (search.trim() ? `Results for "${search.trim()}"` : filterMonth !== "all" ? "Current month only" : "")
+        : "All time sales",
+      color: "#27ae60",
+      highlight: true,
+    },
+  ];
+}, [totalRecords, totalRevenue, search, filterMonth]); // ← Yehi dependencies perfect hain
 
   return (
     <div className="sold-container">
@@ -641,7 +518,7 @@ const printInvoiceWithPatientName = () => {
               : "Loading sold medicines..."}
           </p>
         </div>
-      ) : displayedSales.length > 0 ? (
+      ) : soldRecords.length > 0 ? (
         <>
           <div className="sold-table-wrapper">
             <table className="sold-table">
@@ -657,12 +534,13 @@ const printInvoiceWithPatientName = () => {
                 </tr>
               </thead>
               <tbody>
-                {groupedDisplayedSales.map((group) => {
-                  const groupTotal = group.items.reduce(
-                    (sum, r) => sum + calculateTotalAmount(r),
-                    0
-                  );
-                  const firstItem = group.items[0]; // Use first for date/time
+                {soldRecords.length > 0 &&
+    soldRecords.map((group) => {
+      const groupTotal = group.items.reduce(
+        (s, i) => s + calculateTotalAmount(i),
+        0
+      );
+      const firstItem = group.items[0];
 
                   return (
                     <tr key={group.key} className="group-row">
@@ -830,12 +708,11 @@ const printInvoiceWithPatientName = () => {
                 →
               </button>
 
-              <div className="page-info">
-                <span className="records-info">
-                  Page {currentPage} of {totalPages} • {totalRecords}{" "}
-                  {isSearching ? "results" : "total records"}
-                </span>
-              </div>
+        <div className="page-info">
+  <span className="records-info">
+    Page {currentPage} of {totalPages} • Showing 10 groups per page
+  </span>
+</div>
             </div>
           )}
         </>

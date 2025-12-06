@@ -5,6 +5,7 @@ import {
   updateMedicine,
   sellMedicine,
   deleteMedicine,
+  bulkSellMedicines,
 } from "../api/medicineapi";
 import "../styles/medicine.css";
 import { toast } from "sonner";
@@ -82,57 +83,43 @@ const abortControllerRef = useRef(null);
       }
     );
   };
- const handleBulkSell = async () => {
-  const selectedMedicines = displayedMedicines.filter((m) =>
-    selectedIds.has(m._id)
-  );
 
-  const invalid = selectedMedicines.filter(
-    (m) => !bulkSellData[m._id]?.quantity || parseInt(bulkSellData[m._id].quantity) <= 0
+// 4. BULK SELL — FULLY PROTECTED (already good, just tiny improvement)
+const handleBulkSell = async () => {
+  if (isSubmitting) {
+    toast.info("Bulk sale already in progress...");
+    return;
+  }
+
+  const selectedMedicines = displayedMedicines.filter(m => selectedIds.has(m._id));
+  const invalid = selectedMedicines.filter(m => 
+    !bulkSellData[m._id]?.quantity || parseInt(bulkSellData[m._id].quantity) <= 0
   );
 
   if (invalid.length > 0) {
-    return toast.error("Please enter valid quantity for all selected medicines");
+    return toast.error("Please enter valid quantity for all medicines");
   }
 
-  setIsSubmitting(true); // ← This disables button
+  setIsSubmitting(true);
 
   try {
-    // FIXED: Use async function inside map
-    const sellPromises = selectedMedicines.map(async (m) => {
-      const { quantity, type = "packages" } = bulkSellData[m._id] || {};
-      const qty = parseInt(quantity);
+    const items = selectedMedicines.map(m => ({
+      medicineId: m._id,
+      quantity: parseInt(bulkSellData[m._id].quantity),
+      type: bulkSellData[m._id].type || "packages",
+    }));
 
-      // Validate stock
-      if (type === "packages" && qty > m.quantity) {
-        throw new Error(`Not enough packages for ${m.name}`);
-      }
-      if (type === "units") {
-        const totalUnits = m.quantity * getUnitsPerPackage(m);
-        if (qty > totalUnits) {
-          throw new Error(`Not enough units for ${m.name}`);
-        }
-      }
+    await bulkSellMedicines(items);
 
-      // This now properly awaits
-      await sellMedicine(m._id, qty, type);
-    });
-
-    await Promise.all(sellPromises);
-
-    toast.success(`Successfully sold ${selectedMedicines.length} medicines!`);
-
-    // Cleanup
+    toast.success(`Bulk sold ${items.length} medicines successfully!`);
     setSelectedIds(new Set());
     setSelectAll(false);
     setShowBulkSellPopup(false);
     setBulkSellData({});
     fetchMedicines(currentPage);
     navigate("/sold");
-
   } catch (error) {
     toast.error(error.message || "Bulk sell failed");
-    console.error("Bulk sell error:", error);
   } finally {
     setIsSubmitting(false);
   }
@@ -457,62 +444,41 @@ useEffect(() => {
     }
   };
 
-  // Add medicine
-  const handleAddMedicine = async (e) => {
-    e.preventDefault();
+  // 1. ADD MEDICINE — FULLY PROTECTED
+const handleAddMedicine = async (e) => {
+  e.preventDefault();
+  if (isSubmitting) {
+    toast.info("Please wait — submission already in progress...");
+    return;
+  }
 
-    if (isSubmitting) {
-      toast.info("Please wait, submission in progress...");
-      return;
+  try {
+    setIsSubmitting(true);
+
+    const required = ["name", "category", "expiry", "quantity", "purchasePrice", "salePrice"];
+    for (let field of required) {
+      if (!formData[field]) return toast.error(`Please fill ${field}`);
     }
 
-    try {
-      setIsSubmitting(true);
+    const exists = medicines.find(m => m.name.toLowerCase() === formData.name.toLowerCase());
+    if (exists) return toast.error("Medicine already exists!");
 
-      const required = [
-        "name",
-        "category",
-        "expiry",
-        "quantity",
-        "purchasePrice",
-        "salePrice",
-      ];
+    await addMedicine(formData);
 
-      for (let field of required) {
-        if (!formData[field])
-          return toast.error(`Please fill the ${field} field`);
-      }
-
-      // Check if medicine exists (you might want to keep this client-side check)
-      const exists = medicines.find(
-        (m) => m.name.toLowerCase() === formData.name.toLowerCase()
-      );
-      if (exists) return toast.error("Medicine already exists!");
-
-      await addMedicine(formData);
-      setShowAddPopup(false);
-      setFormData({
-        name: "",
-        category: "",
-        packSize: "",
-        strength: "",
-        expiry: "",
-        quantity: "",
-        purchasePrice: "",
-        salePrice: "",
-        manufacturer: "",
-        supplier: "",
-        storageCondition: "Room Temperature",
-      });
-      fetchMedicines(currentPage, searchTerm); // ✅ UPDATED: Refresh current view
-      toast.success("Medicine added successfully ✅");
-    } catch (error) {
-      console.error("Error adding medicine:", error);
-      toast.error("Error adding medicine");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    toast.success("Medicine added successfully");
+    setShowAddPopup(false);
+    setFormData({
+      name: "", category: "", packSize: "", strength: "", expiry: "",
+      quantity: "", purchasePrice: "", salePrice: "", manufacturer: "", supplier: "",
+      storageCondition: "Room Temperature"
+    });
+    fetchMedicines(currentPage);
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Failed to add medicine");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   // Edit medicine
   const handleEdit = (medicine) => {
@@ -537,59 +503,36 @@ useEffect(() => {
     setShowEditPopup(true);
   };
 
-  const handleUpdateMedicine = async (e) => {
-    e.preventDefault();
+  // 2. UPDATE MEDICINE — FULLY PROTECTED
+const handleUpdateMedicine = async (e) => {
+  e.preventDefault();
+  if (isSubmitting) {
+    toast.info("Please wait — update in progress...");
+    return;
+  }
+  if (!selectedMedicine?._id) return toast.error("No medicine selected");
 
-    if (isSubmitting) {
-      toast.info("Please wait, another operation in progress...");
-      return;
-    }
+  try {
+    setIsSubmitting(true);
 
-    if (!selectedMedicine?._id)
-      return toast.error("No medicine selected for update");
+    const payload = {};
+    const fields = ["name","category","packSize","strength","expiry","quantity","purchasePrice","salePrice","manufacturer","supplier","storageCondition"];
+    fields.forEach(key => {
+      if (formData[key] !== undefined) payload[key] = formData[key];
+    });
+    if (payload.expiry) payload.expiry = new Date(payload.expiry).toISOString();
 
-    try {
-      setIsSubmitting(true);
+    await updateMedicine(selectedMedicine._id, payload);
 
-      const payload = {};
-      const allowedFields = [
-        "name",
-        "category",
-        "packSize",
-        "strength",
-        "expiry",
-        "quantity",
-        "purchasePrice",
-        "salePrice",
-        "manufacturer",
-        "supplier",
-        "storageCondition",
-      ];
-
-      allowedFields.forEach((key) => {
-        if (formData[key] !== undefined) payload[key] = formData[key];
-      });
-
-      if (payload.expiry)
-        payload.expiry = new Date(payload.expiry).toISOString();
-
-      const updated = await updateMedicine(selectedMedicine._id, payload);
-      setSelectedMedicine(updated);
-
-      // ✅ UPDATED: Refresh the current view instead of local state update
-      fetchMedicines(currentPage, searchTerm);
-
-      toast.success("Medicine updated successfully ✅");
-      setShowEditPopup(false);
-    } catch (error) {
-      console.error("Error updating medicine:", error);
-      toast.error(
-        error.response?.data?.message || error.message || "Update failed"
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    toast.success("Medicine updated successfully");
+    setShowEditPopup(false);
+    fetchMedicines(currentPage);
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Update failed");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   // Sell medicine
   const handleSell = (medicine) => {
@@ -599,12 +542,13 @@ useEffect(() => {
     setShowSellPopup(true);
   };
 
-  const confirmSell = async () => {
+ // 3. SINGLE SELL — FULLY PROTECTED
+const confirmSell = async () => {
   const quantity = parseInt(sellQuantity, 10);
   if (!quantity || quantity <= 0) return toast.error("Invalid quantity!");
 
   if (isSubmitting) {
-    toast.info("Please wait, processing...");
+    toast.info("Please wait — sale is processing...");
     return;
   }
 
@@ -612,18 +556,16 @@ useEffect(() => {
     setIsSubmitting(true);
 
     const unitsPerPackage = getUnitsPerPackage(currentMedicine);
-
-    let soldAmount, soldType, soldUnitLabel;
+    let soldAmount, soldType;
 
     if (quantityType === "packages") {
       if (quantity > currentMedicine.quantity) {
-        toast.error(`Only ${Math.floor(currentMedicine.quantity)} package(s) in stock!`);
+        toast.error(`Only ${Math.floor(currentMedicine.quantity)} package(s) available!`);
         return;
       }
       await sellMedicine(currentMedicine._id, quantity, "packages");
       soldAmount = quantity;
-      soldType = "packages";
-      soldUnitLabel = quantity === 1 ? "package" : "packages";
+      soldType = "package(s)";
     } else {
       const totalUnits = Math.floor(currentMedicine.quantity) * unitsPerPackage;
       if (quantity > totalUnits) {
@@ -632,24 +574,16 @@ useEffect(() => {
       }
       await sellMedicine(currentMedicine._id, quantity, "units");
       soldAmount = quantity;
-      soldType = "units";
-      soldUnitLabel = quantity === 1 ? "unit" : "units";
+      soldType = "unit(s)";
     }
 
-    // Success + redirect
-    toast.success(`Sold ${soldAmount} ${soldUnitLabel} successfully!`);
-
-    // Cleanup
+    toast.success(`Sold ${soldAmount} ${soldType} successfully!`);
+    setShowSellPopup(false);
     setSellQuantity("");
     setQuantityType("packages");
-    setShowSellPopup(false);
-
-    // INSTANT REDIRECT
     navigate("/sold");
-
   } catch (error) {
-    console.error("SELL ERROR:", error);
-    toast.error(error.response?.data?.message || "Failed to sell medicine");
+    toast.error(error.response?.data?.message || "Sale failed");
   } finally {
     setIsSubmitting(false);
   }
@@ -1362,17 +1296,9 @@ useEffect(() => {
                   </small>
 
                   <div className="popup-buttons">
-                    <button
-                      type="submit"
-                      className="save-btn"
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting
-                        ? "⏳ Processing..."
-                        : showEditPopup
-                        ? "💾 Update Medicine"
-                        : "➕ Add Medicine"}
-                    </button>
+                    <button type="submit" className="save-btn" disabled={isSubmitting}>
+  {isSubmitting ? "Processing..." : (showEditPopup ? "Update Medicine" : "Add Medicine")}
+</button>
                     <button
                       type="button"
                       className="cancel-btn"
@@ -1733,15 +1659,13 @@ useEffect(() => {
 
             {/* For the sell popup */}
             <div className="popup-buttons">
-              <button
-                className="save-btn"
-                onClick={confirmSell}
-                disabled={
-                  !sellQuantity || parseInt(sellQuantity) <= 0 || isSubmitting
-                }
-              >
-                {isSubmitting ? "⏳ Processing..." : "✅ Confirm Sell"}
-              </button>
+              <button 
+  className="save-btn" 
+  onClick={confirmSell} 
+  disabled={!sellQuantity || parseInt(sellQuantity) <= 0 || isSubmitting}
+>
+  {isSubmitting ? "Processing..." : "Confirm Sell"}
+</button>
               <button
                 className="cancel-btn"
                 onClick={() => {
@@ -1902,18 +1826,18 @@ useEffect(() => {
 
       <div className="popup-buttons bulk">
         <button
-          className="confirm-bulk-btn"
-          onClick={handleBulkSell}
-          disabled={
-            isSubmitting ||
-            Object.keys(bulkSellData).length === 0 ||
-            displayedMedicines
-              .filter(m => selectedIds.has(m._id))
-              .some(m => !bulkSellData[m._id]?.quantity || parseInt(bulkSellData[m._id].quantity) <= 0)
-          }
-        >
-          {isSubmitting ? "Processing..." : `Confirm Bulk Sell (${selectedIds.size})`}
-        </button>
+  className="confirm-bulk-btn"
+  onClick={handleBulkSell}
+  disabled={
+    isSubmitting ||
+    Object.keys(bulkSellData).length === 0 ||
+    displayedMedicines
+      .filter(m => selectedIds.has(m._id))
+      .some(m => !bulkSellData[m._id]?.quantity || parseInt(bulkSellData[m._id].quantity) <= 0)
+  }
+>
+  {isSubmitting ? "Processing..." : `Confirm Bulk Sell (${selectedIds.size})`}
+</button>
         <button
           className="cancel-bulk-btn"
           onClick={() => {

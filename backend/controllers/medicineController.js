@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Medicine from "../models/Medicine.js";
 import Sale from "../models/Sales.js";
 
@@ -230,21 +231,16 @@ export const sellMedicine = async (req, res) => {
   }
 };
 
-// ✅ FINAL PROFESSIONAL getAllSales - FULLY SUPPORTS ALL FILTERS
 export const getAllSales = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const searchTerm = (req.query.q || req.query.search || "").trim();
-    const monthFilter = req.query.month || ""; // "2025-12"
-    const sortBy = req.query.sort || "date-newest"; // date-newest, revenue-high, etc.
+    const monthFilter = req.query.month || "";
+    const sortBy = req.query.sort || "date-newest";
 
-    const skip = (page - 1) * limit;
-
-    // Build base query
     let query = {};
 
-    // 1. Search filter
     if (searchTerm) {
       query.$or = [
         { medicineName: { $regex: searchTerm, $options: "i" } },
@@ -254,99 +250,181 @@ export const getAllSales = async (req, res) => {
       ];
     }
 
-    // 2. Month filter
     if (monthFilter && monthFilter !== "all") {
       const [year, month] = monthFilter.split("-");
       const startDate = new Date(`${year}-${month}-01T00:00:00.000Z`);
       const endDate = new Date(startDate);
       endDate.setMonth(endDate.getMonth() + 1);
-
       query.soldAt = { $gte: startDate, $lt: endDate };
     }
 
-    // 3. Sorting
-    let sortOption = {};
+    // Sorting options for individuals (pre-group stable sort)
+    let preSort = { soldAt: -1 }; // Default stable sort by date newest
+
+    // Group-level sort
+    let groupSort = { soldAt: -1 };
+
     switch (sortBy) {
-      case "date-newest":
-        sortOption = { soldAt: -1 };
-        break;
       case "date-oldest":
-        sortOption = { soldAt: 1 };
+        preSort = { soldAt: 1 };
+        groupSort = { soldAt: 1 };
+        break;
+      case "date-newest":
+        preSort = { soldAt: -1 };
+        groupSort = { soldAt: -1 };
         break;
       case "revenue-high":
-        sortOption = { totalAmount: -1 };
+        groupSort = { totalRevenue: -1 };
         break;
       case "revenue-low":
-        sortOption = { totalAmount: 1 };
+        groupSort = { totalRevenue: 1 };
         break;
       case "quantity-high":
-        sortOption = { quantitySold: -1 };
+        groupSort = { totalQuantity: -1 };
         break;
       default:
-        sortOption = { soldAt: -1 };
+        preSort = { soldAt: -1 };
+        groupSort = { soldAt: -1 };
     }
 
-    // Get total count for pagination
-    const totalSales = await Sale.countDocuments(query);
+    // ✅ MAIN AGGREGATION PIPELINE
+    const grouped = await Sale.aggregate([
+      { $match: query },
 
-    // Fetch paginated + filtered + sorted data
-    const sales = await Sale.find(query)
-      .sort(sortOption)
-      .skip(skip)
-      .limit(limit)
-      .populate("medicine", "name category manufacturer salePrice packSize strength")
-      .lean();
+      // 1️⃣ Join with medicines (so salePrice, packSize, etc. exist)
+      {
+        $lookup: {
+          from: "medicines",
+          localField: "medicine",
+          foreignField: "_id",
+          as: "medicine",
+        },
+      },
+      { $unwind: { path: "$medicine", preserveNullAndEmptyArrays: true } },
 
-    // Format response (same as before)
-    const formattedSales = sales.map((s) => ({
-      _id: s._id,
-      name: s.medicineName || s.medicine?.name || "Unknown",
-      category: s.medicine?.category || "-",
-      manufacturer: s.medicine?.manufacturer || "-",
-      quantitySold: s.quantitySold,
-      salePrice: s.medicine?.salePrice || 0,
-      packSize: s.packSize || s.medicine?.packSize || "Standard",
-      strength: s.medicine?.strength || "",
-      total: s.totalAmount || 0,
-      soldAt: s.soldAt,
-      soldBy: s.soldBy || "Staff",
-      sellType: s.originalSellType || s.sellType || "packages",
-      originalSellType: s.originalSellType || s.sellType || "packages",
-      unitsPerPackage: s.unitsPerPackage || 1,
+      // 2️⃣ Pre-sort for stable order (e.g., by date)
+      { $sort: preSort },
+
+      // 3️⃣ Group by transaction
+      {
+        $group: {
+          _id: {
+            $cond: [
+              { $ifNull: ["$transactionId", false] },
+              "$transactionId",
+              {
+                $concat: [
+                  {
+                    $toString: {
+                      $dateToString: {
+                        format: "%Y-%m-%dT%H:%M",
+                        date: "$soldAt",
+                      },
+                    },
+                  },
+                  "_",
+                  { $ifNull: ["$soldBy", "unknown"] },
+                ],
+              },
+            ],
+          },
+          items: { $push: "$$ROOT" },
+          soldAt: { $first: "$soldAt" },
+          soldBy: { $first: "$soldBy" },
+          totalRevenue: { $sum: "$totalAmount" },
+          totalQuantity: { $sum: "$quantitySold" }, // Added for quantity sorting
+        },
+      },
+
+      // 4️⃣ Sort groups by the selected criteria
+      { $sort: groupSort },
+
+      // 5️⃣ Paginate at group level
+      { $skip: (page - 1) * limit },
+      { $limit: limit },
+    ]);
+
+    // Count total groups (for totalPages)
+    const totalGroupsResult = await Sale.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: {
+            $cond: [
+              { $ifNull: ["$transactionId", false] },
+              "$transactionId",
+              {
+                $concat: [
+                  {
+                    $toString: {
+                      $dateToString: {
+                        format: "%Y-%m-%dT%H:%M",
+                        date: "$soldAt",
+                      },
+                    },
+                  },
+                  "_",
+                  { $ifNull: ["$soldBy", "unknown"] },
+                ],
+              },
+            ],
+          },
+        },
+      },
+      { $count: "totalGroups" },
+    ]);
+    const totalGroups = totalGroupsResult[0]?.totalGroups || 0;
+
+    // Format output
+    const formatted = grouped.map((g) => ({
+      key: g._id,
+      soldAt: g.soldAt,
+      soldBy: g.soldBy,
+      totalRevenue: g.totalRevenue,
+      items: g.items.map((s) => ({
+        _id: s._id,
+        name: s.medicineName || s.medicine?.name || "Unknown",
+        category: s.medicine?.category || "-",
+        manufacturer: s.medicine?.manufacturer || "-",
+        quantitySold: s.quantitySold,
+        salePrice: s.medicine?.salePrice || 0,
+        packSize: s.packSize || s.medicine?.packSize || "Standard",
+        strength: s.medicine?.strength || "",
+        total: s.totalAmount || 0,
+        soldAt: s.soldAt,
+        soldBy: s.soldBy || "Staff",
+        sellType: s.originalSellType || s.sellType || "packages",
+        unitsPerPackage: s.unitsPerPackage || 1,
+        transactionId: s.transactionId || null,
+      })),
     }));
 
-    // Calculate accurate total revenue for filtered results (for summary cards)
-    const revenueAggregation = await Sale.aggregate([
+    // Total revenue across all filtered records
+    const revenueAgg = await Sale.aggregate([
       { $match: query },
       { $group: { _id: null, totalRevenue: { $sum: "$totalAmount" } } },
     ]);
-
-    const totalRevenue = revenueAggregation[0]?.totalRevenue || 0;
+    const totalRevenue = revenueAgg[0]?.totalRevenue || 0;
 
     res.status(200).json({
       success: true,
-      data: formattedSales,
+      data: formatted,
       pagination: {
         currentPage: page,
-        totalPages: Math.ceil(totalSales / limit),
-        totalSales,
-        totalRecords: totalSales,
-        hasNextPage: page < Math.ceil(totalSales / limit),
+        totalPages: Math.ceil(totalGroups / limit),
+        totalGroups,
+        hasNextPage: page < Math.ceil(totalGroups / limit),
         hasPrevPage: page > 1,
       },
-      summary: {
-        totalRevenue,
-      },
+      summary: { totalRevenue },
     });
   } catch (error) {
     console.error("Error in getAllSales:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch sales",
-      error: error.message,
-    });
+    res.status(500).json({ success: false, message: "Failed to fetch sales" });
   }
 };
+
+
 
 export const getSalesByMedicine = async (req, res) => {
   try {
@@ -361,8 +439,107 @@ export const getSalesByMedicine = async (req, res) => {
   }
 };
 
-// ✅ Update getAllMedicines to support pagination and search
-// REPLACE your current getAllMedicines with THIS ONE
+// controllers/saleController.js
+export const bulkSellMedicines = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { items } = req.body; // [{ medicineId, quantity, type }]
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, message: "No items provided" });
+    }
+
+    // Generate unique transaction ID
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const todayCount = await Sale.countDocuments({
+      transactionId: { $regex: `^TX-${today}` }
+    });
+    const transactionId = `TX-${today}-${String(todayCount + 1).padStart(4, "0")}`;
+
+    const createdSales = [];
+    let grandTotal = 0;
+
+    for (const item of items) {
+      const { medicineId, quantity: qtyRequested, type = "packages" } = item;
+
+      const medicine = await Medicine.findById(medicineId).session(session);
+      if (!medicine) throw new Error(`Medicine not found: ${medicineId}`);
+
+      let unitPrice, totalAmount, unitsSold, packagesUsed;
+
+      if (type === "units") {
+        if (qtyRequested > medicine.unitsAvailable)
+          throw new Error(`Not enough units for ${medicine.name}`);
+
+        unitPrice = medicine.salePrice / medicine.unitsPerPackage;
+        totalAmount = unitPrice * qtyRequested;
+        unitsSold = qtyRequested;
+        packagesUsed = Math.ceil(qtyRequested / medicine.unitsPerPackage);
+      } else {
+        const unitsRequested = qtyRequested * medicine.unitsPerPackage;
+        if (unitsRequested > medicine.unitsAvailable)
+          throw new Error(`Not enough stock for ${medicine.name}`);
+
+        unitPrice = medicine.salePrice;
+        totalAmount = medicine.salePrice * qtyRequested;
+        unitsSold = unitsRequested;
+        packagesUsed = qtyRequested;
+      }
+
+      // Deduct stock
+      medicine.unitsAvailable -= unitsSold;
+      medicine.quantity = Math.ceil(medicine.unitsAvailable / medicine.unitsPerPackage);
+      if (medicine.unitsAvailable <= 0) medicine.isActive = false;
+
+      await medicine.save({ session });
+
+      // Create sale record
+      const sale = await Sale.create([{
+        medicine: medicine._id,
+        medicineName: medicine.name,
+        quantitySold: qtyRequested,
+        unitPrice,
+        totalAmount,
+        soldBy: req.user?.name || "admin",
+        originalQuantity: qtyRequested,
+        originalSellType: type,
+        unitsPerPackage: medicine.unitsPerPackage,
+        transactionId,  // ← This links all items together!
+      }], { session });
+
+      createdSales.push(sale[0]);
+      grandTotal += totalAmount;
+    }
+
+    await session.commitTransaction();
+
+    res.json({
+      success: true,
+      message: `Bulk sale completed! ${items.length} items → ${transactionId}`,
+      data: {
+        transactionId,
+        totalAmount: grandTotal,
+        itemsSold: items.length,
+        sales: createdSales.map(s => ({
+          name: s.medicineName,
+          quantity: s.quantitySold,
+          type: s.originalSellType,
+          amount: s.totalAmount
+        }))
+      }
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Bulk sell failed:", error);
+    res.status(400).json({ success: false, message: error.message });
+  } finally {
+    session.endSession();
+  }
+};
+
 export const getAllMedicines = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;

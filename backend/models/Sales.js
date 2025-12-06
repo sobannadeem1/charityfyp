@@ -14,10 +14,15 @@ const saleSchema = new mongoose.Schema(
     soldBy: { type: String, default: "system" }, // optional: user who sold
     note: { type: String, default: "" },
     soldAt: { type: Date, default: Date.now },
-    // In your Sale model, add:
     originalQuantity: { type: Number, required: true }, // What user entered
     originalSellType: { type: String, required: true }, // "packages" or "units"
     unitsPerPackage: { type: Number, required: true }, // For frontend calculations
+    // In your Sale model - add this field
+transactionId: {
+  type: String,
+  sparse: true, // allows null/undefined for old single sales
+  index: true   // for fast grouping in /sold page
+},
   },
   { timestamps: true }
 );

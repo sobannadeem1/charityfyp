@@ -11,6 +11,7 @@ import {
   deleteSelectedSales,
   deleteSaleGroup,
   deleteAllSales,
+  bulkSellMedicines,
 } from "../controllers/medicineController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 
@@ -21,6 +22,7 @@ medicineRouter.get("/", getAllMedicines);
 medicineRouter.get("/:id", getMedicineById);
 medicineRouter.get("/sold/records", getAllSales);
 medicineRouter.get("/sales/:id", getSalesByMedicine);
+medicineRouter.post("/sales/bulk", bulkSellMedicines);
 
 // ✅ Protected routes (admin only)
 medicineRouter.post("/", authMiddleware, addMedicine);
