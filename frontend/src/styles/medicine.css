@@ -1591,3 +1591,15 @@
     justify-content: center;
   }
 }
+
+.pagination-btn.prev-next {
+  opacity: 0.5;
+  color: black;
+  font-weight: bolder;
+  transition: color 0.3s ease;
+}
+
+.pagination-btn.prev-next:hover {
+  color: #111;
+  opacity: 1;
+}

@@ -308,26 +308,7 @@ export const getAllSales = async (req, res) => {
       // 3️⃣ Group by transaction
       {
         $group: {
-          _id: {
-            $cond: [
-              { $ifNull: ["$transactionId", false] },
-              "$transactionId",
-              {
-                $concat: [
-                  {
-                    $toString: {
-                      $dateToString: {
-                        format: "%Y-%m-%dT%H:%M",
-                        date: "$soldAt",
-                      },
-                    },
-                  },
-                  "_",
-                  { $ifNull: ["$soldBy", "unknown"] },
-                ],
-              },
-            ],
-          },
+          _id: { $ifNull: ["$transactionId", { $toString: "$_id" }] },
           items: { $push: "$$ROOT" },
           soldAt: { $first: "$soldAt" },
           soldBy: { $first: "$soldBy" },
@@ -375,29 +356,31 @@ export const getAllSales = async (req, res) => {
     ]);
     const totalGroups = totalGroupsResult[0]?.totalGroups || 0;
 
-    // Format output
-    const formatted = grouped.map((g) => ({
-      key: g._id,
-      soldAt: g.soldAt,
-      soldBy: g.soldBy,
-      totalRevenue: g.totalRevenue,
-      items: g.items.map((s) => ({
-        _id: s._id,
-        name: s.medicineName || s.medicine?.name || "Unknown",
-        category: s.medicine?.category || "-",
-        manufacturer: s.medicine?.manufacturer || "-",
-        quantitySold: s.quantitySold,
-        salePrice: s.medicine?.salePrice || 0,
-        packSize: s.packSize || s.medicine?.packSize || "Standard",
-        strength: s.medicine?.strength || "",
-        total: s.totalAmount || 0,
-        soldAt: s.soldAt,
-        soldBy: s.soldBy || "Staff",
-        sellType: s.originalSellType || s.sellType || "packages",
-        unitsPerPackage: s.unitsPerPackage || 1,
-        transactionId: s.transactionId || null,
-      })),
-    }));
+   const formatted = grouped.map((g) => ({
+  key: g._id,
+  soldAt: g.soldAt,
+  soldBy: g.soldBy,
+  totalRevenue: g.totalRevenue,
+  items: g.items.map((s) => ({
+    _id: s._id,
+    name: s.medicineName || s.medicine?.name || "Unknown",
+    category: s.medicine?.category || "-",
+    manufacturer: s.medicine?.manufacturer || "-",
+    quantitySold: s.quantitySold,
+    unitPrice: s.unitPrice || 0,
+salePrice: s.salePrice || s.medicine?.salePrice || s.unitPrice || 0,
+
+    packSize: s.packSize || s.medicine?.packSize || "Standard",
+    strength: s.medicine?.strength || "",
+    total: s.totalAmount || 0,                                // ← FIXED
+    soldAt: s.soldAt,
+    soldBy: s.soldBy || "Staff",
+    sellType: s.originalSellType || s.sellType || "packages",
+    originalSellType: s.originalSellType || s.sellType,
+    unitsPerPackage: s.unitsPerPackage || 1,
+    transactionId: s.transactionId || null,
+  })),
+}));
 
     // Total revenue across all filtered records
     const revenueAgg = await Sale.aggregate([

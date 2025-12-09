@@ -54,6 +54,7 @@ export default function Header({ isAdmin, setIsAdmin }) {
               <NavLink to="/expiring-soon">Expiring Soon</NavLink>
 
               {isAdmin && <NavLink to="/sold">Sold Medicines</NavLink>}
+              {isAdmin && <NavLink to="/invoices">Invoice History</NavLink>}
             </div>
           </div>
 

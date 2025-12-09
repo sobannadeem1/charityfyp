@@ -11,6 +11,8 @@ import "../styles/medicine.css";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import Draggable from "react-draggable";
+import { CiPill } from "react-icons/ci";
+import { FaPills } from "react-icons/fa";
 
 export default function Medicines({ isAdmin }) {
   const [medicines, setMedicines] = useState([]);
@@ -589,32 +591,19 @@ const confirmSell = async () => {
   }
 };
 
-  // Emoji mapping based on medicine category
-  const getCategoryEmoji = (category) => {
-    const emojiMap = {
-      Tablet: "💊",
-      Capsule: "💊",
-      Syrup: "🧴",
-      Injection: "💉",
-      Cream: "🧴",
-      Ointment: "🩹",
-      Drops: "💧",
-      Inhaler: "🌬️",
-      Powder: "🥄",
-      Suppository: "🔘",
-      Spray: "💨",
-      Gel: "🧴",
-      Solution: "💧",
-      Other: "💊",
-    };
+  
+const isCountableCategory = (category) => {
+  const countable = ["Tablet", "Capsule", "Injection"];
+  return countable.includes(category);
+};
 
-    return emojiMap[category] || "💊";
-  };
-
+const getActualUnits = (medicine) => {
+  return medicine?.unitsAvailable || 0;
+};
   return (
     <div className="medicine-container">
       <div className="header">
-        <h1>💊 Medicine Inventory</h1>
+        <h1>Medicine Inventory</h1>
         <div className="header-controls">
           <div className="search-box">
             <input
@@ -683,7 +672,7 @@ const confirmSell = async () => {
             <option value="all">All Categories</option>
             {categories.map((cat) => (
               <option key={cat} value={cat}>
-                {getCategoryEmoji(cat)} {cat}
+                 {cat}
               </option>
             ))}
           </select>
@@ -853,14 +842,16 @@ const confirmSell = async () => {
                           />
                         </td>
                       )}
-                      <td>
-                        <div className="medicine-name-badge">
-                          <span className="medicine-icon">
-                            {getCategoryEmoji(m.category)}
-                          </span>
-                          <span className="medicine-name">{m.name}</span>
-                        </div>
-                      </td>
+                 <td style={{ fontWeight: "600", fontSize: "1rem" }}>
+  <span style={{ display: "inline-flex", alignItems: "center", gap: "0.8rem" }}>
+    <FaPills 
+      style={{ 
+        fontSize: "1rem"
+      }} 
+    />
+    {m.name}
+  </span>
+</td>
                       <td>{m.category || "-"}</td>
                       <td>{m.strength || "-"}</td>
                       <td>{m.packSize || "-"}</td>
@@ -873,37 +864,41 @@ const confirmSell = async () => {
                             })
                           : "N/A"}
                       </td>
-                      <td
-                        className={`quantity-cell ${
-                          isLowStock ? "low-stock" : ""
-                        }`}
-                      >
-                        <span
-                          style={{
-                            fontWeight: "bold",
-                            fontSize: "1.15em",
-                            color: "#111827",
-                          }}
-                        >
-                          {Math.floor(m.quantity)}
-                        </span>
-                        {isLowStock && !isExpired && (
-                          <span
-                            style={{
-                              color: "#d97706",
-                              fontWeight: "600",
-                              fontSize: "0.9em",
-                              marginLeft: "8px",
-                              background: "#fffbeb",
-                              padding: "2px 8px",
-                              borderRadius: "6px",
-                              border: "1px solid #fcd34d",
-                            }}
-                          >
-                            Low Stock
-                          </span>
-                        )}
-                      </td>
+                      <td className={`quantity-cell ${getActualUnits(m) <= 5 && getActualUnits(m) > 0 ? "low-stock" : ""}`}>
+  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+    <div style={{ fontWeight: "700", fontSize: "1.1em", color: "#111827" }}>
+      {Math.floor(m.quantity)} package{m.quantity > 1 ? "s" : ""}
+    </div>
+
+    {isCountableCategory(m.category) ? (
+      <div style={{ 
+        fontSize: "0.95em", 
+        color: getActualUnits(m) <= 5 ? "#dc2626" : "#059669",
+        fontWeight: "600"
+      }}>
+        ({getActualUnits(m)} units available)
+      </div>
+    ) : (
+      <div style={{ fontSize: "0.9em", color: "#6b7280" }}>
+        {m.packSize || "Standard Pack"}
+      </div>
+    )}
+
+    {getActualUnits(m) <= 5 && getActualUnits(m) > 0 && isCountableCategory(m.category) && (
+      <div style={{
+        background: "#fee2e2",
+        color: "#991b1b",
+        padding: "4px 10px",
+        borderRadius: "6px",
+        fontSize: "0.8em",
+        fontWeight: "600",
+        alignSelf: "flex-start"
+      }}>
+        Low Stock
+      </div>
+    )}
+  </div>
+</td>
                       {isAdmin && (
                         <td
                           title="Your purchase cost"
@@ -1144,7 +1139,7 @@ const confirmSell = async () => {
           <Draggable handle=".popup-header" nodeRef={popupRef}>
             <div ref={popupRef} className="popup">
               <div className="popup-header">
-                {showEditPopup ? "✏️ Edit Medicine" : "➕ Add New Medicine"}
+                {showEditPopup ? "Edit Medicine" : "Add New Medicine"}
               </div>
               <div className="popup-content">
                 <form
@@ -1155,7 +1150,7 @@ const confirmSell = async () => {
                 >
                   <input
                     name="name"
-                    placeholder="💊 Medicine Name"
+                    placeholder="Medicine Name"
                     value={formData.name}
                     onChange={handleChange}
                     required
@@ -1172,7 +1167,7 @@ const confirmSell = async () => {
                     required
                     className="form-select"
                   >
-                    <option value="">📂 Select Category</option>
+                    <option value="">Select Category</option>
                     <option>Tablet</option>
                     <option>Capsule</option>
                     <option>Syrup</option>
@@ -1192,7 +1187,7 @@ const confirmSell = async () => {
 
                   <input
                     name="strength"
-                    placeholder="⚡ Strength"
+                    placeholder="Strength"
                     value={formData.strength}
                     onChange={handleChange}
                     className="form-input"
@@ -1203,7 +1198,7 @@ const confirmSell = async () => {
 
                   <input
                     name="packSize"
-                    placeholder="📦 Pack Size"
+                    placeholder="Pack Size"
                     value={formData.packSize}
                     onChange={handleChange}
                     className="form-input"
@@ -1225,7 +1220,7 @@ const confirmSell = async () => {
                   <input
                     type="number"
                     name="quantity"
-                    placeholder="🔢 Stock Quantity"
+                    placeholder="Stock Quantity"
                     value={formData.quantity}
                     onChange={handleChange}
                     onWheel={(e) => e.target.blur()}
@@ -1239,7 +1234,7 @@ const confirmSell = async () => {
                   <input
                     type="number"
                     name="purchasePrice"
-                    placeholder="🛒 Purchase Price"
+                    placeholder="Purchase Price"
                     value={formData.purchasePrice}
                     onChange={handleChange}
                     required
@@ -1251,7 +1246,7 @@ const confirmSell = async () => {
                   <input
                     type="number"
                     name="salePrice"
-                    placeholder="💵 Sale Price"
+                    placeholder="Sale Price"
                     value={formData.salePrice}
                     onChange={handleChange}
                     required
@@ -1262,7 +1257,7 @@ const confirmSell = async () => {
 
                   <input
                     name="manufacturer"
-                    placeholder="🏭 Manufacturer"
+                    placeholder="Manufacturer"
                     value={formData.manufacturer}
                     onChange={handleChange}
                     className="form-input"
@@ -1273,7 +1268,7 @@ const confirmSell = async () => {
 
                   <input
                     name="supplier"
-                    placeholder="🚚 Supplier"
+                    placeholder="Supplier"
                     value={formData.supplier}
                     onChange={handleChange}
                     className="form-input"
@@ -1308,24 +1303,24 @@ const confirmSell = async () => {
                       }}
                       disabled={isSubmitting}
                     >
-                      ❌ Cancel
+                      Cancel
                     </button>
                   </div>
                 </form>
                 {/* EDIT HISTORY SECTION - ADD THIS BACK */}
                 {showEditPopup && selectedMedicine?.history?.length > 0 && (
                   <div className="edit-history">
-                    <h4>📝 Edit History</h4>
+                    <h4>Edit History</h4>
                     <div className="history-table-container">
                       <table className="history-table">
                         <thead>
                           <tr>
                             <th>#</th>
-                            <th>🕐 Updated At</th>
-                            <th>📝 Field</th>
-                            <th>📤 Old Value</th>
-                            <th>📥 New Value</th>
-                            <th>🔄 Change</th>
+                            <th>Updated At</th>
+                            <th>Field</th>
+                            <th>Old Value</th>
+                            <th>New Value</th>
+                            <th>Change</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1511,57 +1506,44 @@ const confirmSell = async () => {
       {showSellPopup && (
         <div className="popup-overlay">
           <div className="popup" ref={sellPopupRef}>
-            <h2>💰 Sell {currentMedicine?.name}</h2>
+            <h2>Sell {currentMedicine?.name}</h2>
 
             {/* Enhanced Package Information with Stock Change Awareness */}
             <div className="package-info">
               <p>
-                <strong>📦 Package Contents:</strong>{" "}
+                <strong>Package Contents:</strong>{" "}
                 {currentMedicine?.packSize || "N/A"}
               </p>
               <p>
-                <strong>💰 Price per Package:</strong> PKR{" "}
+                <strong>Price per Package:</strong> PKR{" "}
                 {currentMedicine?.salePrice}
               </p>
               <p>
-                <strong>💊 Price per Unit:</strong> PKR{" "}
+                <strong>Price per Unit:</strong> PKR{" "}
                 {getPricePerUnit(currentMedicine).toFixed(2)}
               </p>
               <p>
-                <strong>🔢 Units per Package:</strong>{" "}
+                <strong>Units per Package:</strong>{" "}
                 {getUnitsPerPackage(currentMedicine)} units
               </p>
 
-              {/* Enhanced Stock Display */}
-              <div className="stock-summary">
-                <p>
-                  <strong>📊 Available Stock:</strong>
-                </p>
-                <div className="stock-details">
-                  <div className="stock-item">
-                    <span className="stock-label">Packages:</span>
-                    <span className="stock-value">
-                      {Math.floor(currentMedicine?.quantity)}
-                    </span>
-                  </div>
-                  <div className="stock-item">
-                    <span className="stock-label">Individual Units:</span>
-                    <span className="stock-value">
-                      {Math.floor(currentMedicine?.quantity) *
-                        getUnitsPerPackage(currentMedicine)}
-                    </span>
-                  </div>
-                  <div className="stock-item">
-                    <span className="stock-label">Total Value:</span>
-                    <span className="stock-value">
-                      PKR{" "}
-                      {(
-                        currentMedicine?.quantity * currentMedicine?.salePrice
-                      ).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              </div>
+             <div className="stock-summary">
+  <p style={{ fontWeight: "bold", marginBottom: "8px" }}>Available Stock:</p>
+  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+    <div><strong>Packages:</strong> {Math.floor(currentMedicine?.quantity)}</div>
+    
+    {isCountableCategory(currentMedicine?.category) ? (
+      <div>
+        <strong>Units Available:</strong>{" "}
+        <strong style={{ color: getActualUnits(currentMedicine) <= 5 ? "#dc2626" : "#059669" }}>
+          {getActualUnits(currentMedicine)}
+        </strong>
+      </div>
+    ) : (
+      <div><strong>Pack Size:</strong> {currentMedicine?.packSize || "Standard"}</div>
+    )}
+  </div>
+</div>
             </div>
 
             {/* Conditional Quantity Type Selector */}
@@ -1576,13 +1558,13 @@ const confirmSell = async () => {
                 }}
                 className="quantity-type-selector"
               >
-                <option value="packages">📦 Sell Complete Packages</option>
-                <option value="units">💊 Sell Individual Units</option>
+                <option value="packages">Sell Complete Packages</option>
+                <option value="units">Sell Individual Units</option>
               </select>
             ) : (
               <div className="quantity-type-info">
                 <p>
-                  📦 Selling complete packages only for{" "}
+                  Selling complete packages only for{" "}
                   {currentMedicine?.category}
                 </p>
               </div>
@@ -1617,7 +1599,7 @@ const confirmSell = async () => {
               <div className="total-calculation">
                 <p>
                   <strong>
-                    💵 Total Amount: PKR{" "}
+                    Total Amount: PKR{" "}
                     {calculateTotal(
                       currentMedicine,
                       parseInt(sellQuantity),
@@ -1675,7 +1657,7 @@ const confirmSell = async () => {
                 }}
                 disabled={isSubmitting}
               >
-                ❌ Cancel
+                Cancel
               </button>
             </div>
           </div>
@@ -1701,25 +1683,25 @@ const confirmSell = async () => {
             return (
               <div key={medicine._id} className="bulk-med-item">
                 <div className="bulk-med-header">
-                  <span className="med-emoji">{getCategoryEmoji(medicine.category)}</span>
+                  <span className="med-emoji"><CiPill /></span>
                   <strong>{medicine.name}</strong>
                   {medicine.packSize && <small className="pack-size">({medicine.packSize})</small>}
                 </div>
 
-                <div className="stock-info">
-                  <span>
-                    <strong>Stock:</strong> {maxPackages} package{maxPackages !== 1 ? "s" : ""}
-                    {canSellUnits && <> → {maxUnits} units</>}
-                  </span>
-                  <span>
-                    <strong>Price/Package:</strong> PKR {medicine.salePrice}
-                  </span>
-                  {canSellUnits && (
-                    <span className="unit-price">
-                      <strong>Price/Unit:</strong> PKR {getPricePerUnit(medicine).toFixed(2)}
-                    </span>
-                  )}
-                </div>
+                <div className="stock-info" style={{ fontSize: "0.95em" }}>
+  <div><strong>Packages:</strong> {maxPackages}</div>
+  
+  {isCountableCategory(medicine.category) ? (
+    <div>
+      <strong>Units Available:</strong>{" "}
+      <strong style={{ color: getActualUnits(medicine) <= 5 ? "#dc2626" : "#059669" }}>
+        {getActualUnits(medicine)}
+      </strong>
+    </div>
+  ) : (
+    <div><strong>Pack Size:</strong> {medicine.packSize}</div>
+  )}
+</div>
 
                {canSellUnits && (
   <div className="quantity-type-radio">

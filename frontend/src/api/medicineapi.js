@@ -190,7 +190,45 @@ export const getCurrentAdmin = async () => {
 /* ==============================
    Invoices APIs
 ============================== */
-export const getAllInvoices = async () => {
-  const res = await axios.get(BASE_INVOICES);
-  return res.data;
+export const createInvoice = async (invoiceData) => {
+  try {
+    const res = await axios.post(`${BASE_INVOICES}/`, invoiceData);
+    return res.data;
+  } catch (error) {
+    console.error("Error creating invoice:", error);
+    throw error.response?.data || error;
+  }
+};
+export const getAllInvoices = async ({
+  page = 1,
+  limit = 10,
+  q = "",
+  month = "",
+  sort = "date-newest",
+}) => {
+  try {
+    const res = await axios.get(`${BASE_INVOICES}/`, {
+      params: {
+        page,
+        limit,
+        q: q.trim() || undefined,
+        month: month !== "all" ? month : undefined,
+        sort,
+      },
+    });
+    return res.data; // { success, data[], pagination{}, summary{} }
+  } catch (error) {
+    console.error("Error fetching invoices:", error);
+    throw error.response?.data || error;
+  }
+};
+
+export const getInvoiceById = async (id) => {
+  try {
+    const res = await axios.get(`${BASE_INVOICES}/${id}`);
+    return res.data; // { success, data: invoice }
+  } catch (error) {
+    console.error("Error fetching invoice:", error);
+    throw error.response?.data || error;
+  }
 };

@@ -7,23 +7,37 @@ const invoiceItemSchema = new mongoose.Schema({
     ref: "Medicine",
     required: true,
   },
-  name: { type: String, required: true }, // snapshot of medicine name
-  quantity: { type: Number, required: true, min: 1 },
-  price: { type: Number, required: true, min: 0 }, // price used for this invoice (possibly overridden)
-  total: { type: Number, required: true, min: 0 }, // price * quantity
+  name: { type: String, required: true },
+  category: { type: String },
+  manufacturer: { type: String },
+  strength: { type: String },
+  packSize: { type: String, required: true },
+  
+  // ↓↓↓ ADD THIS ↓↓↓
+  sellType: { type: String, enum: ["packages", "units"], default: "packages" },
+  originalSellType: { type: String, enum: ["packages", "units"], default: "packages" },
+
+  quantitySold: { type: Number, required: true, min: 1 },
+  salePrice: { type: Number, required: true, min: 0 },
+  totalAmount: { type: Number, required: true, min: 0 },
 });
+
 
 const invoiceSchema = new mongoose.Schema(
   {
-    customerName: { type: String, required: true, trim: true },
+    invoiceNumber: {
+      type: String,
+      unique: true,
+      required: true, // e.g., "INV-2025-0001" - we'll generate this
+    },
+    patientName: { type: String, required: true, trim: true, default: "Walk-in Patient" },
     items: [invoiceItemSchema],
-    subTotal: { type: Number, required: true }, // sum of items.total
-    discount: { type: Number, default: 0 }, // optional
-    tax: { type: Number, default: 0 }, // optional
-    totalAmount: { type: Number, required: true }, // subTotal - discount + tax
+    totalRevenue: { type: Number, required: true, min: 0 }, // sum of items.totalAmount
+    discount: { type: Number, default: 0, min: 0 }, // optional
     notes: { type: String, default: "" },
-    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" }, // admin who created invoice
-    date: { type: Date, default: Date.now },
+    type: mongoose.Schema.Types.Mixed,
+    transactionId: { type: String }, // optional link to sale group key
+    soldAt: { type: Date, default: Date.now },
   },
   { timestamps: true }
 );

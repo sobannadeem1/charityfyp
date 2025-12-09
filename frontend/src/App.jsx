@@ -10,6 +10,7 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import { NotificationProvider } from "./context/NotificationContext"; // ← ADD THIS
 import { getCurrentAdmin } from "./api/medicineapi";
+const InvoiceHistory = lazy(() => import("./pages/InvoiceHistory"));
 import "./index.css";
 import "./App.css";
 
@@ -75,6 +76,7 @@ const App = () => {
 
                 {/* These pages use notifications → must be inside NotificationProvider */}
                 <Route path="/expiring-soon" element={<ExpiringSoon />} />
+                {isAdmin && <Route path="/invoices" element={<InvoiceHistory />} />}
                 {isAdmin && <Route path="/sold" element={<SoldMedicines />} />}
               </Routes>
             </Suspense>

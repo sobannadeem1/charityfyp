@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback, useMemo,useRef } from "react";
-import { getSalesWithPagination } from "../api/medicineapi.js"; // You'll need to create this API function
+import { createInvoice, getSalesWithPagination } from "../api/medicineapi.js"; // You'll need to create this API function
 import "../styles/SoldMedicine.css";
+// import "../styles/test.css";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { FaChartBar, FaDollarSign } from "react-icons/fa";
+import { GiMedicines } from "react-icons/gi";
 
 export default function SoldMedicines() {
   const [soldRecords, setSoldRecords] = useState([]);
@@ -43,71 +44,73 @@ const [pendingInvoiceData, setPendingInvoiceData] = useState(null);
     },
     [getUnitsPerPackage]
   );
-  const calculateTotalAmount = useCallback(
-    (record) => {
-      if (record.total && record.total > 0) {
-        return Number(record.total);
-      }
+  const calculateTotalAmount = useCallback((record) => {
+  // 1. Use the CORRECT totalAmount from DB (this is the source of truth)
+  if (record.totalAmount !== undefined && record.totalAmount !== null) {
+    return Number(record.totalAmount);
+  }
 
-      const sellType = record.originalSellType || record.sellType;
+  // 2. Fallback: Use old field name "total" (in case of legacy data)
+  if (record.total !== undefined && record.total !== null) {
+    return Number(record.total);
+  }
 
-      if (sellType === "packages") {
-        return record.quantitySold * record.salePrice;
-      } else {
-        const unitPrice = getPricePerUnit(record.salePrice, record.packSize);
-        return record.quantitySold * unitPrice;
-      }
-    },
-    [getPricePerUnit]
-  );
+  // 3. LAST RESORT: Manual recalculation (only if both missing)
+  const sellType = record.originalSellType || record.sellType || "packages";
+  const qty = record.quantitySold || 0;
+  const pricePerPackage = record.salePrice || 0;
+  const unitsPerPackage = getUnitsPerPackage(record.packSize || "1x1");
+
+  if (sellType === "units") {
+    const pricePerUnit = unitsPerPackage > 0 ? pricePerPackage / unitsPerPackage : pricePerPackage;
+    return qty * pricePerUnit;
+  }
+
+  return qty * pricePerPackage;
+}, [getUnitsPerPackage]);
   
+const getDisplayUnitPrice = useCallback((record) => {
+  const sellType = record.originalSellType || record.sellType;
 
-  const getDisplayUnitPrice = useCallback(
-    (record) => {
-      const sellType = record.originalSellType || record.sellType;
-      if (sellType === "units") {
-        return getPricePerUnit(record.salePrice, record.packSize);
-      }
-      return record.salePrice; // packages
-    },
-    [getPricePerUnit]
-  );
+  // IF unitPrice IS SAVED → USE IT DIRECTLY (DO NOT DIVIDE AGAIN!)
+  if (record.unitPrice !== undefined && record.unitPrice > 0) {
+    return Number(record.unitPrice);
+  }
 
+  // ONLY IF NO unitPrice (very very old data), then calculate
+  if (sellType === "units") {
+    const unitsPerPackage = record.unitsPerPackage || getUnitsPerPackage(record.packSize);
+    return record.salePrice / unitsPerPackage;
+  }
+
+  return record.salePrice || 0;
+}, [getUnitsPerPackage]);
   const getUnitLabel = useCallback((record) => {
     const sellType = record.originalSellType || record.sellType;
     return sellType === "units" ? "per unit" : "per package";
   }, []);
 
-  const getSaleTypeInfo = useCallback(
-    (record) => {
-      const originalSellType = record.originalSellType || record.sellType;
-      const unitsPerPackage = getUnitsPerPackage(record.packSize);
+  const getSaleTypeInfo = useCallback((record) => {
+  const originalSellType = record.originalSellType || record.sellType;
+  const unitsPerPackage = record.unitsPerPackage || getUnitsPerPackage(record.packSize);
 
-      if (originalSellType === "units") {
-        const packagesEquivalent = record.quantitySold / unitsPerPackage;
-        const unitPrice = getPricePerUnit(record.salePrice, record.packSize);
-        return {
-          type: "units",
-          displayText: `${record.quantitySold} units`,
-          packagesEquivalent: packagesEquivalent.toFixed(1),
-          calculation: `${record.quantitySold} units × PKR ${unitPrice.toFixed(
-            2
-          )}`,
-        };
-      } else {
-        const totalUnits = record.quantitySold * unitsPerPackage;
-        return {
-          type: "packages",
-          displayText: `${record.quantitySold} packages`,
-          totalUnits: totalUnits,
-          calculation: `${
-            record.quantitySold
-          } packages × PKR ${record.salePrice.toFixed(2)}`,
-        };
-      }
-    },
-    [getUnitsPerPackage, getPricePerUnit]
-  );
+  if (originalSellType === "units") {
+    const unitPrice = record.unitPrice || (record.salePrice / unitsPerPackage);
+    return {
+      type: "units",
+      displayText: `${record.quantitySold} units`,
+      packagesEquivalent: (record.quantitySold / unitsPerPackage).toFixed(1),
+      calculation: `${record.quantitySold} units × PKR ${unitPrice.toFixed(2)}`,
+    };
+  } else {
+    return {
+      type: "packages",
+      displayText: `${record.quantitySold} packages`,
+      totalUnits: record.quantitySold * unitsPerPackage,
+      calculation: `${record.quantitySold} packages × PKR ${record.salePrice.toFixed(2)}`,
+    };
+  }
+}, [getUnitsPerPackage]);
 
 
 const fetchSoldRecords = async (page = 1) => {
@@ -203,7 +206,7 @@ useEffect(() => {
   setShowPatientPrompt(true);
 }, []);
 
-const printInvoiceWithPatientName = () => {
+const printInvoiceWithPatientName = async() => {
   if (!pendingInvoiceData) return;
 
   const nameToUse = patientName.trim() || "Walk-in Patient";
@@ -217,11 +220,28 @@ const printInvoiceWithPatientName = () => {
           soldAt: pendingInvoiceData.soldAt,
           soldBy: pendingInvoiceData.soldBy || "Staff",
         };
+// CORRECT ORDER – calculate first, then use
+const grandTotal = group.items.reduce((sum, item) => {
+  return sum + Number(item.totalAmount || item.total || 0);
+}, 0);
 
-    const grandTotal = group.items.reduce(
-      (acc, item) => acc + calculateTotalAmount(item),
-      0
-    );
+await createInvoice({
+  patientName: nameToUse,
+  items: group.items.map(item => ({
+    medicine: item.medicine?._id || item._id || null,
+    name: item.name,
+    category: item.category || "",
+    manufacturer: item.manufacturer || "",
+    strength: item.strength || "",
+    packSize: item.packSize || "Standard",
+    sellType: item.originalSellType || item.sellType || "packages",
+    quantitySold: item.quantitySold,
+    salePrice: item.salePrice,
+    totalAmount: Number(item.totalAmount || item.total || 0), // saved total
+  })),
+  totalRevenue: grandTotal,   // now exists
+  transactionId: group.key || null,
+});
 
     const itemsRows = group.items
       .map((item) => {
@@ -521,130 +541,163 @@ const summaryData = useMemo(() => {
       ) : soldRecords.length > 0 ? (
         <>
           <div className="sold-table-wrapper">
-            <table className="sold-table">
-              <thead>
-                <tr>
-                  <th>Medicine Name</th>
-                  <th>Package</th>
-                  <th>Quantity Sold</th>
-                  <th>Unit Price</th>
-                  <th>Total (PKR)</th>
-                  <th>Date</th>
-                  <th>Invoice</th>
-                </tr>
-              </thead>
-              <tbody>
-                {soldRecords.length > 0 &&
-    soldRecords.map((group) => {
-      const groupTotal = group.items.reduce(
-        (s, i) => s + calculateTotalAmount(i),
-        0
-      );
-      const firstItem = group.items[0];
+  <table className="sold-table">
+    <thead>
+      <tr>
+        <th>Medicine</th>
+        <th>Package</th>
+        <th>Quantity</th>
+        <th>Unit Price</th>
+        <th>Total</th>
+        <th>Date</th>
+        <th>Invoice</th>
+      </tr>
+    </thead>
+    <tbody>
+      {soldRecords.length > 0 &&
+        soldRecords.map((group) => {
+          const groupTotal = group.items.reduce((sum, item) => {
+  return sum + calculateTotalAmount(item);
+}, 0);
+          const firstItem = group.items[0];
+          const isBulk = group.items.length > 1;
 
-                  return (
-                    <tr key={group.key} className="group-row">
-                      <td className="medicine-name">
-                        {group.items.length > 1 && (
-                          <span className="bulk-badge">
-                            Bulk Sale ({group.items.length} items)
-                          </span>
-                        )}
-                        <div className="group-items-list">
-                          {group.items.map((item, i) => (
-                            <div key={item._id} className="group-item">
-                              <span className="medicine-icon">💊</span>
-                              <strong>{item.name}</strong>
-                              {item.strength && (
-                                <small> • {item.strength}</small>
-                              )}
-                            </div>
-                          ))}
+          return (
+            <>
+            
+
+              {/* Clean Glass Cards */}
+              {group.items.map((item, index) => {
+                const info = getSaleTypeInfo(item);
+                const itemTotal = calculateTotalAmount(item);
+                const isLast = index === group.items.length - 1;
+
+                return (
+                  <tr 
+                    key={`${group.key}-${item._id}`} 
+                    className={`glass-item-row ${isBulk ? 'bulk-glass-item' : ''} ${isLast ? 'last-glass-item' : ''}`}
+
+                  >
+                 
+                    {/* Medicine - Glass Card */}
+                    <td className="td-medicine-glass">
+                      <div className="medicine-glass-card">
+                        <div className="medicine-icon-glass">
+                          <span className="pill-icon-glass"><GiMedicines/></span>
                         </div>
-                      </td>
+                        <div className="medicine-info-glass">
+                         <div className="medicine-name-glass">
+  {item.name}
+  {isBulk && index === 0 && (
+    <span className="bulk-inline-badge">Bulk</span>
+  )}
+</div>
 
-                      <td className="package-cell">
-                        <div className="group-packages">
-                          {group.items.map((item) => (
-                            <div key={item._id} className="package-tag">
-                              {item.packSize || "Standard"}
+                          {item.strength && (
+                            <div className="strength-badge-glass">
+                              {item.strength}
                             </div>
-                          ))}
+                          )}
                         </div>
-                      </td>
+                      </div>
+                    </td>
 
-                      <td className="quantity-cell">
-                        {group.items.map((item) => {
-                          const info = getSaleTypeInfo(item);
-                          return (
-                            <div key={item._id} className="quantity-item">
-                              <span className={`sale-type-badge ${info.type}`}>
-                                {info.type === "units" ? "Pill" : "Package"}
-                              </span>
-                              {info.displayText}
-                              {info.type === "units" && (
-                                <small>({info.packagesEquivalent} pkg)</small>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </td>
+                    {/* Package - Glass Badge */}
+                    <td className="td-package-glass">
+                      <div className="package-glass-badge">
+                        {item.packSize || "Standard"}
+                      </div>
+                    </td>
 
-                      <td className="price-cell">
-                        {group.items.map((item) => (
-                          <div key={item._id}>
-                            PKR {getDisplayUnitPrice(item).toFixed(2)}
-                            <small style={{ color: "#666", fontSize: "0.8em" }}>
-                              {getUnitLabel(item)}
-                            </small>
+                    {/* Quantity - Glass Display */}
+                    <td className="td-quantity-glass">
+                      <div className="quantity-glass-display">
+                        <div className="quantity-main-glass">
+                          {info.displayText}
+                        </div>
+                        {info.type === "units" && (
+                          <div className="quantity-sub-glass">
+                            ≈ {info.packagesEquivalent} packages
                           </div>
-                        ))}
-                      </td>
+                        )}
+                        {info.type === "packages" && info.totalUnits && (
+                          <div className="quantity-sub-glass">
+                            = {info.totalUnits} units
+                          </div>
+                        )}
+                      </div>
+                    </td>
 
-                      <td className="total-cell highlight-total">
-                        <div className="group-total-amount">
-                          PKR {groupTotal.toFixed(2)}
+                    {/* Price - Glass Card */}
+                    <td className="td-price-glass">
+                      <div className="price-glass-card">
+                        <div className="price-main-glass">
+                          PKR {getDisplayUnitPrice(item).toFixed(2)}
                         </div>
-                        <small style={{ color: "#27ae60", fontWeight: "bold" }}>
-                          Group Total
-                        </small>
-                      </td>
+                        <div className="price-label-glass">
+                          per {item.sellType === "units" ? "unit" : "package"}
+                        </div>
+                      </div>
+                    </td>
 
-                      <td className="date-cell">
-                        {new Date(firstItem.soldAt)
-                          .toLocaleString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                            hour: "numeric",
-                            minute: "2-digit",
-                            hour12: true,
-                          })
-                          .replace(",", " •")}
-                        <br />
-                        <small style={{ opacity: 0.7 }}>
-                          by {firstItem.soldBy || "Staff"}
-                        </small>
-                      </td>
+                   {index === 0 && (
+  <td className="td-total-glass" rowSpan={group.items.length}>
+    <div className="total-glass-card">
+      <div className="total-amount-glass">
+        PKR {groupTotal.toFixed(2)}
+      </div>
+      {isBulk && (
+        <div className="total-items-glass">
+          ({group.items.length} items)
+        </div>
+      )}
+    </div>
+  </td>
+)}
 
-                      <td className="invoice-action">
-                        <button
-                          className="invoice-btn bulk"
-                          onClick={() => generateInvoice(group)}
-                        >
-                          Invoice{" "}
-                          {group.items.length > 1
-                            ? `(${group.items.length} items)`
-                            : ""}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                    {index === 0 && (
+  <td className="td-date-glass" rowSpan={group.items.length}>
+    <div className="date-glass-card">
+      <div className="date-main-glass">
+        {new Date(firstItem.soldAt).toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric',
+          year: 'numeric'
+        })}
+      </div>
+      <div className="date-time-glass">
+        {new Date(firstItem.soldAt).toLocaleTimeString([], { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        })}
+      </div>
+      <div className="sold-by-glass">
+        by {firstItem.soldBy || "Staff"}
+      </div>
+    </div>
+  </td>
+)}
 
+                  {index === 0 && (
+  <td className="td-invoice-glass" rowSpan={group.items.length}>
+    <button
+      className="invoice-btn-glass"
+      onClick={() => generateInvoice(group)}
+    >
+      Invoice
+      {isBulk && <span className="item-count-glass">{group.items.length}</span>}
+    </button>
+  </td>
+)}
+                  </tr>
+                );
+              })}
+            </>
+          );
+        })}
+    </tbody>
+  </table>
+</div>
           {/* ✅ Number Pagination Controls */}
           {totalPages > 1 && (
             <div className="pagination">
