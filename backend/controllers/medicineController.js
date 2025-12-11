@@ -225,6 +225,7 @@ export const sellMedicine = async (req, res) => {
           : `${unitsSold} unit(s) sold successfully`,
       data: { medicine, sale },
     });
+    console.log(sale)
   } catch (error) {
     console.error("Error selling medicine:", error);
     res.status(500).json({ success: false, message: error.message });

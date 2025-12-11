@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import Draggable from "react-draggable";
 import { CiPill } from "react-icons/ci";
 import { FaPills } from "react-icons/fa";
+import { printInvoice } from "../utils/invoiceUtils";
 
 export default function Medicines({ isAdmin }) {
   const [medicines, setMedicines] = useState([]);
@@ -38,13 +39,15 @@ export default function Medicines({ isAdmin }) {
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterExpiryMonth, setFilterExpiryMonth] = useState("all");
   const [filterStockStatus, setFilterStockStatus] = useState("all");
-  const [selectedIds, setSelectedIds] = useState(new Set());
-  const [selectAll, setSelectAll] = useState(false);
   const [showBulkSellPopup, setShowBulkSellPopup] = useState(false);
-  // Add this new state (put it with your other useState declarations)
+  const [bulkSearchTerm, setBulkSearchTerm] = useState("");
 const [bulkSellData, setBulkSellData] = useState({}); // { medicineId: { quantity: "", type: "packages" } }
   const searchTimeoutRef = useRef(null);
+  const [bulkSortOption, setBulkSortOption] = useState("date-newest");
+const [bulkFilterCategory, setBulkFilterCategory] = useState("all");
+const [bulkFilterExpiryMonth, setBulkFilterExpiryMonth] = useState("all");
 const abortControllerRef = useRef(null);
+
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -58,6 +61,48 @@ const abortControllerRef = useRef(null);
     supplier: "",
     storageCondition: "Room Temperature",
   });
+  // Fetch ALL medicines (not just current page) when opening bulk sell
+const [allMedicines, setAllMedicines] = useState([]);
+
+const fetchAllMedicinesForBulk = async () => {
+  try {
+    const response = await getMedicinesWithPagination({
+      page: 1,
+      limit: 10000, // large number to get all
+      search: "",
+      category: "",
+      expiryMonth: "",
+      stockStatus: "",
+      sortBy: "name-asc",
+    });
+    const data = (response.data || []).map(m => ({
+      ...m,
+      quantity: Math.floor(Number(m.quantity)),
+    })).filter(m => m.quantity > 0);
+    setAllMedicines(data);
+  } catch (err) {
+    toast.error("Failed to load medicines for bulk sale");
+  }
+};
+
+const handleOpenBulkSell = async () => {
+  if (allMedicines.length === 0) {
+    await fetchAllMedicinesForBulk();
+  }
+
+  // Reset popup filters to default every time
+  setBulkSortOption("date-newest");
+  setBulkFilterCategory("all");
+  setBulkFilterExpiryMonth("all");
+  setBulkSearchTerm("");
+
+  const initial = {};
+  allMedicines.forEach(m => {
+    initial[m._id] = { quantity: "", type: "packages" };
+  });
+  setBulkSellData(initial);
+  setShowBulkSellPopup(true);
+};
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
 
@@ -86,46 +131,62 @@ const abortControllerRef = useRef(null);
     );
   };
 
-// 4. BULK SELL — FULLY PROTECTED (already good, just tiny improvement)
 const handleBulkSell = async () => {
-  if (isSubmitting) {
-    toast.info("Bulk sale already in progress...");
-    return;
-  }
+  if (isSubmitting) return toast.info("Please wait...");
 
-  const selectedMedicines = displayedMedicines.filter(m => selectedIds.has(m._id));
-  const invalid = selectedMedicines.filter(m => 
-    !bulkSellData[m._id]?.quantity || parseInt(bulkSellData[m._id].quantity) <= 0
-  );
-
-  if (invalid.length > 0) {
-    return toast.error("Please enter valid quantity for all medicines");
-  }
-
-  setIsSubmitting(true);
-
-  try {
-    const items = selectedMedicines.map(m => ({
-      medicineId: m._id,
-      quantity: parseInt(bulkSellData[m._id].quantity),
-      type: bulkSellData[m._id].type || "packages",
+  const items = Object.entries(bulkSellData)
+    .filter(([_, data]) => data.quantity && parseInt(data.quantity) > 0)
+    .map(([medicineId, { quantity, type }]) => ({
+      medicineId,
+      quantity: parseInt(quantity),
+      type: type || "packages",
     }));
 
+  if (items.length === 0) return toast.error("Add at least one item with quantity");
+
+  // Ask patient first — ensures window.open is triggered by user interaction
+  const patientName = prompt("Enter patient name for invoice:", "Walk-in Patient") || "Walk-in Patient";
+
+  setIsSubmitting(true);
+  try {
     await bulkSellMedicines(items);
 
-    toast.success(`Bulk sold ${items.length} medicines successfully!`);
-    setSelectedIds(new Set());
-    setSelectAll(false);
+    // Prepare sale data
+    const saleData = {
+      items: items.map(({ medicineId, quantity, type }) => {
+        const med = medicines.find(m => m._id === medicineId);
+        return {
+          _id: medicineId,
+          name: med?.name || "",
+          packSize: med?.packSize || "Standard",
+          strength: med?.strength || "",
+          sellType: type,
+          quantitySold: quantity,
+          salePrice: med?.salePrice || 0,
+          soldBy: "Staff",
+          category: med?.category || "",
+          manufacturer: med?.manufacturer || "",
+        };
+      }),
+      soldAt: new Date().toISOString(),
+      soldBy: "Staff",
+    };
+
+    await printInvoice(saleData, patientName);
+
+    toast.success(`Sold ${items.length} item${items.length > 1 ? "s" : ""} successfully!`);
     setShowBulkSellPopup(false);
     setBulkSellData({});
     fetchMedicines(currentPage);
     navigate("/sold");
   } catch (error) {
-    toast.error(error.message || "Bulk sell failed");
+    toast.error(error.message || "Bulk sale failed");
   } finally {
     setIsSubmitting(false);
   }
 };
+
+
   // Click outside handlers (keep as is)
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -135,6 +196,7 @@ const handleBulkSell = async () => {
         setShowSellPopup(false);
         setSellQuantity("");
         setQuantityType("packages");
+        setShowBulkSellPopup(false);
       }
     };
 
@@ -544,7 +606,6 @@ const handleUpdateMedicine = async (e) => {
     setShowSellPopup(true);
   };
 
- // 3. SINGLE SELL — FULLY PROTECTED
 const confirmSell = async () => {
   const quantity = parseInt(sellQuantity, 10);
   if (!quantity || quantity <= 0) return toast.error("Invalid quantity!");
@@ -557,8 +618,8 @@ const confirmSell = async () => {
   try {
     setIsSubmitting(true);
 
-    const unitsPerPackage = getUnitsPerPackage(currentMedicine);
-    let soldAmount, soldType;
+    const unitsPerPackage = getUnitsPerPackage(currentMedicine.packSize);
+    let soldAmount, soldType, sellTypeUsed;
 
     if (quantityType === "packages") {
       if (quantity > currentMedicine.quantity) {
@@ -568,8 +629,11 @@ const confirmSell = async () => {
       await sellMedicine(currentMedicine._id, quantity, "packages");
       soldAmount = quantity;
       soldType = "package(s)";
+      sellTypeUsed = "packages";
     } else {
-      const totalUnits = Math.floor(currentMedicine.quantity) * unitsPerPackage;
+      const totalUnits =
+        currentMedicine.unitsAvailable ||
+        Math.floor(currentMedicine.quantity) * unitsPerPackage;
       if (quantity > totalUnits) {
         toast.error(`Only ${totalUnits} unit(s) available!`);
         return;
@@ -577,12 +641,28 @@ const confirmSell = async () => {
       await sellMedicine(currentMedicine._id, quantity, "units");
       soldAmount = quantity;
       soldType = "unit(s)";
+      sellTypeUsed = "units";
     }
 
     toast.success(`Sold ${soldAmount} ${soldType} successfully!`);
+
+    // ✅ Create invoice after successful sale
+    const saleData = {
+      ...currentMedicine,
+      quantitySold: soldAmount,
+      sellType: sellTypeUsed,
+      soldAt: new Date().toISOString(),
+      soldBy: "Staff",
+    };
+
+    const patientName = prompt("Enter patient name for invoice:") || "Walk-in Patient";
+    await printInvoice(saleData, patientName);
+
+    // ✅ Reset UI state
     setShowSellPopup(false);
     setSellQuantity("");
     setQuantityType("packages");
+    fetchMedicines(currentPage);
     navigate("/sold");
   } catch (error) {
     toast.error(error.response?.data?.message || "Sale failed");
@@ -590,6 +670,7 @@ const confirmSell = async () => {
     setIsSubmitting(false);
   }
 };
+
 
   
 const isCountableCategory = (category) => {
@@ -637,9 +718,9 @@ const getActualUnits = (medicine) => {
               >
                 + Add Medicine
               </button>
-              <button className="sold-btn" onClick={() => navigate("/sold")}>
-                View Sold
-              </button>
+              <button className="bulk-sell-btn" onClick={handleOpenBulkSell}>
+    Sell Multiple
+  </button>
             </div>
           )}
         </div>
@@ -721,72 +802,11 @@ const getActualUnits = (medicine) => {
       ) : displayedMedicines.length > 0 ? (
         <>
           <div className="table-wrapper">
-            {/* BULK ACTION BAR - Shows when items selected */}
-            {selectedIds.size > 0 && (
-              <div className="bulk-action-bar">
-                <div className="bulk-info">
-                  <strong>{selectedIds.size}</strong> medicine
-                  {selectedIds.size > 1 ? "s" : ""} selected
-                </div>
-                <div className="bulk-buttons">
-                  <button
-  className="bulk-sell-btn"
-  onClick={() => {
-    // Pre-fill with default: packages + empty quantity
-    const initialData = {};
-    displayedMedicines
-      .filter(m => selectedIds.has(m._id))
-      .forEach(m => {
-        initialData[m._id] = { quantity: "", type: "packages" };
-      });
-    setBulkSellData(initialData);
-    setShowBulkSellPopup(true);
-  }}
->
-  Sell Selected
-</button>
-                  <button
-                    className="bulk-delete-btn"
-                    onClick={handleBulkDelete}
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? "Deleting..." : "Delete Selected"}
-                  </button>
-                  <button
-                    className="bulk-cancel-btn"
-                    onClick={() => {
-                      setSelectedIds(new Set());
-                      setSelectAll(false);
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
+            
             <table className="medicine-table">
               <thead>
                 <tr>
-                  {isAdmin && (
-                    <th style={{ width: "50px" }}>
-                      <input
-                        type="checkbox"
-                        checked={selectAll}
-                        onChange={(e) => {
-                          const checked = e.target.checked;
-                          setSelectAll(checked);
-                          if (checked) {
-                            setSelectedIds(
-                              new Set(displayedMedicines.map((m) => m._id))
-                            );
-                          } else {
-                            setSelectedIds(new Set());
-                          }
-                        }}
-                        title="Select all on this page"
-                      />
-                    </th>
-                  )}
+                  
                   <th>Medicine Name</th>
                   <th>Category</th>
                   <th>Strength</th>
@@ -806,7 +826,6 @@ const getActualUnits = (medicine) => {
                 {displayedMedicines.map((m) => {
                   const isExpired = m.expiry && new Date(m.expiry) < new Date();
                   const isLowStock = m.quantity <= 5;
-                  const isSelected = selectedIds.has(m._id);
 
                   return (
                     <tr
@@ -822,26 +841,7 @@ const getActualUnits = (medicine) => {
                           : ""
                       }
                     >
-                      {isAdmin && (
-                        <td>
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(m._id)}
-                            onChange={() => {
-                              const newSelected = new Set(selectedIds);
-                              if (selectedIds.has(m._id)) {
-                                newSelected.delete(m._id);
-                              } else {
-                                newSelected.add(m._id);
-                              }
-                              setSelectedIds(newSelected);
-                              setSelectAll(
-                                newSelected.size === displayedMedicines.length
-                              );
-                            }}
-                          />
-                        </td>
-                      )}
+                     
                  <td style={{ fontWeight: "600", fontSize: "1rem" }}>
   <span style={{ display: "inline-flex", alignItems: "center", gap: "0.8rem" }}>
     <FaPills 
@@ -1663,168 +1663,192 @@ const getActualUnits = (medicine) => {
           </div>
         </div>
       )}
-    {showBulkSellPopup && (
-  <div className="popup-overlay">
-    <div className="popup bulk-sell-popup modern-bulk-sell">
-      <h2>
-        Bulk Sell ({selectedIds.size}) Medicine{selectedIds.size > 1 ? "s" : ""}
-      </h2>
-
-      <div className="bulk-medicines-scroll">
-        {displayedMedicines
-          .filter((m) => selectedIds.has(m._id))
-          .map((medicine) => {
-            const unitsPerPack = getUnitsPerPackage(medicine);
-            const canSellUnits = ["Tablet", "Capsule", "Injection"].includes(medicine.category);
-            const data = bulkSellData[medicine._id] || { quantity: "", type: "packages" };
-            const maxPackages = Math.floor(medicine.quantity);
-            const maxUnits = maxPackages * unitsPerPack;
-
-            return (
-              <div key={medicine._id} className="bulk-med-item">
-                <div className="bulk-med-header">
-                  <span className="med-emoji"><CiPill /></span>
-                  <strong>{medicine.name}</strong>
-                  {medicine.packSize && <small className="pack-size">({medicine.packSize})</small>}
-                </div>
-
-                <div className="stock-info" style={{ fontSize: "0.95em" }}>
-  <div><strong>Packages:</strong> {maxPackages}</div>
-  
-  {isCountableCategory(medicine.category) ? (
-    <div>
-      <strong>Units Available:</strong>{" "}
-      <strong style={{ color: getActualUnits(medicine) <= 5 ? "#dc2626" : "#059669" }}>
-        {getActualUnits(medicine)}
-      </strong>
-    </div>
-  ) : (
-    <div><strong>Pack Size:</strong> {medicine.packSize}</div>
-  )}
-</div>
-
-               {canSellUnits && (
-  <div className="quantity-type-radio">
-    <label className={data.type === "packages" ? "active" : ""}>
-      <input
-        type="radio"
-        name={`type-${medicine._id}`}
-        value="packages"
-        checked={data.type === "packages"}
-        onChange={() => {
-          setBulkSellData(prev => ({
-            ...prev,
-            [medicine._id]: {
-              ...prev[medicine._id],
-              type: "packages",
-              quantity: prev[medicine._id]?.quantity || ""  // preserve quantity
-            }
-          }));
-        }}
-      />
-      <span>Packages</span>
-    </label>
-    <label className={data.type === "units" ? "active" : ""}>
-      <input
-        type="radio"
-        name={`type-${medicine._id}`}
-        value="units"
-        checked={data.type === "units"}
-        onChange={() => {
-          setBulkSellData(prev => ({
-            ...prev,
-            [medicine._id]: {
-              ...prev[medicine._id],
-              type: "units",
-              quantity: prev[medicine._id]?.quantity || ""
-            }
-          }));
-        }}
-      />
-      <span>Units</span>
-    </label>
-  </div>
-)}
-
-                {/* Quantity Input - FIXED VERSION */}
-<div className="quantity-input-wrapper">
-  <input
-    type="number"
-    placeholder={
-      data.type === "units"
-        ? `Max: ${maxUnits} units`
-        : `Max: ${maxPackages} packages`
-    }
-    value={data.quantity}
-    onChange={(e) => {
-      const val = e.target.value;
-      if (val === "" || /^\d+$/.test(val)) {
-        // THIS IS THE FIX: Always preserve current type!
-        setBulkSellData(prev => ({
-          ...prev,
-          [medicine._id]: {
-            quantity: val,
-            type: prev[medicine._id]?.type || "packages"  // ← Critical line!
-          }
-        }));
+   {showBulkSellPopup && (
+  <div 
+    className="bulk-sell-overlay"
+    onClick={(e) => {
+      if (e.target === e.currentTarget) {
+        setShowBulkSellPopup(false);
+        setBulkSearchTerm("");
+        setBulkSellData({});
       }
     }}
-    min="1"
-    max={data.type === "units" ? maxUnits : maxPackages}
-    className="bulk-qty-input"
-  />
+  >
+    <div className="bulk-sell-popup">
+      <div className="bulk-sell-header">
+        <h2>Sell Multiple Medicines</h2>
+        <button 
+          className="bulk-sell-close"
+          onClick={() => {
+            setShowBulkSellPopup(false);
+            setBulkSearchTerm("");
+            setBulkSellData({});
+          }}
+        >
+          ×
+        </button>
+      </div>
 
-  {/* TOTAL - Now uses the ACTUAL current type from state */}
-  {data.quantity && parseInt(data.quantity) > 0 && (
-    <div className="item-total">
-      PKR {(() => {
-        const qty = parseInt(data.quantity);
-        const currentType = bulkSellData[medicine._id]?.type || "packages";
-        return calculateTotal(medicine, qty, currentType).toFixed(2);
-      })()}
-    </div>
-  )}
-</div>
+      <div className="bulk-search-bar">
+        <input
+          type="search"
+          placeholder="Search medicine name or category..."
+          value={bulkSearchTerm}
+          onChange={(e) => setBulkSearchTerm(e.target.value)}
+        />
+        <select
+          value={bulkSortOption}
+          onChange={(e) => setBulkSortOption(e.target.value)}
+          className="filter-select"
+        >
+          <option value="date-newest">Newest First</option>
+          <option value="name-asc">Name (A → Z)</option>
+          <option value="name-desc">Name (Z → A)</option>
+          <option value="price-low">Price: Low to High</option>
+          <option value="price-high">Price: High to Low</option>
+          <option value="quantity-low">Stock: Low to High</option>
+          <option value="quantity-high">Stock: High to Low</option>
+          <option value="expiry-soon">Expiry: Soonest First</option>
+        </select>
+      </div>
+
+      <div className="bulk-medicines-list">
+        {allMedicines
+          // Apply ALL filters
+          .filter(medicine => {
+            // Search
+            if (bulkSearchTerm && !medicine.name.toLowerCase().includes(bulkSearchTerm.toLowerCase()) &&
+                !medicine.category.toLowerCase().includes(bulkSearchTerm.toLowerCase())) {
+              return false;
+            }
+            // Category
+            if (filterCategory !== "all" && medicine.category !== filterCategory) {
+              return false;
+            }
+            // Expiry Month
+            if (filterExpiryMonth !== "all") {
+              const medMonth = new Date(medicine.expiry).toISOString().slice(0,7);
+              if (medMonth !== filterExpiryMonth) return false;
+            }
+            return true;
+          })
+          // Apply sorting
+          .sort((a, b) => {
+            switch (bulkSortOption) {
+              case "name-asc": return a.name.localeCompare(b.name);
+              case "name-desc": return b.name.localeCompare(a.name);
+              case "price-low": return a.salePrice - b.salePrice;
+              case "price-high": return b.salePrice - a.salePrice;
+              case "quantity-low": return getActualUnits(a) - getActualUnits(b);
+              case "quantity-high": return getActualUnits(b) - getActualUnits(a);
+              case "expiry-soon": return new Date(a.expiry) - new Date(b.expiry);
+              case "date-newest": return new Date(b.createdAt) - new Date(a.createdAt);
+              default: return 0;
+            }
+          }).map(medicine => {
+            const data = bulkSellData[medicine._id] || { quantity: "", type: "packages" };
+            const maxPackages = Math.floor(medicine.quantity);
+            const unitsPerPack = getUnitsPerPackage(medicine);
+            const maxUnits = maxPackages * unitsPerPack;
+            const canSellUnits = ["Tablet", "Capsule", "Injection"].includes(medicine.category);
+
+            return (
+              <div className="bulk-med-item" key={medicine._id}>
+                <div className="bulk-med-name">
+                  {medicine.name}
+                  {medicine.packSize && <small>({medicine.packSize})</small>}
+                </div>
+
+                <div className="bulk-med-stock">
+                  Stock: {maxPackages} packages
+                  {canSellUnits && (
+                    <span style={{ marginLeft: 16, fontWeight: 600 }}>
+                      • {getActualUnits(medicine)} units
+                    </span>
+                  )}
+                </div>
+
+                {canSellUnits && (
+                  <div className="bulk-type-radio">
+                    <label>
+                      <input
+                        type="radio"
+                        name={`type-${medicine._id}`}
+                        checked={data.type === "packages"}
+                        onChange={() => setBulkSellData(p => ({
+                          ...p,
+                          [medicine._id]: { ...p[medicine._id], type: "packages" }
+                        }))}
+                      /> Packages
+                    </label>
+                    <label>
+                      <input
+                        type="radio"
+                        name={`type-${medicine._id}`}
+                        checked={data.type === "units"}
+                        onChange={() => setBulkSellData(p => ({
+                          ...p,
+                          [medicine._id]: { ...p[medicine._id], type: "units" }
+                        }))}
+                      /> Units
+                    </label>
+                  </div>
+                )}
+
+                <div style={{ display: "flex", alignItems: "center", marginTop: 16 }}>
+                  <input
+                    type="number"
+                    className="bulk-qty-input"
+                    placeholder={data.type === "units" ? `Max ${maxUnits} units` : `Max ${maxPackages} packages`}
+                    value={data.quantity}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || /^\d+$/.test(val)) {
+                        setBulkSellData(prev => ({
+                          ...prev,
+                          [medicine._id]: { quantity: val, type: prev[medicine._id]?.type || "packages" }
+                        }));
+                      }
+                    }}
+                  />
+                  {data.quantity > 0 && (
+                    <div className="item-total">
+                      PKR {calculateTotal(medicine, +data.quantity, data.type).toFixed(2)}
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}
       </div>
 
-      {/* Grand Total */}
-      {Object.values(bulkSellData).some(item => item.quantity && parseInt(item.quantity) > 0) && (
-        <div className="grand-total-bar">
-          <strong>
-            Grand Total: PKR{" "}
-            {Object.entries(bulkSellData)
-              .filter(([id, data]) => selectedIds.has(id) && data.quantity && parseInt(data.quantity) > 0)
-              .reduce((sum, [id, data]) => {
-                const med = displayedMedicines.find(m => m._id === id);
-                return sum + (med ? calculateTotal(med, parseInt(data.quantity), data.type) : 0);
-              }, 0)
-              .toFixed(2)}
-          </strong>
+      {Object.values(bulkSellData).some(d => d.quantity > 0) && (
+        <div className="grand-total">
+          Grand Total: PKR{" "}
+          {Object.entries(bulkSellData)
+            .filter(([_, d]) => d.quantity > 0)
+            .reduce((sum, [id, d]) => {
+              const med = allMedicines.find(m => m._id === id);
+              return sum + (med ? calculateTotal(med, +d.quantity, d.type) : 0);
+            }, 0)
+            .toFixed(2)}
         </div>
       )}
 
-      <div className="popup-buttons bulk">
+      <div className="bulk-buttons">
         <button
-  className="confirm-bulk-btn"
-  onClick={handleBulkSell}
-  disabled={
-    isSubmitting ||
-    Object.keys(bulkSellData).length === 0 ||
-    displayedMedicines
-      .filter(m => selectedIds.has(m._id))
-      .some(m => !bulkSellData[m._id]?.quantity || parseInt(bulkSellData[m._id].quantity) <= 0)
-  }
->
-  {isSubmitting ? "Processing..." : `Confirm Bulk Sell (${selectedIds.size})`}
-</button>
+          className="confirm-btn"
+          onClick={handleBulkSell}
+          disabled={isSubmitting || !Object.values(bulkSellData).some(d => d.quantity > 0)}
+        >
+          {isSubmitting ? "Processing..." : `Confirm Sell (${Object.values(bulkSellData).filter(d => d.quantity > 0).length})`}
+        </button>
         <button
-          className="cancel-bulk-btn"
+          className="cancel-btn-bulk"
           onClick={() => {
             setShowBulkSellPopup(false);
-            setBulkSellData({}); // Clear all
+            setBulkSearchTerm("");
+            setBulkSellData({});
           }}
           disabled={isSubmitting}
         >
@@ -1834,6 +1858,8 @@ const getActualUnits = (medicine) => {
     </div>
   </div>
 )}
+
+
     </div>
   );
 }
