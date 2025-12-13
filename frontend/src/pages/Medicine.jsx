@@ -1251,19 +1251,74 @@ const getActualUnits = (medicine) => {
                   />
                   <small className="form-hint">Select expiration date</small>
 
-                  <input
-                    type="number"
-                    name="quantity"
-                    placeholder="Stock Quantity"
-                    value={formData.quantity}
-                    onChange={handleChange}
-                    onWheel={(e) => e.target.blur()}
-                    required
-                    className="form-input"
-                  />
-                  <small className="form-hint">
-                    Number of packages available
-                  </small>
+                 <div className="quantity-input-group" style={{ position: "relative" }}>
+  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+    <input
+      type="number"
+      name="quantity"
+      placeholder="Stock Quantity"
+      value={formData.quantity}
+      onChange={handleChange}
+      onWheel={(e) => e.target.blur()}
+      required
+      className="form-input"
+      style={{ flex: 1 }}
+      min="0"
+    />
+    {/* Live Difference Indicator */}
+    {showEditPopup && selectedMedicine && formData.quantity !== "" && (
+      <div
+        style={{
+          fontSize: "1rem",
+          fontWeight: "600",
+          padding: "8px 12px",
+          borderRadius: "8px",
+          background:
+            Number(formData.quantity) > Number(selectedMedicine.quantity)
+              ? "#dcfce7"
+              : Number(formData.quantity) < Number(selectedMedicine.quantity)
+              ? "#fee2e2"
+              : "#f3f4f6",
+          color:
+            Number(formData.quantity) > Number(selectedMedicine.quantity)
+              ? "#166534"
+              : Number(formData.quantity) < Number(selectedMedicine.quantity)
+              ? "#991b1b"
+              : "#6b7280",
+          minWidth: "80px",
+          textAlign: "center",
+          border:
+            Number(formData.quantity) === Number(selectedMedicine.quantity)
+              ? "1px solid #d1d5db"
+              : "none",
+        }}
+      >
+        {(() => {
+          const current = Number(formData.quantity) || 0;
+          const original = Number(selectedMedicine.quantity) || 0;
+          const diff = current - original;
+
+          if (diff > 0) return `+${diff}`;
+          if (diff < 0) return `${diff}`;
+          return "±0";
+        })()}
+      </div>
+    )}
+  </div>
+
+  {/* Current stock hint below */}
+  {showEditPopup && selectedMedicine && (
+    <small className="form-hint" style={{ marginTop: "8px", display: "block" }}>
+      Current stock: <strong>{selectedMedicine.quantity}</strong> packages
+      {formData.quantity !== "" && (
+        <span>
+          {" → "} You are setting it to{" "}
+          <strong>{formData.quantity}</strong> packages
+        </span>
+      )}
+    </small>
+  )}
+</div>
 
                   <input
                     type="number"

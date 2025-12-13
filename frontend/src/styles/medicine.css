@@ -1795,3 +1795,8 @@
   font-weight: 600;
   cursor: pointer;
 }
+
+.quantity-input-group input:focus + div {
+  transform: scale(1.05);
+  transition: all 0.2s ease;
+}
