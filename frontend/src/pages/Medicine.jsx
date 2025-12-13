@@ -144,41 +144,61 @@ const handleBulkSell = async () => {
 
   if (items.length === 0) return toast.error("Add at least one item with quantity");
 
-  // Ask patient first — ensures window.open is triggered by user interaction
-  const patientName = prompt("Enter patient name for invoice:", "Walk-in Patient") || "Walk-in Patient";
+ const patientName =
+  prompt("Enter Patient Name (or leave blank):")?.trim() || "Walk-in Patient";
+
+let patientGender = "";
+while (true) {
+  const raw = prompt("Enter Patient Gender (Male/Female/Other):")?.trim().toLowerCase();
+  if (!raw) break; // blank is allowed
+  if (["male", "female", "other"].includes(raw)) {
+    patientGender = raw.charAt(0).toUpperCase() + raw.slice(1);
+    break;
+  } else {
+    alert("Invalid input! Please type exactly: Male, Female, or Other.");
+  }
+}
+
+const patientAddress =
+  prompt("Enter Patient Address:")?.trim() || "Not Provided";
+
+
 
   setIsSubmitting(true);
+
   try {
     await bulkSellMedicines(items);
 
-    // Prepare sale data
     const saleData = {
       items: items.map(({ medicineId, quantity, type }) => {
-        const med = medicines.find(m => m._id === medicineId);
+        const med = allMedicines.find(m => m._id === medicineId);
         return {
           _id: medicineId,
-          name: med?.name || "",
+          name: med?.name || "Unknown",
           packSize: med?.packSize || "Standard",
           strength: med?.strength || "",
           sellType: type,
           quantitySold: quantity,
           salePrice: med?.salePrice || 0,
-          soldBy: "Staff",
-          category: med?.category || "",
-          manufacturer: med?.manufacturer || "",
         };
       }),
       soldAt: new Date().toISOString(),
-      soldBy: "Staff",
+       soldBy: "Staff",
     };
 
-    await printInvoice(saleData, patientName);
+    // SEND ALL 3
+    await printInvoice(saleData, {
+      name: patientName,
+      gender: patientGender,
+      address: patientAddress
+    });
 
-    toast.success(`Sold ${items.length} item${items.length > 1 ? "s" : ""} successfully!`);
+    toast.success(`Sold ${items.length} items & invoice generated!`);
     setShowBulkSellPopup(false);
     setBulkSellData({});
     fetchMedicines(currentPage);
     navigate("/sold");
+
   } catch (error) {
     toast.error(error.message || "Bulk sale failed");
   } finally {
@@ -610,60 +630,74 @@ const confirmSell = async () => {
   const quantity = parseInt(sellQuantity, 10);
   if (!quantity || quantity <= 0) return toast.error("Invalid quantity!");
 
-  if (isSubmitting) {
-    toast.info("Please wait — sale is processing...");
-    return;
+  if (isSubmitting) return toast.info("Please wait...");
+
+const patientName =
+  prompt("Enter Patient Name (or leave blank):")?.trim() || "Walk-in Patient";
+
+let patientGender = "";
+while (true) {
+  const raw = prompt("Enter Patient Gender (Male/Female/Other):")?.trim().toLowerCase();
+  if (!raw) break; // blank is allowed
+  if (["male", "female", "other"].includes(raw)) {
+    patientGender = raw.charAt(0).toUpperCase() + raw.slice(1);
+    break;
+  } else {
+    alert("Invalid input! Please type exactly: Male, Female, or Other.");
   }
+}
+
+const patientAddress =
+  prompt("Enter Patient Address:")?.trim() || "Not Provided";
+
+
+
+  setIsSubmitting(true);
 
   try {
-    setIsSubmitting(true);
-
     const unitsPerPackage = getUnitsPerPackage(currentMedicine.packSize);
-    let soldAmount, soldType, sellTypeUsed;
 
     if (quantityType === "packages") {
       if (quantity > currentMedicine.quantity) {
         toast.error(`Only ${Math.floor(currentMedicine.quantity)} package(s) available!`);
         return;
       }
-      await sellMedicine(currentMedicine._id, quantity, "packages");
-      soldAmount = quantity;
-      soldType = "package(s)";
-      sellTypeUsed = "packages";
     } else {
-      const totalUnits =
-        currentMedicine.unitsAvailable ||
-        Math.floor(currentMedicine.quantity) * unitsPerPackage;
-      if (quantity > totalUnits) {
-        toast.error(`Only ${totalUnits} unit(s) available!`);
+      const availableUnits = getActualUnits(currentMedicine);
+      if (quantity > availableUnits) {
+        toast.error(`Only ${availableUnits} unit(s) available!`);
         return;
       }
-      await sellMedicine(currentMedicine._id, quantity, "units");
-      soldAmount = quantity;
-      soldType = "unit(s)";
-      sellTypeUsed = "units";
     }
 
-    toast.success(`Sold ${soldAmount} ${soldType} successfully!`);
+    await sellMedicine(currentMedicine._id, quantity, quantityType);
 
-    // ✅ Create invoice after successful sale
     const saleData = {
-      ...currentMedicine,
-      quantitySold: soldAmount,
-      sellType: sellTypeUsed,
+      _id: currentMedicine._id,
+      name: currentMedicine.name,
+      packSize: currentMedicine.packSize,
+      strength: currentMedicine.strength || "",
+      quantitySold: quantity,
+      salePrice: currentMedicine.salePrice,
+      sellType: quantityType,
       soldAt: new Date().toISOString(),
-      soldBy: "Staff",
+      soldBy: "Staff"
     };
 
-    const patientName = prompt("Enter patient name for invoice:") || "Walk-in Patient";
-    await printInvoice(saleData, patientName);
+    // SEND ALL 3 TO printInvoice
+    await printInvoice(saleData, {
+      name: patientName,
+      gender: patientGender,
+      address: patientAddress
+    });
 
-    // ✅ Reset UI state
+    toast.success("Sold & invoice generated!");
     setShowSellPopup(false);
     setSellQuantity("");
     setQuantityType("packages");
     fetchMedicines(currentPage);
     navigate("/sold");
+
   } catch (error) {
     toast.error(error.response?.data?.message || "Sale failed");
   } finally {

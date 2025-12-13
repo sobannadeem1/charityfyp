@@ -108,7 +108,8 @@ const handleReprint = async (invoiceId) => {
     .header h1 { font-size: 2.2rem; font-weight: 700; }
     .header h2 { font-size: 1.3rem; opacity: 0.95; }
     .invoice-id { margin-top: 1rem; background: rgba(255,255,255,0.25); border-radius: 2rem; padding: 0.6rem 1.5rem; font-size: 1rem; display: inline-block; font-weight: 600; }
-    .info { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; background: #f0f8ff; padding: 2rem 2.5rem; }
+    .info { display: grid; grid-template-columns: repeat(3, 1fr);
+ gap: 2rem; background: #f0f8ff; padding: 2rem 2.5rem; }
     .info-box { background: var(--white); border-left: 0.4rem solid var(--primary); border-radius: 1rem; padding: 1.4rem; box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.1); }
     .info-box strong { display: block; font-size: 0.8rem; color: var(--text-light); text-transform: uppercase; margin-bottom: 0.4rem; }
     .info-box div { font-size: 1rem; font-weight: 600; }
@@ -133,24 +134,32 @@ const handleReprint = async (invoiceId) => {
       <h2>MEDICINE SALES INVOICE</h2>
       <div class="invoice-id">Invoice #${invoice.invoiceNumber}</div>
     </div>
-
-    <div class="info">
-      <div class="info-box">
-        <strong>Patient Name</strong>
-        <div class="patient-name">${invoice.patientName}</div>
-      </div>
-      <div class="info-box">
-        <strong>Sale Date & Time</strong>
-        <div>
-          ${new Date(invoice.soldAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}<br>
-          ${new Date(invoice.soldAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}
-        </div>
-      </div>
-      <div class="info-box">
-        <strong>Served By</strong>
-        <div>${invoice.soldBy || "Admin"}</div>
-      </div>
+<div class="info">
+  <div class="info-box">
+    <strong>Patient Name</strong>
+    <div class="patient-name">${invoice.patientName || "Walk-in Patient"}</div>
+  </div>
+  <div class="info-box">
+    <strong>Gender</strong>
+    <div>${invoice.patientGender || "Not Specified"}</div>
+  </div>
+  <div class="info-box">
+    <strong>Address</strong>
+    <div>${invoice.patientAddress || "Not Provided"}</div>
+  </div>
+  <div class="info-box">
+    <strong>Sale Date & Time</strong>
+    <div>
+      ${new Date(invoice.soldAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}<br>
+      ${new Date(invoice.soldAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}
     </div>
+  </div>
+  <div class="info-box">
+    <strong>Served By</strong>
+    <div>${invoice.soldBy || "Admin"}</div>
+  </div>
+</div>
+
 
     <table>
       <thead>

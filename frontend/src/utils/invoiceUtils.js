@@ -1,3 +1,4 @@
+// src/utils/invoiceUtils.js
 import { createInvoice } from "../api/medicineapi";
 import { toast } from "sonner";
 
@@ -7,8 +8,18 @@ const getUnitsPerPackage = (packSize) => {
   return match ? parseInt(match[1], 10) : 1;
 };
 
-export const printInvoice = async (saleData, patientName = "Walk-in Patient") => {
-  const nameToUse = (patientName || "").trim() || "Walk-in Patient";
+// NOW ACCEPTS FULL PATIENT DETAILS OBJECT
+export const printInvoice = async (saleData, patientDetails = {}) => {
+  const {
+    name = "Walk-in Patient",
+    gender = "",
+    address = ""
+  } = patientDetails;
+
+  const nameToUse = name.trim() || "Walk-in Patient";
+  const genderToUse = gender.trim() || "";
+
+  const addressToUse = address.trim() || "Not Provided";
 
   try {
     const isGroup = Array.isArray(saleData.items);
@@ -20,7 +31,7 @@ export const printInvoice = async (saleData, patientName = "Walk-in Patient") =>
           soldBy: "Staff",
         };
 
-    // Calculate grand total
+    // YOUR ORIGINAL CALCULATION — 100% UNCHANGED
     const grandTotal = group.items.reduce((sum, item) => {
       const units = getUnitsPerPackage(item.packSize);
       const type = item.sellType || "packages";
@@ -32,10 +43,12 @@ export const printInvoice = async (saleData, patientName = "Walk-in Patient") =>
         : sum + qty * price;
     }, 0);
 
-    // Save invoice (non-blocking)
+    // SAVE INVOICE — NOW SENDS GENDER & ADDRESS
     try {
       await createInvoice({
         patientName: nameToUse,
+        patientGender: genderToUse,     // ← ADDED
+        patientAddress: addressToUse,   // ← ADDED
         items: group.items.map((item) => ({
           medicine: item._id || null,
           name: item.name,
@@ -57,7 +70,7 @@ export const printInvoice = async (saleData, patientName = "Walk-in Patient") =>
       console.warn("Invoice save failed, continuing to print...");
     }
 
-    // Build detailed rows
+    // YOUR ORIGINAL ROWS — UNCHANGED
     const itemsRows = group.items
       .map((item) => {
         const units = getUnitsPerPackage(item.packSize);
@@ -99,7 +112,7 @@ export const printInvoice = async (saleData, patientName = "Walk-in Patient") =>
       })
       .join("");
 
-    // Styled invoice identical to your earlier format
+    // INVOICE HTML — NOW SHOWS GENDER & ADDRESS
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -127,7 +140,7 @@ export const printInvoice = async (saleData, patientName = "Walk-in Patient") =>
   .header h1 { font-size: 2.2rem; font-weight: 700; }
   .header h2 { font-size: 1.3rem; opacity: 0.95; }
   .invoice-id { margin-top: 1rem; background: rgba(255,255,255,0.25); border-radius: 2rem; padding: 0.6rem 1.5rem; font-size: 1rem; display: inline-block; font-weight: 600; }
-  .info { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; background: #f0f8ff; padding: 2rem 2.5rem; }
+  .info { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; background: #f0f8ff; padding: 2rem 2.5rem; } /* ← Changed to 3 columns */
   .info-box { background: var(--white); border-left: 0.4rem solid var(--primary); border-radius: 1rem; padding: 1.4rem; box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.1); }
   .info-box strong { display: block; font-size: 0.8rem; color: var(--text-light); text-transform: uppercase; margin-bottom: 0.4rem; }
   .info-box div { font-size: 1rem; font-weight: 600; }
@@ -163,6 +176,14 @@ export const printInvoice = async (saleData, patientName = "Walk-in Patient") =>
       <div class="info-box">
         <strong>Patient Name</strong>
         <div class="patient-name">${nameToUse}</div>
+      </div>
+      <div class="info-box">
+        <strong>Gender</strong>
+        <div>${genderToUse}</div>
+      </div>
+      <div class="info-box">
+        <strong>Address</strong>
+        <div>${addressToUse}</div>
       </div>
       <div class="info-box">
         <strong>Sale Date & Time</strong>

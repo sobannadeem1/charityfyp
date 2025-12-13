@@ -2,6 +2,10 @@
 import { useEffect, useState } from "react";
 import { getAllMedicines } from "../api/medicineapi";
 import { Bar } from "react-chartjs-2";
+import { formatInTimeZone } from 'date-fns-tz';
+
+
+
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -39,39 +43,28 @@ export default function Home() {
     fetchMedicines();
   }, []);
 
-  useEffect(() => {
-    const hour = new Date().getHours();
-    const greeting =
-      hour < 12
-        ? "Good Morning"
-        : hour < 18
-        ? "Good Afternoon"
-        : "Good Evening";
 
-    // ACTUAL EMOJIS
-    const emojis = [
-      "☀️",
-      "🌙",
-      "💊",
-      "🩺",
-      "🧴",
-      "💉",
-      "⭐",
-      "📦",
-      "❤️",
-      "✨",
-      "➕",
-      "🌿",
-      "💎",
-      "🌞",
-      "🔆",
-      "🌈",
-    ];
+useEffect(() => {
+  // Get current hour in Pakistan timezone
+  const now = new Date();
+  const hourStr = formatInTimeZone(now, "Asia/Karachi", "HH"); // 24-hour format
+  const hour = parseInt(hourStr, 10);
 
-    const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+  const greeting =
+    hour < 12
+      ? "Good Morning"
+      : hour < 18
+      ? "Good Afternoon"
+      : "Good Evening";
 
-    setWelcomeMsg(`${greeting} ${randomEmoji}`);
-  }, []);
+  const emojis = [
+    "☀️","🌙","💊","🩺","🧴","💉","⭐","📦","❤️","✨","➕","🌿","💎","🌞","🔆","🌈"
+  ];
+  const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+
+  setWelcomeMsg(`${greeting} ${randomEmoji}`);
+}, []);
+
   const fetchMedicines = async () => {
     try {
       const data = await getAllMedicines();
@@ -87,16 +80,26 @@ export default function Home() {
     (m) => Number(m.unitsAvailable || 0) > 0
   );
 
-  const totalUnits = activeMedicines.reduce(
-    (sum, m) => sum + (Number(m.unitsAvailable) || 0),
-    0
+ // Total active units (accurate)
+const totalUnits = activeMedicines.reduce((sum, m) => {
+  const units = Number(m.unitsAvailable) || 0;
+  const perPack = Number(m.unitsPerPackage) || 1;
+
+  // Detect liquids
+  const isLiquid = /\b(syrup|injection|vial|bottle|ampoule|solution)\b/i.test(
+    (m.category || "") + " " + (m.packSize || "") + " " + (m.name || "")
   );
 
-  const totalPackages = activeMedicines.reduce((sum, m) => {
-    const perPack = Number(m.unitsPerPackage) || 1;
-    const units = Number(m.unitsAvailable) || 0;
-    return sum + (perPack > 0 ? Math.ceil(units / perPack) : 0);
-  }, 0);
+  // If liquid → count bottles × units per bottle
+  return sum + (isLiquid ? units * perPack : units);
+}, 0);
+
+  // Total packages
+const totalPackages = activeMedicines.reduce((sum, m) => {
+  const units = Number(m.unitsAvailable) || 0;
+  const perPack = Number(m.unitsPerPackage) || 1;
+  return sum + (perPack > 0 ? Math.ceil(units / perPack) : 0);
+}, 0);
 
   const expiringSoon = activeMedicines.filter((m) => {
     if (!m.expiry) return false;
@@ -105,8 +108,11 @@ export default function Home() {
   }).length;
 
   const readyForDistribution = activeMedicines.filter(
-    (m) => !m.expiry || new Date(m.expiry) > new Date()
-  ).length;
+  (m) =>
+    (Number(m.unitsAvailable) || 0) > 0 &&
+    (!m.expiry || new Date(m.expiry) > new Date())
+).length;
+
 
   // FINAL SAFE VALUES TO PASS TO HoverRollCard
   const safeTotalUnits = Number.isFinite(totalUnits) ? totalUnits : 0;
@@ -244,13 +250,13 @@ export default function Home() {
             onClick={() => navigate("/expiring-soon")}
           />
 
-          <HoverRollCard
-            title="Ready for Distribution"
+          {/* <HoverRollCard
+            title="Available Medicines"
             value={readyForDistribution} // ← number
             color="linear-gradient(135deg,#43e97b,#38f9d7)"
             icon={<FaHandsHelping />}
             onClick={() => navigate("/medicines")}
-          />
+          /> */}
 
           <HoverRollCard
             title="Total Active Units"

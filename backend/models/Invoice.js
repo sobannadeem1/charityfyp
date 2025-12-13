@@ -12,34 +12,58 @@ const invoiceItemSchema = new mongoose.Schema({
   manufacturer: { type: String },
   strength: { type: String },
   packSize: { type: String, required: true },
-  
-  // ↓↓↓ ADD THIS ↓↓↓
   sellType: { type: String, enum: ["packages", "units"], default: "packages" },
   originalSellType: { type: String, enum: ["packages", "units"], default: "packages" },
-
   quantitySold: { type: Number, required: true, min: 1 },
   salePrice: { type: Number, required: true, min: 0 },
   totalAmount: { type: Number, required: true, min: 0 },
 });
-
 
 const invoiceSchema = new mongoose.Schema(
   {
     invoiceNumber: {
       type: String,
       unique: true,
-      required: true, // e.g., "INV-2025-0001" - we'll generate this
     },
-    patientName: { type: String, required: true, trim: true, default: "Walk-in Patient" },
+    patientName: {
+      type: String,
+      required: true,
+      trim: true,
+      default: "Walk-in Patient",
+    },
+    patientGender: {
+      type: String,
+      enum: ["Male", "Female", "Other", ""],
+      default: "",
+      trim: true,
+    },
+    patientAddress: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     items: [invoiceItemSchema],
-    totalRevenue: { type: Number, required: true, min: 0 }, // sum of items.totalAmount
-    discount: { type: Number, default: 0, min: 0 }, // optional
+    totalRevenue: { type: Number, required: true, min: 0 },
+    discount: { type: Number, default: 0, min: 0 },
     notes: { type: String, default: "" },
-    type: mongoose.Schema.Types.Mixed,
-    transactionId: { type: String }, // optional link to sale group key
+    transactionId: { type: String },
     soldAt: { type: Date, default: Date.now },
+    soldBy: { type: String, default: "Staff" },
   },
   { timestamps: true }
 );
+
+
+invoiceSchema.pre("validate", async function (next) {
+  if (this.isNew && !this.invoiceNumber) {
+    const year = new Date().getFullYear();
+    const count = await this.constructor.countDocuments({
+      invoiceNumber: { $regex: `^INV-${year}-` },
+    });
+    this.invoiceNumber = `INV-${year}-${String(count + 1).padStart(4, "0")}`;
+  }
+  next();
+});
+
 
 export default mongoose.model("Invoice", invoiceSchema);
