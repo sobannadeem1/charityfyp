@@ -1887,6 +1887,7 @@ const getActualUnits = (medicine) => {
                 <div style={{ display: "flex", alignItems: "center", marginTop: 16 }}>
                   <input
                     type="number"
+                    onWheel={(e) => e.target.blur()}
                     className="bulk-qty-input"
                     placeholder={data.type === "units" ? `Max ${maxUnits} units` : `Max ${maxPackages} packages`}
                     value={data.quantity}
