@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 import Medicine from "../models/Medicine.js";
 import Sale from "../models/Sales.js";
 
-// controllers/medicineController.js
 
 export const addMedicine = async (req, res) => {
   try {
@@ -742,94 +741,3 @@ export const deleteMedicine = async (req, res) => {
   }
 };
 
-export const deleteAllSales = async (req, res) => {
-  try {
-    const allSales = await Sale.find({});
-    if (allSales.length === 0) {
-      return res.json({ success: true, message: "No sales to delete" });
-    }
-
-    await restoreStockForSales(allSales);
-    await Sale.deleteMany({});
-
-    res.json({
-      success: true,
-      message: `All ${allSales.length} sales deleted & stock restored`,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-};
-// 2. DELETE MULTIPLE SELECTED GROUPS
-export const deleteSelectedSales = async (req, res) => {
-  try {
-    const { groups } = req.body; // array of { timestamp: "...", soldBy: "..." }
-
-    if (!Array.isArray(groups) || groups.length === 0) {
-      return res
-        .status(400)
-        .json({ success: false, message: "No groups selected" });
-    }
-
-    let allSales = [];
-    for (const { timestamp, soldBy } of groups) {
-      const sales = await Sale.find({
-        soldAt: {
-          $gte: new Date(timestamp),
-          $lt: new Date(new Date(timestamp).getTime() + 1000),
-        },
-        soldBy: soldBy || { $exists: true },
-      });
-      allSales = allSales.concat(sales);
-    }
-
-    if (allSales.length === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: "No records found" });
-    }
-
-    await restoreStockForSales(allSales);
-    await Sale.deleteMany({ _id: { $in: allSales.map((s) => s._id) } });
-
-    res.json({
-      success: true,
-      message: `Deleted ${allSales.length} records & restored stock`,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-};
-// 1. DELETE SINGLE SALE GROUP (by timestamp + soldBy)
-export const deleteSaleGroup = async (req, res) => {
-  try {
-    const { timestamp, soldBy = "unknown" } = req.params;
-
-    const sales = await Sale.find({
-      soldAt: {
-        $gte: new Date(timestamp),
-        $lt: new Date(new Date(timestamp).getTime() + 1000),
-      },
-      soldBy: soldBy === "unknown" ? { $exists: true } : soldBy,
-    });
-
-    if (sales.length === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Sale group not found" });
-    }
-
-    await restoreStockForSales(sales);
-    await Sale.deleteMany({ _id: { $in: sales.map((s) => s._id) } });
-
-    res.json({
-      success: true,
-      message: `Deleted ${sales.length} sale record(s) & restored stock`,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-};

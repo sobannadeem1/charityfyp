@@ -41,13 +41,15 @@ export default function Medicines({ isAdmin }) {
   const [filterStockStatus, setFilterStockStatus] = useState("all");
   const [showBulkSellPopup, setShowBulkSellPopup] = useState(false);
   const [bulkSearchTerm, setBulkSearchTerm] = useState("");
-const [bulkSellData, setBulkSellData] = useState({}); // { medicineId: { quantity: "", type: "packages" } }
+const [bulkSellData, setBulkSellData] = useState({});
   const searchTimeoutRef = useRef(null);
   const [bulkSortOption, setBulkSortOption] = useState("date-newest");
 const [bulkFilterCategory, setBulkFilterCategory] = useState("all");
 const [bulkFilterExpiryMonth, setBulkFilterExpiryMonth] = useState("all");
 const abortControllerRef = useRef(null);
-
+const [isSelectionMode, setIsSelectionMode] = useState(false);
+const [selectedIds, setSelectedIds] = useState(new Set());
+const [selectAll, setSelectAll] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -244,6 +246,13 @@ const patientAddress =
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showAddPopup, showEditPopup, showSellPopup, isSubmitting]);
+
+  useEffect(() => {
+  if (isSelectionMode) {
+    setSelectedIds(new Set());
+    setSelectAll(false);
+  }
+}, [currentPage]);
 
 const fetchMedicines = async (page = 1) => {
   if (abortControllerRef.current) {
@@ -755,6 +764,13 @@ const getActualUnits = (medicine) => {
               <button className="bulk-sell-btn" onClick={handleOpenBulkSell}>
     Sell Multiple
   </button>
+  <button
+      className="bulk-delete-btn"
+      onClick={() => setIsSelectionMode(true)}
+      disabled={isSelectionMode}
+    >
+      Delete Multiple
+    </button>
             </div>
           )}
         </div>
@@ -828,7 +844,27 @@ const getActualUnits = (medicine) => {
           Reset Filters
         </button>
       </div>
-
+{isSelectionMode && (
+  <div className="selection-toolbar">
+    <div className="selection-info">
+      <button onClick={() => {
+        setIsSelectionMode(false);
+        setSelectedIds(new Set());
+        setSelectAll(false);
+      }} className="cancel-selection">
+        ✕
+      </button>
+      <span>{selectedIds.size} selected</span>
+    </div>
+    <button
+      className="delete-selected-btn"
+      onClick={handleBulkDelete}
+      disabled={selectedIds.size === 0 || isSubmitting}
+    >
+      {isSubmitting ? "Deleting..." : `Delete ${selectedIds.size}`}
+    </button>
+  </div>
+)}
       {loading ? (
         <div className="loader-container">
           <div className="spinner"></div>
@@ -840,7 +876,23 @@ const getActualUnits = (medicine) => {
             <table className="medicine-table">
               <thead>
                 <tr>
-                  
+                  {isSelectionMode && (
+      <th style={{ width: "40px" }}>
+        <input
+          type="checkbox"
+          checked={selectAll}
+          onChange={(e) => {
+            const checked = e.target.checked;
+            setSelectAll(checked);
+            if (checked) {
+              setSelectedIds(new Set(displayedMedicines.map(m => m._id)));
+            } else {
+              setSelectedIds(new Set());
+            }
+          }}
+        />
+      </th>
+    )}
                   <th>Medicine Name</th>
                   <th>Category</th>
                   <th>Strength</th>
@@ -875,6 +927,25 @@ const getActualUnits = (medicine) => {
                           : ""
                       }
                     >
+                      {isSelectionMode && (
+    <td>
+      <input
+        type="checkbox"
+        checked={selectedIds.has(m._id)}
+        onChange={(e) => {
+          const newSet = new Set(selectedIds);
+          if (e.target.checked) {
+            newSet.add(m._id);
+          } else {
+            newSet.delete(m._id);
+          }
+          setSelectedIds(newSet);
+          // Update selectAll if needed
+          setSelectAll(newSet.size === displayedMedicines.length);
+        }}
+      />
+    </td>
+  )}
                      
                  <td style={{ fontWeight: "600", fontSize: "1rem" }}>
   <span style={{ display: "inline-flex", alignItems: "center", gap: "0.8rem" }}>

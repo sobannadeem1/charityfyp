@@ -232,3 +232,24 @@ export const getInvoiceById = async (id) => {
     throw error.response?.data || error;
   }
 };
+
+// ===================== SELL APIs =====================
+
+// Delete single sale group by timestamp + soldBy
+export const deleteSingleSaleGroup = async (timestamp, soldBy) => {
+  const res = await axios.delete(`${BASE_MEDICINES}/sales/group/${timestamp}/${soldBy}`);
+  return res.data;
+};
+
+// Delete multiple selected sale groups
+export const deleteSelectedSales = async (groups) => {
+  const res = await axios.post(`${BASE_MEDICINES}/sales/delete-selected`, { groups });
+  return res.data;
+};
+
+// Delete all sales
+export const deleteAllSales = async () => {
+  const res = await axios.delete(`${BASE_MEDICINES}/sales/all`);
+  return res.data;
+};
+
