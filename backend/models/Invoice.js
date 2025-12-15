@@ -25,23 +25,42 @@ const invoiceSchema = new mongoose.Schema(
       type: String,
       unique: true,
     },
+
+    // Patient Details
     patientName: {
       type: String,
       required: true,
       trim: true,
       default: "Walk-in Patient",
     },
-    patientGender: {
-      type: String,
-      enum: ["Male", "Female", "Other", ""],
-      default: "",
-      trim: true,
-    },
+   patientGender: {
+  type: String,
+  enum: ["Male", "Female", "Other", "Not Specified", ""],
+  default: "",
+  trim: true,
+},
+
     patientAddress: {
       type: String,
       default: "",
       trim: true,
     },
+cnic: {
+  type: String,
+  default: "" 
+},
+phoneNumber: {
+  type: String,
+  default: "" 
+}
+,age: {
+  type: Number,
+  min: 0,
+  default: null,
+},
+
+
+    // Invoice Details
     items: [invoiceItemSchema],
     totalRevenue: { type: Number, required: true, min: 0 },
     discount: { type: Number, default: 0, min: 0 },
@@ -53,7 +72,7 @@ const invoiceSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-
+// Auto-generate Invoice Number
 invoiceSchema.pre("validate", async function (next) {
   if (this.isNew && !this.invoiceNumber) {
     const year = new Date().getFullYear();
@@ -64,6 +83,5 @@ invoiceSchema.pre("validate", async function (next) {
   }
   next();
 });
-
 
 export default mongoose.model("Invoice", invoiceSchema);

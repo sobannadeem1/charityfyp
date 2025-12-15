@@ -5,26 +5,32 @@ export const createInvoice = async (req, res) => {
   try {
     const {
       patientName,
-      patientGender = "",        // ← NEW
-      patientAddress = "",       // ← NEW
+      patientGender = "",
+      patientAddress = "",
+      phoneNumber = "",
+      cnic = "",
+      age,
       items,
       transactionId,
     } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ success: false, message: "Items are required" });
+      return res.status(400).json({
+        success: false,
+        message: "Items are required",
+      });
     }
 
-    // Process items — keep totalAmount if provided, else calculate
+    // Process items
     const processedItems = items.map(item => {
       let totalAmount = Number(item.totalAmount || 0);
 
-      // If no totalAmount (old data), calculate safely
       if (!totalAmount || totalAmount <= 0) {
         const unitsPerPack = item.packSize
           ? (item.packSize.toString().match(/\b(\d+)\b/)?.[1] || 1)
           : 1;
-        const isUnits = (item.originalSellType || item.sellType || "packages") === "units";
+        const isUnits =
+          (item.originalSellType || item.sellType || "packages") === "units";
         totalAmount = isUnits
           ? (item.salePrice / unitsPerPack) * item.quantitySold
           : item.salePrice * item.quantitySold;
@@ -46,13 +52,17 @@ export const createInvoice = async (req, res) => {
 
     const totalRevenue = processedItems.reduce((sum, i) => sum + i.totalAmount, 0);
 
-    // Auto-generate invoice number (handled in model pre-save hook)
+    // Create new invoice
     const newInvoice = new Invoice({
       patientName: (patientName || "Walk-in Patient").trim(),
-      patientGender: patientGender 
-  ? patientGender.trim().charAt(0).toUpperCase() + patientGender.trim().slice(1).toLowerCase()
-  : "",
-      patientAddress: patientAddress.trim(),   // ← SAVE ADDRESS
+      patientGender: patientGender
+        ? patientGender.trim().charAt(0).toUpperCase() +
+          patientGender.trim().slice(1).toLowerCase()
+        : "",
+      patientAddress: patientAddress.trim(),
+      phoneNumber: phoneNumber.trim(),
+      cnic: cnic.trim(),
+      age: age ? Number(age) : undefined,
       items: processedItems,
       totalRevenue: Number(totalRevenue.toFixed(2)),
       transactionId: transactionId || null,
@@ -67,7 +77,6 @@ export const createInvoice = async (req, res) => {
       message: "Invoice created successfully",
       data: newInvoice,
     });
-
   } catch (error) {
     console.error("CREATE INVOICE ERROR:", error);
     res.status(500).json({
@@ -93,6 +102,8 @@ export const getAllInvoices = async (req, res) => {
         { patientName: { $regex: searchTerm, $options: "i" } },
         { invoiceNumber: { $regex: searchTerm, $options: "i" } },
         { "items.name": { $regex: searchTerm, $options: "i" } },
+        { phoneNumber: { $regex: searchTerm, $options: "i" } },
+        { cnic: { $regex: searchTerm, $options: "i" } },
       ];
     }
 
@@ -106,17 +117,24 @@ export const getAllInvoices = async (req, res) => {
 
     let sortOption = { soldAt: -1 };
     switch (sortBy) {
-      case "date-oldest": sortOption = { soldAt: 1 }; break;
-      case "revenue-high": sortOption = { totalRevenue: -1 }; break;
-      case "revenue-low": sortOption = { totalRevenue: 1 }; break;
-      default: sortOption = { soldAt: -1 };
+      case "date-oldest":
+        sortOption = { soldAt: 1 };
+        break;
+      case "revenue-high":
+        sortOption = { totalRevenue: -1 };
+        break;
+      case "revenue-low":
+        sortOption = { totalRevenue: 1 };
+        break;
+      default:
+        sortOption = { soldAt: -1 };
     }
 
     const invoices = await Invoice.find(query)
       .sort(sortOption)
       .skip((page - 1) * limit)
       .limit(limit)
-      .lean(); // Faster, no hydration needed
+      .lean();
 
     const totalInvoices = await Invoice.countDocuments(query);
 
@@ -124,6 +142,7 @@ export const getAllInvoices = async (req, res) => {
       { $match: query },
       { $group: { _id: null, totalRevenue: { $sum: "$totalRevenue" } } },
     ]);
+
     const summaryRevenue = revenueAgg[0]?.totalRevenue || 0;
 
     res.status(200).json({
@@ -138,7 +157,9 @@ export const getAllInvoices = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching invoices:", error);
-    res.status(500).json({ success: false, message: "Failed to fetch invoices" });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch invoices" });
   }
 };
 
@@ -163,6 +184,8 @@ export const getInvoiceById = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching invoice:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error" });
   }
 };

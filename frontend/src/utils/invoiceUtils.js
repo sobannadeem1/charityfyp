@@ -1,5 +1,6 @@
 // src/utils/invoiceUtils.js
 import { createInvoice } from "../api/medicineapi";
+import charityLogo from "../assets/logo.png";
 import { toast } from "sonner";
 
 const getUnitsPerPackage = (packSize) => {
@@ -13,13 +14,18 @@ export const printInvoice = async (saleData, patientDetails = {}) => {
   const {
     name = "Walk-in Patient",
     gender = "",
-    address = ""
+    address = "",
+    phoneNumber = "",
+    cnic = "",
+    age,
   } = patientDetails;
 
   const nameToUse = name.trim() || "Walk-in Patient";
   const genderToUse = gender.trim() || "";
-
   const addressToUse = address.trim() || "Not Provided";
+  const phoneToUse = phoneNumber.trim() || "Not Provided";
+  const cnicToUse = cnic.trim() || "Not Provided";
+  const ageToUse = age !== undefined ? age : "Not Provided";
 
   try {
     const isGroup = Array.isArray(saleData.items);
@@ -31,24 +37,24 @@ export const printInvoice = async (saleData, patientDetails = {}) => {
           soldBy: "Staff",
         };
 
-    // YOUR ORIGINAL CALCULATION — 100% UNCHANGED
     const grandTotal = group.items.reduce((sum, item) => {
       const units = getUnitsPerPackage(item.packSize);
       const type = item.sellType || "packages";
       const qty = Number(item.quantitySold || 0);
       const price = Number(item.salePrice || 0);
 
-      return type === "units"
-        ? sum + qty * (price / units)
-        : sum + qty * price;
+      return type === "units" ? sum + qty * (price / units) : sum + qty * price;
     }, 0);
 
-    // SAVE INVOICE — NOW SENDS GENDER & ADDRESS
+    // SAVE INVOICE — SEND ALL PATIENT DETAILS
     try {
       await createInvoice({
         patientName: nameToUse,
-        patientGender: genderToUse,     // ← ADDED
-        patientAddress: addressToUse,   // ← ADDED
+        patientGender: genderToUse,
+        patientAddress: addressToUse,
+        phoneNumber: phoneToUse,
+        cnic: cnicToUse,
+        age: ageToUse,
         items: group.items.map((item) => ({
           medicine: item._id || null,
           name: item.name,
@@ -70,16 +76,13 @@ export const printInvoice = async (saleData, patientDetails = {}) => {
       console.warn("Invoice save failed, continuing to print...");
     }
 
-    // YOUR ORIGINAL ROWS — UNCHANGED
     const itemsRows = group.items
       .map((item) => {
         const units = getUnitsPerPackage(item.packSize);
         const type = item.sellType || "packages";
         const unitPrice = type === "units" ? item.salePrice / units : item.salePrice;
         const total =
-          type === "units"
-            ? item.quantitySold * (item.salePrice / units)
-            : item.quantitySold * item.salePrice;
+          type === "units" ? item.quantitySold * (item.salePrice / units) : item.quantitySold * item.salePrice;
 
         return `
         <tr class="item-row">
@@ -112,7 +115,6 @@ export const printInvoice = async (saleData, patientDetails = {}) => {
       })
       .join("");
 
-    // INVOICE HTML — NOW SHOWS GENDER & ADDRESS
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -163,13 +165,12 @@ export const printInvoice = async (saleData, patientDetails = {}) => {
 <body>
   <div class="container">
     <div class="header">
-      <h1>Noor Sardar HealthCare Center</h1>
-      <h2>MEDICINE SALES INVOICE</h2>
-      <div class="invoice-id">Invoice #INV-${new Date(group.soldAt)
-        .getTime()
-        .toString(36)
-        .toUpperCase()
-        .slice(-8)}</div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 0.8rem;">
+        <img src="${charityLogo}" alt="Noor Sardar HealthCare Logo" style="height: 85px; max-width: 220px; object-fit: contain; background: white; padding: 0.5rem; border-radius: 0.8rem;" />
+        <h1>Noor Sardar HealthCare Center</h1>
+        <h2>MEDICINE SALES INVOICE</h2>
+        <div class="invoice-id">Invoice #INV-${new Date(group.soldAt).getTime().toString(36).toUpperCase().slice(-8)}</div>
+      </div>
     </div>
 
     <div class="info">
@@ -182,22 +183,26 @@ export const printInvoice = async (saleData, patientDetails = {}) => {
         <div>${genderToUse}</div>
       </div>
       <div class="info-box">
+        <strong>Age</strong>
+        <div>${ageToUse}</div>
+      </div>
+      <div class="info-box">
+        <strong>Phone Number</strong>
+        <div>${phoneToUse}</div>
+      </div>
+      <div class="info-box">
+        <strong>CNIC</strong>
+        <div>${cnicToUse}</div>
+      </div>
+      <div class="info-box">
         <strong>Address</strong>
         <div>${addressToUse}</div>
       </div>
       <div class="info-box">
         <strong>Sale Date & Time</strong>
         <div>
-          ${new Date(group.soldAt).toLocaleDateString("en-GB", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}<br>
-          ${new Date(group.soldAt).toLocaleTimeString([], {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          })}
+          ${new Date(group.soldAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}<br>
+          ${new Date(group.soldAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}
         </div>
       </div>
       <div class="info-box">
@@ -220,11 +225,7 @@ export const printInvoice = async (saleData, patientDetails = {}) => {
         <tr class="total-row">
           <td colspan="3">
             GRAND TOTAL
-            ${
-              group.items.length > 1
-                ? `<div class="items-note">(${group.items.length} items)</div>`
-                : ""
-            }
+            ${group.items.length > 1 ? `<div class="items-note">(${group.items.length} items)</div>` : ""}
           </td>
           <td>PKR ${grandTotal.toFixed(2)}</td>
         </tr>

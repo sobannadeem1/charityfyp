@@ -4,7 +4,7 @@ import { getAllInvoices, getInvoiceById } from "../api/medicineapi.js";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import "../styles/invoices.css";
-
+import charityLogo from "../assets/logo.png";
 
 
 export default function InvoiceHistory() {
@@ -130,10 +130,13 @@ const handleReprint = async (invoiceId) => {
 <body>
   <div class="container">
     <div class="header">
-      <h1>Noor Sardar HealthCare Center</h1>
-      <h2>MEDICINE SALES INVOICE</h2>
-      <div class="invoice-id">Invoice #${invoice.invoiceNumber}</div>
-    </div>
+  <img src="${charityLogo}" alt="Noor Sardar HealthCare Logo" 
+       style="height: 85px; max-width: 220px; object-fit: contain; background: white; padding: 0.5rem; border-radius: 0.8rem;" />
+  <h1>Noor Sardar HealthCare Center</h1>
+  <h2>MEDICINE SALES INVOICE</h2>
+  <div class="invoice-id">Invoice #${invoice.invoiceNumber}</div>
+</div>
+
 <div class="info">
   <div class="info-box">
     <strong>Patient Name</strong>
@@ -147,6 +150,19 @@ const handleReprint = async (invoiceId) => {
     <strong>Address</strong>
     <div>${invoice.patientAddress || "Not Provided"}</div>
   </div>
+  <div class="info-box">
+  <strong>Phone Number</strong>
+  <div>${invoice.phoneNumber || "Not Provided"}</div>
+</div>
+<div class="info-box">
+  <strong>CNIC</strong>
+  <div>${invoice.cnic || "Not Provided"}</div>
+</div>
+<div class="info-box">
+  <strong>Age</strong>
+  <div>${invoice.age !== undefined ? invoice.age : "Not Provided"}</div>
+</div>
+
   <div class="info-box">
     <strong>Sale Date & Time</strong>
     <div>

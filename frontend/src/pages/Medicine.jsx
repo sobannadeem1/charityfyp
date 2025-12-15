@@ -50,6 +50,20 @@ const abortControllerRef = useRef(null);
 const [isSelectionMode, setIsSelectionMode] = useState(false);
 const [selectedIds, setSelectedIds] = useState(new Set());
 const [selectAll, setSelectAll] = useState(false);
+const [patientName, setPatientName] = useState("");
+const [patientGender, setPatientGender] = useState("");
+const [patientAddress, setPatientAddress] = useState("");
+const [patientPhone, setPatientPhone] = useState("");
+const [patientCNIC, setPatientCNIC] = useState("");
+const [patientAge, setPatientAge] = useState("");
+const [bulkPatientName, setBulkPatientName] = useState("");
+const [bulkPatientGender, setBulkPatientGender] = useState("");
+const [bulkPatientAddress, setBulkPatientAddress] = useState("");
+const [bulkPatientPhone, setBulkPatientPhone] = useState("");
+const [bulkPatientCNIC, setBulkPatientCNIC] = useState("");
+const [bulkPatientAge, setBulkPatientAge] = useState("");
+
+
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -133,6 +147,7 @@ const handleOpenBulkSell = async () => {
     );
   };
 
+// BULK SALE
 const handleBulkSell = async () => {
   if (isSubmitting) return toast.info("Please wait...");
 
@@ -146,23 +161,21 @@ const handleBulkSell = async () => {
 
   if (items.length === 0) return toast.error("Add at least one item with quantity");
 
- const patientName =
-  prompt("Enter Patient Name (or leave blank):")?.trim() || "Walk-in Patient";
+ const finalPatientName = bulkPatientName.trim() || "Walk-in Patient";
 
-let patientGender = "";
-while (true) {
-  const raw = prompt("Enter Patient Gender (Male/Female/Other):")?.trim().toLowerCase();
-  if (!raw) break; // blank is allowed
-  if (["male", "female", "other"].includes(raw)) {
-    patientGender = raw.charAt(0).toUpperCase() + raw.slice(1);
-    break;
-  } else {
-    alert("Invalid input! Please type exactly: Male, Female, or Other.");
-  }
-}
+// Only allow valid enum values, else send empty string
+const finalPatientGender = ["Male", "Female", "Other"].includes(bulkPatientGender)
+  ? bulkPatientGender
+  : "";
 
-const patientAddress =
-  prompt("Enter Patient Address:")?.trim() || "Not Provided";
+// Fallbacks for other fields
+const finalPatientAddress = bulkPatientAddress.trim() || "Not Provided";
+const finalPatientPhone = bulkPatientPhone.trim() || "Not Provided";
+const finalPatientCNIC = bulkPatientCNIC.trim() || "Not Provided";
+
+// Age must be number or null
+const finalPatientAge =
+  bulkPatientAge && !isNaN(Number(bulkPatientAge)) ? Number(bulkPatientAge) : null;
 
 
 
@@ -185,15 +198,18 @@ const patientAddress =
         };
       }),
       soldAt: new Date().toISOString(),
-       soldBy: "Staff",
+      soldBy: "Staff",
     };
 
-    // SEND ALL 3
     await printInvoice(saleData, {
-      name: patientName,
-      gender: patientGender,
-      address: patientAddress
-    });
+  name: finalPatientName,
+  gender: finalPatientGender,
+  address: finalPatientAddress,
+  phoneNumber: finalPatientPhone,
+  cnic: finalPatientCNIC,
+  age: finalPatientAge,
+});
+
 
     toast.success(`Sold ${items.length} items & invoice generated!`);
     setShowBulkSellPopup(false);
@@ -207,6 +223,7 @@ const patientAddress =
     setIsSubmitting(false);
   }
 };
+
 
 
   // Click outside handlers (keep as is)
@@ -635,29 +652,26 @@ const handleUpdateMedicine = async (e) => {
     setShowSellPopup(true);
   };
 
+// SINGLE SALE
 const confirmSell = async () => {
   const quantity = parseInt(sellQuantity, 10);
-  if (!quantity || quantity <= 0) return toast.error("Invalid quantity!");
+if (!quantity || quantity <= 0) return toast.error("Invalid quantity!");
+if (isSubmitting) return toast.info("Please wait...");
 
-  if (isSubmitting) return toast.info("Please wait...");
+// Cleaned, schema-safe patient data
+const finalPatientName = patientName.trim() || "Walk-in Patient";
+const finalPatientGender =
+  ["Male", "Female", "Other"].includes(patientGender)
+    ? patientGender
+    : ""; // send empty string if not valid — prevents enum error
 
-const patientName =
-  prompt("Enter Patient Name (or leave blank):")?.trim() || "Walk-in Patient";
+const finalPatientAddress = patientAddress.trim() || "Not Provided";
+const finalPatientPhone = patientPhone.trim() || "Not Provided";
+const finalPatientCNIC = patientCNIC.trim() || "Not Provided";
 
-let patientGender = "";
-while (true) {
-  const raw = prompt("Enter Patient Gender (Male/Female/Other):")?.trim().toLowerCase();
-  if (!raw) break; // blank is allowed
-  if (["male", "female", "other"].includes(raw)) {
-    patientGender = raw.charAt(0).toUpperCase() + raw.slice(1);
-    break;
-  } else {
-    alert("Invalid input! Please type exactly: Male, Female, or Other.");
-  }
-}
-
-const patientAddress =
-  prompt("Enter Patient Address:")?.trim() || "Not Provided";
+// Convert age safely — must be number or null
+const finalPatientAge =
+  patientAge && !isNaN(Number(patientAge)) ? Number(patientAge) : null;
 
 
 
@@ -693,12 +707,15 @@ const patientAddress =
       soldBy: "Staff"
     };
 
-    // SEND ALL 3 TO printInvoice
-    await printInvoice(saleData, {
-      name: patientName,
-      gender: patientGender,
-      address: patientAddress
-    });
+  await printInvoice(saleData, {
+  name: finalPatientName,
+  gender: finalPatientGender,
+  address: finalPatientAddress,
+  phoneNumber: finalPatientPhone,
+  cnic: finalPatientCNIC,
+  age: finalPatientAge,
+});
+
 
     toast.success("Sold & invoice generated!");
     setShowSellPopup(false);
@@ -713,6 +730,7 @@ const patientAddress =
     setIsSubmitting(false);
   }
 };
+
 
 
   
@@ -1798,6 +1816,58 @@ const getActualUnits = (medicine) => {
                 )}
               </div>
             )}
+<div className="patient-inputs">
+  <label>Patient Name:</label>
+  <input
+    type="text"
+    placeholder="Walk-in Patient"
+    value={patientName}
+    onChange={(e) => setPatientName(e.target.value)}
+  />
+
+  <label>Patient Gender:</label>
+  <select
+    value={patientGender}
+    onChange={(e) => setPatientGender(e.target.value)}
+  >
+    <option value="">Not Specified</option>
+    <option value="Male">Male</option>
+    <option value="Female">Female</option>
+    <option value="Other">Other</option>
+  </select>
+
+  <label>Patient Address:</label>
+  <input
+    type="text"
+    placeholder="Not Provided"
+    value={patientAddress}
+    onChange={(e) => setPatientAddress(e.target.value)}
+  />
+
+  <label>Patient Phone:</label>
+  <input
+    type="text"
+    placeholder="Not Provided"
+    value={patientPhone}
+    onChange={(e) => setPatientPhone(e.target.value)}
+  />
+
+  <label>Patient CNIC:</label>
+  <input
+    type="text"
+    placeholder="Not Provided"
+    value={patientCNIC}
+    onChange={(e) => setPatientCNIC(e.target.value)}
+  />
+
+  <label>Patient Age:</label>
+  <input
+    type="number"
+    placeholder="Not Provided"
+    value={patientAge}
+    onChange={(e) => setPatientAge(e.target.value)}
+  />
+</div>
 
             {/* For the sell popup */}
             <div className="popup-buttons">
@@ -1823,8 +1893,8 @@ const getActualUnits = (medicine) => {
           </div>
         </div>
       )}
-   {showBulkSellPopup && (
-  <div 
+ {showBulkSellPopup && (
+  <div
     className="bulk-sell-overlay"
     onClick={(e) => {
       if (e.target === e.currentTarget) {
@@ -1835,9 +1905,10 @@ const getActualUnits = (medicine) => {
     }}
   >
     <div className="bulk-sell-popup">
+      {/* Header */}
       <div className="bulk-sell-header">
         <h2>Sell Multiple Medicines</h2>
-        <button 
+        <button
           className="bulk-sell-close"
           onClick={() => {
             setShowBulkSellPopup(false);
@@ -1849,6 +1920,7 @@ const getActualUnits = (medicine) => {
         </button>
       </div>
 
+      {/* Search Bar */}
       <div className="bulk-search-bar">
         <input
           type="search"
@@ -1872,137 +1944,222 @@ const getActualUnits = (medicine) => {
         </select>
       </div>
 
-      <div className="bulk-medicines-list">
-        {allMedicines
-          // Apply ALL filters
-          .filter(medicine => {
-            // Search
-            if (bulkSearchTerm && !medicine.name.toLowerCase().includes(bulkSearchTerm.toLowerCase()) &&
-                !medicine.category.toLowerCase().includes(bulkSearchTerm.toLowerCase())) {
-              return false;
-            }
-            // Category
-            if (filterCategory !== "all" && medicine.category !== filterCategory) {
-              return false;
-            }
-            // Expiry Month
-            if (filterExpiryMonth !== "all") {
-              const medMonth = new Date(medicine.expiry).toISOString().slice(0,7);
-              if (medMonth !== filterExpiryMonth) return false;
-            }
-            return true;
-          })
-          // Apply sorting
-          .sort((a, b) => {
-            switch (bulkSortOption) {
-              case "name-asc": return a.name.localeCompare(b.name);
-              case "name-desc": return b.name.localeCompare(a.name);
-              case "price-low": return a.salePrice - b.salePrice;
-              case "price-high": return b.salePrice - a.salePrice;
-              case "quantity-low": return getActualUnits(a) - getActualUnits(b);
-              case "quantity-high": return getActualUnits(b) - getActualUnits(a);
-              case "expiry-soon": return new Date(a.expiry) - new Date(b.expiry);
-              case "date-newest": return new Date(b.createdAt) - new Date(a.createdAt);
-              default: return 0;
-            }
-          }).map(medicine => {
-            const data = bulkSellData[medicine._id] || { quantity: "", type: "packages" };
-            const maxPackages = Math.floor(medicine.quantity);
-            const unitsPerPack = getUnitsPerPackage(medicine);
-            const maxUnits = maxPackages * unitsPerPack;
-            const canSellUnits = ["Tablet", "Capsule", "Injection"].includes(medicine.category);
+      {/* Scrollable Section */}
+      <div className="bulk-content-scroll">
+        {/* Medicines List */}
+        <div className="bulk-medicines-list">
+          {allMedicines
+            .filter((medicine) => {
+              if (
+                bulkSearchTerm &&
+                !medicine.name.toLowerCase().includes(bulkSearchTerm.toLowerCase()) &&
+                !medicine.category.toLowerCase().includes(bulkSearchTerm.toLowerCase())
+              )
+                return false;
+              if (filterCategory !== "all" && medicine.category !== filterCategory)
+                return false;
+              if (filterExpiryMonth !== "all") {
+                const medMonth = new Date(medicine.expiry).toISOString().slice(0, 7);
+                if (medMonth !== filterExpiryMonth) return false;
+              }
+              return true;
+            })
+            .sort((a, b) => {
+              switch (bulkSortOption) {
+                case "name-asc":
+                  return a.name.localeCompare(b.name);
+                case "name-desc":
+                  return b.name.localeCompare(a.name);
+                case "price-low":
+                  return a.salePrice - b.salePrice;
+                case "price-high":
+                  return b.salePrice - a.salePrice;
+                case "quantity-low":
+                  return getActualUnits(a) - getActualUnits(b);
+                case "quantity-high":
+                  return getActualUnits(b) - getActualUnits(a);
+                case "expiry-soon":
+                  return new Date(a.expiry) - new Date(b.expiry);
+                case "date-newest":
+                  return new Date(b.createdAt) - new Date(a.createdAt);
+                default:
+                  return 0;
+              }
+            })
+            .map((medicine) => {
+              const data = bulkSellData[medicine._id] || { quantity: "", type: "packages" };
+              const maxPackages = Math.floor(medicine.quantity);
+              const unitsPerPack = getUnitsPerPackage(medicine);
+              const maxUnits = maxPackages * unitsPerPack;
+              const canSellUnits = ["Tablet", "Capsule", "Injection"].includes(medicine.category);
 
-            return (
-              <div className="bulk-med-item" key={medicine._id}>
-                <div className="bulk-med-name">
-                  {medicine.name}
-                  {medicine.packSize && <small>({medicine.packSize})</small>}
-                </div>
-
-                <div className="bulk-med-stock">
-                  Stock: {maxPackages} packages
-                  {canSellUnits && (
-                    <span style={{ marginLeft: 16, fontWeight: 600 }}>
-                      • {getActualUnits(medicine)} units
-                    </span>
-                  )}
-                </div>
-
-                {canSellUnits && (
-                  <div className="bulk-type-radio">
-                    <label>
-                      <input
-                        type="radio"
-                        name={`type-${medicine._id}`}
-                        checked={data.type === "packages"}
-                        onChange={() => setBulkSellData(p => ({
-                          ...p,
-                          [medicine._id]: { ...p[medicine._id], type: "packages" }
-                        }))}
-                      /> Packages
-                    </label>
-                    <label>
-                      <input
-                        type="radio"
-                        name={`type-${medicine._id}`}
-                        checked={data.type === "units"}
-                        onChange={() => setBulkSellData(p => ({
-                          ...p,
-                          [medicine._id]: { ...p[medicine._id], type: "units" }
-                        }))}
-                      /> Units
-                    </label>
+              return (
+                <div className="bulk-med-item" key={medicine._id}>
+                  
+                  <div className="bulk-med-name">
+                    {medicine.name}
+                    {medicine.packSize && <small>({medicine.packSize})</small>}
                   </div>
-                )}
 
-                <div style={{ display: "flex", alignItems: "center", marginTop: 16 }}>
-                  <input
-                    type="number"
-                    onWheel={(e) => e.target.blur()}
-                    className="bulk-qty-input"
-                    placeholder={data.type === "units" ? `Max ${maxUnits} units` : `Max ${maxPackages} packages`}
-                    value={data.quantity}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === "" || /^\d+$/.test(val)) {
-                        setBulkSellData(prev => ({
-                          ...prev,
-                          [medicine._id]: { quantity: val, type: prev[medicine._id]?.type || "packages" }
-                        }));
-                      }
-                    }}
-                  />
-                  {data.quantity > 0 && (
-                    <div className="item-total">
-                      PKR {calculateTotal(medicine, +data.quantity, data.type).toFixed(2)}
+                  <div className="bulk-med-stock">
+                    Stock: {maxPackages} packages
+                    {canSellUnits && (
+                      <span style={{ marginLeft: 16, fontWeight: 600 }}>
+                        • {getActualUnits(medicine)} units
+                      </span>
+                    )}
+                  </div>
+
+                  {canSellUnits && (
+                    <div className="bulk-type-radio">
+                      <label>
+                        <input
+                          type="radio"
+                          name={`type-${medicine._id}`}
+                          checked={data.type === "packages"}
+                          onChange={() =>
+                            setBulkSellData((p) => ({
+                              ...p,
+                              [medicine._id]: { ...p[medicine._id], type: "packages" },
+                            }))
+                          }
+                        />{" "}
+                        Packages
+                      </label>
+                      <label>
+                        <input
+                          type="radio"
+                          name={`type-${medicine._id}`}
+                          checked={data.type === "units"}
+                          onChange={() =>
+                            setBulkSellData((p) => ({
+                              ...p,
+                              [medicine._id]: { ...p[medicine._id], type: "units" },
+                            }))
+                          }
+                        />{" "}
+                        Units
+                      </label>
                     </div>
                   )}
+
+                  <div style={{ display: "flex", alignItems: "center", marginTop: 16 }}>
+                    <input
+                      type="number"
+                      onWheel={(e) => e.target.blur()}
+                      className="bulk-qty-input"
+                      placeholder={
+                        data.type === "units"
+                          ? `Max ${maxUnits} units`
+                          : `Max ${maxPackages} packages`
+                      }
+                      value={data.quantity}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "" || /^\d+$/.test(val)) {
+                          setBulkSellData((prev) => ({
+                            ...prev,
+                            [medicine._id]: {
+                              quantity: val,
+                              type: prev[medicine._id]?.type || "packages",
+                            },
+                          }));
+                        }
+                      }}
+                    />
+                    {data.quantity > 0 && (
+                      <div className="item-total">
+                        PKR {calculateTotal(medicine, +data.quantity, data.type).toFixed(2)}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+        </div>
+
+        {/* Patient Info Form */}
+        <div className="patient-inputs">
+          <label>Patient Name:</label>
+          <input
+            type="text"
+            placeholder="Walk-in Patient"
+            value={bulkPatientName}
+            onChange={(e) => setBulkPatientName(e.target.value)}
+          />
+
+          <label>Patient Gender:</label>
+          <select
+            value={bulkPatientGender}
+            onChange={(e) => setBulkPatientGender(e.target.value)}
+          >
+            <option value="">Not Specified</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
+
+          <label>Patient Address:</label>
+          <input
+            type="text"
+            placeholder="Not Provided"
+            value={bulkPatientAddress}
+            onChange={(e) => setBulkPatientAddress(e.target.value)}
+          />
+
+          <label>Patient Phone:</label>
+          <input
+            type="text"
+            placeholder="Not Provided"
+            value={bulkPatientPhone}
+            onChange={(e) => setBulkPatientPhone(e.target.value)}
+          />
+
+          <label>Patient CNIC:</label>
+          <input
+            type="text"
+            placeholder="Not Provided"
+            value={bulkPatientCNIC}
+            onChange={(e) => setBulkPatientCNIC(e.target.value)}
+          />
+
+          <label>Patient Age:</label>
+          <input
+            type="number"
+            placeholder="Not Provided"
+            value={bulkPatientAge}
+            onChange={(e) => setBulkPatientAge(e.target.value)}
+          />
+        </div>
       </div>
 
-      {Object.values(bulkSellData).some(d => d.quantity > 0) && (
+      {/* Grand Total */}
+      {Object.values(bulkSellData).some((d) => d.quantity > 0) && (
         <div className="grand-total">
           Grand Total: PKR{" "}
           {Object.entries(bulkSellData)
             .filter(([_, d]) => d.quantity > 0)
             .reduce((sum, [id, d]) => {
-              const med = allMedicines.find(m => m._id === id);
+              const med = allMedicines.find((m) => m._id === id);
               return sum + (med ? calculateTotal(med, +d.quantity, d.type) : 0);
             }, 0)
             .toFixed(2)}
         </div>
       )}
 
+      {/* Buttons */}
       <div className="bulk-buttons">
         <button
           className="confirm-btn"
           onClick={handleBulkSell}
-          disabled={isSubmitting || !Object.values(bulkSellData).some(d => d.quantity > 0)}
+          disabled={
+            isSubmitting ||
+            !Object.values(bulkSellData).some((d) => d.quantity > 0)
+          }
         >
-          {isSubmitting ? "Processing..." : `Confirm Sell (${Object.values(bulkSellData).filter(d => d.quantity > 0).length})`}
+          {isSubmitting
+            ? "Processing..."
+            : `Confirm Sell (${Object.values(bulkSellData).filter((d) => d.quantity > 0).length})`}
         </button>
         <button
           className="cancel-btn-bulk"
@@ -2019,6 +2176,7 @@ const getActualUnits = (medicine) => {
     </div>
   </div>
 )}
+
 
 
     </div>
