@@ -554,7 +554,6 @@ useEffect(() => {
     }
   };
 
-  // 1. ADD MEDICINE — FULLY PROTECTED
 const handleAddMedicine = async (e) => {
   e.preventDefault();
   if (isSubmitting) {
@@ -570,12 +569,84 @@ const handleAddMedicine = async (e) => {
       if (!formData[field]) return toast.error(`Please fill ${field}`);
     }
 
-    const exists = medicines.find(m => m.name.toLowerCase() === formData.name.toLowerCase());
-    if (exists) return toast.error("Medicine already exists!");
+    // Normalize function
+    const normalize = (str) => (str || "").toString().trim().toLowerCase();
+
+    // Check for EXACT duplicate
+    const existingMedicine = medicines.find(m => {
+      return (
+        normalize(m.name) === normalize(formData.name) &&
+        normalize(m.category) === normalize(formData.category) &&
+        normalize(m.strength) === normalize(formData.strength) &&
+        normalize(m.packSize) === normalize(formData.packSize) &&
+        normalize(m.manufacturer) === normalize(formData.manufacturer) &&
+        normalize(m.supplier) === normalize(formData.supplier)
+      );
+    });
+
+    if (existingMedicine) {
+      // Show informative message about editing instead
+      toast.error(
+        <div style={{ maxWidth: "400px" }}>
+          <div style={{ fontWeight: "bold", marginBottom: "8px" }}>
+            ⚠️ Medicine Already Exists!
+          </div>
+          <div style={{ marginBottom: "8px" }}>
+            <strong>{existingMedicine.name}</strong> with same specifications already exists.
+          </div>
+          <div style={{ fontSize: "0.9em", color: "#4b5563", marginBottom: "12px" }}>
+            If this is a <strong>new batch/restock</strong>, please:
+            <ol style={{ margin: "8px 0 8px 20px", padding: 0 }}>
+              <li>Find the medicine in the table</li>
+              <li>Click <strong>"Edit"</strong> button</li>
+              <li>Update quantity and expiry date</li>
+            </ol>
+          </div>
+          <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+            <button
+              onClick={() => {
+                toast.dismiss();
+                // Auto-fill edit form with existing medicine
+                handleEdit(existingMedicine);
+                setShowAddPopup(false);
+              }}
+              style={{
+                padding: "6px 12px",
+                background: "#3b82f6",
+                color: "white",
+                border: "none",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "0.9em"
+              }}
+            >
+              Edit Existing
+            </button>
+            <button
+              onClick={() => toast.dismiss()}
+              style={{
+                padding: "6px 12px",
+                background: "#ef4444",
+                color: "white",
+                border: "none",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "0.9em"
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>,
+        { duration: 10000 } // Longer duration for user to read
+      );
+      setIsSubmitting(false);
+      return;
+    }
 
     await addMedicine(formData);
 
-    toast.success("Medicine added successfully");
+    toast.success("✅ New medicine added successfully");
     setShowAddPopup(false);
     setFormData({
       name: "", category: "", packSize: "", strength: "", expiry: "",
@@ -589,7 +660,6 @@ const handleAddMedicine = async (e) => {
     setIsSubmitting(false);
   }
 };
-
   // Edit medicine
   const handleEdit = (medicine) => {
     if (!medicine || !medicine._id) return;
@@ -613,7 +683,6 @@ const handleAddMedicine = async (e) => {
     setShowEditPopup(true);
   };
 
-  // 2. UPDATE MEDICINE — FULLY PROTECTED
 const handleUpdateMedicine = async (e) => {
   e.preventDefault();
   if (isSubmitting) {
@@ -624,6 +693,32 @@ const handleUpdateMedicine = async (e) => {
 
   try {
     setIsSubmitting(true);
+
+    // Check if update creates duplicate with ANOTHER medicine (not self)
+    const normalizedName = (formData.name || "").toString().trim().toLowerCase();
+    const isDuplicateWithOther = medicines.some(m => {
+      if (m._id === selectedMedicine._id) return false; // Skip self
+      
+      return (
+        m.name.toLowerCase() === normalizedName &&
+        m.category === formData.category &&
+        m.strength === formData.strength &&
+        m.packSize === formData.packSize &&
+        m.manufacturer === formData.manufacturer &&
+        m.supplier === formData.supplier
+      );
+    });
+
+    if (isDuplicateWithOther) {
+      // Ask for confirmation instead of blocking
+      const confirmed = window.confirm(
+        "Warning: This update will create a duplicate medicine with identical details to another medicine. Do you want to continue?"
+      );
+      if (!confirmed) {
+        setIsSubmitting(false);
+        return;
+      }
+    }
 
     const payload = {};
     const fields = ["name","category","packSize","strength","expiry","quantity","purchasePrice","salePrice","manufacturer","supplier","storageCondition"];
@@ -1692,6 +1787,9 @@ const getActualUnits = (medicine) => {
                 <strong>Package Contents:</strong>{" "}
                 {currentMedicine?.packSize || "N/A"}
               </p>
+               <p>
+          <strong>Strength:</strong> {currentMedicine?.strength || "N/A"}
+        </p>
               <p>
                 <strong>Price per Package:</strong> PKR{" "}
                 {currentMedicine?.salePrice}
@@ -1994,87 +2092,113 @@ const getActualUnits = (medicine) => {
               const canSellUnits = ["Tablet", "Capsule", "Injection"].includes(medicine.category);
 
               return (
-                <div className="bulk-med-item" key={medicine._id}>
-                  
-                  <div className="bulk-med-name">
-                    {medicine.name}
-                    {medicine.packSize && <small>({medicine.packSize})</small>}
-                  </div>
+  <div className="bulk-med-item" key={medicine._id}>
+    
+    <div className="bulk-med-name">
+      {medicine.name}
+      {medicine.strength && <span className="strength-badge">• {medicine.strength}</span>}
+      {medicine.packSize && <small>({medicine.packSize})</small>}
+    </div>
 
-                  <div className="bulk-med-stock">
-                    Stock: {maxPackages} packages
-                    {canSellUnits && (
-                      <span style={{ marginLeft: 16, fontWeight: 600 }}>
-                        • {getActualUnits(medicine)} units
-                      </span>
-                    )}
-                  </div>
+    {/* ADD DATE ADDED HERE */}
+    <div className="bulk-med-details-row" style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: "10px"
+    }}>
+      <div className="bulk-med-stock">
+        Stock: {maxPackages} packages
+        {canSellUnits && (
+          <span style={{ marginLeft: 16, fontWeight: 600 }}>
+            • {getActualUnits(medicine)} units
+          </span>
+        )}
+      </div>
+      
+      {/* DATE ADDED */}
+      <div className="date-added" style={{
+        background: "#f3f4f6",
+        padding: "4px 10px",
+        borderRadius: "6px",
+        fontSize: "0.8em",
+        color: "#6b7280"
+      }}>
+        📅 Added: {medicine.createdAt ? 
+          new Date(medicine.createdAt).toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric"
+          }) : "N/A"}
+      </div>
+    </div>
+    {/* END DATE ADDED SECTION */}
 
-                  {canSellUnits && (
-                    <div className="bulk-type-radio">
-                      <label>
-                        <input
-                          type="radio"
-                          name={`type-${medicine._id}`}
-                          checked={data.type === "packages"}
-                          onChange={() =>
-                            setBulkSellData((p) => ({
-                              ...p,
-                              [medicine._id]: { ...p[medicine._id], type: "packages" },
-                            }))
-                          }
-                        />{" "}
-                        Packages
-                      </label>
-                      <label>
-                        <input
-                          type="radio"
-                          name={`type-${medicine._id}`}
-                          checked={data.type === "units"}
-                          onChange={() =>
-                            setBulkSellData((p) => ({
-                              ...p,
-                              [medicine._id]: { ...p[medicine._id], type: "units" },
-                            }))
-                          }
-                        />{" "}
-                        Units
-                      </label>
-                    </div>
-                  )}
+    {canSellUnits && (
+      <div className="bulk-type-radio">
+        <label>
+          <input
+            type="radio"
+            name={`type-${medicine._id}`}
+            checked={data.type === "packages"}
+            onChange={() =>
+              setBulkSellData((p) => ({
+                ...p,
+                [medicine._id]: { ...p[medicine._id], type: "packages" },
+              }))
+            }
+          />{" "}
+          Packages
+        </label>
+        <label>
+          <input
+            type="radio"
+            name={`type-${medicine._id}`}
+            checked={data.type === "units"}
+            onChange={() =>
+              setBulkSellData((p) => ({
+                ...p,
+                [medicine._id]: { ...p[medicine._id], type: "units" },
+              }))
+            }
+          />{" "}
+          Units
+        </label>
+      </div>
+    )}
 
-                  <div style={{ display: "flex", alignItems: "center", marginTop: 16 }}>
-                    <input
-                      type="number"
-                      onWheel={(e) => e.target.blur()}
-                      className="bulk-qty-input"
-                      placeholder={
-                        data.type === "units"
-                          ? `Max ${maxUnits} units`
-                          : `Max ${maxPackages} packages`
-                      }
-                      value={data.quantity}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === "" || /^\d+$/.test(val)) {
-                          setBulkSellData((prev) => ({
-                            ...prev,
-                            [medicine._id]: {
-                              quantity: val,
-                              type: prev[medicine._id]?.type || "packages",
-                            },
-                          }));
-                        }
-                      }}
-                    />
-                    {data.quantity > 0 && (
-                      <div className="item-total">
-                        PKR {calculateTotal(medicine, +data.quantity, data.type).toFixed(2)}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
+    <div style={{ display: "flex", alignItems: "center", marginTop: 16 }}>
+      <input
+        type="number"
+        onWheel={(e) => e.target.blur()}
+        className="bulk-qty-input"
+        placeholder={
+          data.type === "units"
+            ? `Max ${maxUnits} units`
+            : `Max ${maxPackages} packages`
+        }
+        value={data.quantity}
+        onChange={(e) => {
+          const val = e.target.value;
+          if (val === "" || /^\d+$/.test(val)) {
+            setBulkSellData((prev) => ({
+              ...prev,
+              [medicine._id]: {
+                quantity: val,
+                type: prev[medicine._id]?.type || "packages",
+              },
+            }));
+          }
+        }}
+      />
+      {data.quantity > 0 && (
+        <div className="item-total">
+          PKR {calculateTotal(medicine, +data.quantity, data.type).toFixed(2)}
+        </div>
+      )}
+    </div>
+  </div>
+);
             })}
         </div>
 

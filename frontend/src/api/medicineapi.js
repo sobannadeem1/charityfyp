@@ -233,6 +233,16 @@ export const getInvoiceById = async (id) => {
   }
 };
 
+export const deleteInvoice = async (invoiceId) => {
+  try {
+    const res = await axios.delete(`${BASE_INVOICES}/${invoiceId}`);
+    return res.data; 
+  } catch (error) {
+    console.error("Error deleting invoice:", error);
+    throw error.response?.data || error;
+  }
+};
+
 // ===================== SELL APIs =====================
 
 // Delete single sale group by timestamp + soldBy

@@ -1,6 +1,6 @@
 // src/pages/InvoiceHistory.jsx
 import React, { useState, useEffect } from "react";
-import { getAllInvoices, getInvoiceById } from "../api/medicineapi.js";
+import { deleteInvoice, getAllInvoices, getInvoiceById } from "../api/medicineapi.js";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import "../styles/invoices.css";
@@ -17,6 +17,136 @@ export default function InvoiceHistory() {
   const [month, setMonth] = useState("all");
   const [sortBy, setSortBy] = useState("date-newest");
 
+  const handleDeleteInvoice = async (invoiceId, invoiceNumber) => {
+  // Show confirmation toast instead of window.confirm
+  const userConfirmed = await new Promise((resolve) => {
+    toast.custom(
+      (t) => (
+        <div style={{
+          background: "white",
+          padding: "20px",
+          borderRadius: "12px",
+          boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+          maxWidth: "400px",
+          border: "2px solid #e2e8f0",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}>
+            <span style={{ 
+              fontSize: "24px", 
+              marginRight: "12px",
+              color: "#ef4444"
+            }}>⚠️</span>
+            <h3 style={{ margin: 0, color: "#1f2937", fontSize: "18px", fontWeight: "600" }}>
+              Delete Invoice #{invoiceNumber}
+            </h3>
+          </div>
+          
+          <p style={{ 
+            margin: "0 0 20px 0", 
+            color: "#4b5563", 
+            fontSize: "14px",
+            lineHeight: "1.5"
+          }}>
+            Are you sure you want to delete this invoice? 
+            <br />
+            <strong style={{ color: "#ef4444" }}>This action cannot be undone.</strong>
+          </p>
+          
+          <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+            <button
+              onClick={() => {
+                toast.dismiss(t);
+                resolve(false);
+              }}
+              style={{
+                padding: "8px 20px",
+                background: "#f3f4f6",
+                border: "1px solid #d1d5db",
+                borderRadius: "8px",
+                color: "#374151",
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: "500",
+                transition: "all 0.2s"
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "#e5e7eb"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "#f3f4f6"}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                toast.dismiss(t);
+                resolve(true);
+              }}
+              style={{
+                padding: "8px 20px",
+                background: "#ef4444",
+                border: "none",
+                borderRadius: "8px",
+                color: "white",
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: "600",
+                transition: "all 0.2s"
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "#dc2626"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "#ef4444"}
+            >
+              Delete Invoice
+            </button>
+          </div>
+        </div>
+      ),
+      { duration: Infinity } // Stays until user responds
+    );
+  });
+
+  // If user clicked Cancel
+  if (!userConfirmed) {
+    toast.info("Deletion cancelled");
+    return;
+  }
+
+  // If user clicked Delete
+  try {
+    setLoading(true);
+    
+    // Call the API
+    await deleteInvoice(invoiceId);
+    
+    // Success toast
+    toast.success(
+      <div>
+        <div style={{ fontWeight: "bold", marginBottom: "4px" }}>
+          ✅ Invoice Deleted Successfully
+        </div>
+        <div style={{ fontSize: "0.9em", color: "#4b5563" }}>
+          Invoice #{invoiceNumber} has been permanently removed.
+        </div>
+      </div>
+    );
+    
+    // Refresh the list
+    fetchInvoices();
+  } catch (error) {
+    console.error("Delete invoice error:", error);
+    
+    // Error toast
+    toast.error(
+      <div>
+        <div style={{ fontWeight: "bold", marginBottom: "4px" }}>
+          ❌ Failed to Delete Invoice
+        </div>
+        <div style={{ fontSize: "0.9em", color: "#4b5563" }}>
+          {error.response?.data?.message || "An error occurred while deleting the invoice."}
+        </div>
+      </div>
+    );
+  } finally {
+    setLoading(false);
+  }
+};
   const fetchInvoices = async () => {
     try {
       setLoading(true);
@@ -294,10 +424,19 @@ const handleReprint = async (invoiceId) => {
                     <td>{inv.items.length} item{inv.items.length > 1 ? "s" : ""}</td>
                     <td className="highlight-total">PKR {Number(inv.totalRevenue).toFixed(2)}</td>
                     <td>
-                      <button onClick={() => handleReprint(inv._id)} className="invoice-btn">
-                        Re-Print
-                      </button>
-                    </td>
+  <div className="invoice-actions">
+    <button onClick={() => handleReprint(inv._id)} className="invoice-btn print-btn">
+      Re-Print
+    </button>
+    <button 
+      onClick={() => handleDeleteInvoice(inv._id, inv.invoiceNumber)} 
+      className="invoice-btn delete-btn"  
+      title="Delete invoice"
+    >
+      Delete 
+    </button>
+  </div>
+</td>
                   </tr>
                 ))}
               </tbody>

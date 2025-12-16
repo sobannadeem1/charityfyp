@@ -192,26 +192,82 @@
   font-size: 1.4rem;
 }
 
-/* Re-print Button */
-.invoice-btn {
-  background: linear-gradient(135deg, #3498db, #2980b9);
-  color: white;
-  border: none;
-  padding: 0.8rem 1.8rem;
-  border-radius: 2rem;
-  font-weight: 700;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 8px 25px rgba(52, 152, 219, 0.4);
-  text-transform: uppercase;
-  letter-spacing: 1px;
+/* Invoice Actions Container */
+.invoice-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
-.invoice-btn:hover {
-  transform: translateY(-4px) scale(1.05);
-  box-shadow: 0 15px 35px rgba(52, 152, 219, 0.5);
-  background: linear-gradient(135deg, #2980b9, #1c6ea4);
+/* Base button style */
+.invoice-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  min-width: 70px;
+  text-align: center;
+}
+
+/* Print button style */
+.invoice-btn.print-btn {
+  background: #3b82f6;
+  color: white;
+}
+
+.invoice-btn.print-btn:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+/* Delete button style */
+.invoice-btn.delete-btn {
+  background: #ef4444;
+  color: white;
+}
+
+.invoice-btn.delete-btn:hover {
+  background: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+/* Disabled state */
+.invoice-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Loading state */
+.invoice-btn.loading {
+  position: relative;
+  color: transparent;
+}
+
+.invoice-btn.loading::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
 }
 
 /* Pagination */
