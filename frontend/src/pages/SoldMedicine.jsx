@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo,useRef } from "react";
 import { createInvoice, getSalesWithPagination, getSoldMedicines } from "../api/medicineapi.js"; // You'll need to create this API function
-import "../styles/soldMedicine.css";
+import "../styles/SoldMedicine.css";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { GiMedicines } from "react-icons/gi";
