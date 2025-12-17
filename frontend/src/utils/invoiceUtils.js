@@ -46,35 +46,36 @@ export const printInvoice = async (saleData, patientDetails = {}) => {
       return type === "units" ? sum + qty * (price / units) : sum + qty * price;
     }, 0);
 
-    // SAVE INVOICE — SEND ALL PATIENT DETAILS
-    try {
-      await createInvoice({
-        patientName: nameToUse,
-        patientGender: genderToUse,
-        patientAddress: addressToUse,
-        phoneNumber: phoneToUse,
-        cnic: cnicToUse,
-        age: ageToUse,
-        items: group.items.map((item) => ({
-          medicine: item._id || null,
-          name: item.name,
-          category: item.category || "",
-          manufacturer: item.manufacturer || "",
-          strength: item.strength || "",
-          packSize: item.packSize || "Standard",
-          sellType: item.sellType || "packages",
-          quantitySold: item.quantitySold,
-          salePrice: item.salePrice,
-          totalAmount:
-            item.sellType === "units"
-              ? item.quantitySold * (item.salePrice / getUnitsPerPackage(item.packSize))
-              : item.quantitySold * item.salePrice,
-        })),
-        totalRevenue: grandTotal,
-      });
-    } catch (e) {
-      console.warn("Invoice save failed, continuing to print...");
-    }
+  let savedInvoice = null;
+try {
+  savedInvoice = await createInvoice({
+    patientName: nameToUse,
+    patientGender: genderToUse,
+    patientAddress: addressToUse,
+    phoneNumber: phoneToUse,
+    cnic: cnicToUse,
+    age: ageToUse,
+    items: group.items.map((item) => ({
+      medicine: item._id || null,
+      name: item.name,
+      category: item.category || "",
+      manufacturer: item.manufacturer || "",
+      strength: item.strength || "",
+      packSize: item.packSize || "Standard",
+      sellType: item.sellType || "packages",
+      quantitySold: item.quantitySold,
+      salePrice: item.salePrice,
+      totalAmount:
+        item.sellType === "units"
+          ? item.quantitySold * (item.salePrice / getUnitsPerPackage(item.packSize))
+          : item.quantitySold * item.salePrice,
+    })),
+    totalRevenue: grandTotal,
+  });
+} catch (e) {
+  console.warn("Invoice save failed, continuing to print...");
+}
+
 
     const itemsRows = group.items
       .map((item) => {
@@ -169,7 +170,11 @@ export const printInvoice = async (saleData, patientDetails = {}) => {
         <img src="${charityLogo}" alt="Noor Sardar HealthCare Logo" style="height: 85px; max-width: 220px; object-fit: contain; background: white; padding: 0.5rem; border-radius: 0.8rem;" />
         <h1>Noor Sardar HealthCare Center</h1>
         <h2>MEDICINE SALES INVOICE</h2>
-        <div class="invoice-id">Invoice #INV-${new Date(group.soldAt).getTime().toString(36).toUpperCase().slice(-8)}</div>
+       <div class="invoice-id">Invoice #${savedInvoice?.data?.invoiceNumber || "TEMP"}</div>
+
+
+
+
       </div>
     </div>
 

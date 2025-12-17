@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import "../styles/invoices.css";
 import charityLogo from "../assets/logo.png";
+import { MdAttachMoney } from "react-icons/md";
 
 
 export default function InvoiceHistory() {
@@ -355,113 +356,193 @@ const handleReprint = async (invoiceId) => {
 };
 
   const goToPage = (p) => p >= 1 && p <= totalPages && setPage(p);
-
-  return (
-    <div className="sold-container">
-      <div className="sold-header">
-        <h1>Invoice History</h1>
-        <div className="header-controls">
-          <div className="search-box">
-            <input type="search" placeholder="Search patient..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-          </div>
-          <div className="sold-filter-bar">
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="filter-select">
-              <option value="date-newest">Newest First</option>
-              <option value="date-oldest">Oldest First</option>
-              <option value="revenue-high">Highest Amount</option>
-              <option value="revenue-low">Lowest Amount</option>
-            </select>
-            <select value={month} onChange={(e) => setMonth(e.target.value)} className="filter-select">
-              <option value="all">All Months</option>
-              {Array.from({ length: 12 }, (_, i) => {
-                const d = new Date(); d.setMonth(d.getMonth() - i);
-                const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-                const label = d.toLocaleDateString("default", { month: "long", year: "numeric" });
-                return <option key={value} value={value}>{label}</option>;
-              })}
-            </select>
-          </div>
+ return (
+  <div className="invoice-container">
+    <div className="invoice-header">
+      <h1>Invoice History</h1>
+      <div className="invoice-header-controls">
+        <div className="invoice-search-box">
+          <input
+            type="search"
+            placeholder="Search patient..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+        </div>
+        <div className="invoice-filter-bar">
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="invoice-filter-select"
+          >
+            <option value="date-newest">Newest First</option>
+            <option value="date-oldest">Oldest First</option>
+            <option value="revenue-high">Highest Amount</option>
+            <option value="revenue-low">Lowest Amount</option>
+          </select>
+          <select
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            className="invoice-filter-select"
+          >
+            <option value="all">All Months</option>
+            {Array.from({ length: 12 }, (_, i) => {
+              const d = new Date();
+              d.setMonth(d.getMonth() - i);
+              const value = `${d.getFullYear()}-${String(
+                d.getMonth() + 1
+              ).padStart(2, "0")}`;
+              const label = d.toLocaleDateString("default", {
+                month: "long",
+                year: "numeric",
+              });
+              return (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              );
+            })}
+          </select>
         </div>
       </div>
-
-      <div className="summary-cards">
-        <div className="summary-card highlight">
-          <div className="summary-icon" style={{ color: "#27ae60" }}>
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
-          </div>
-          <div className="summary-content">
-            <h3>{search || month !== "all" ? "Filtered Revenue" : "Total Revenue"}</h3>
-            <p className="big-value">PKR {totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
-            <small className="summary-subtitle">{search ? `Search: "${search}"` : month !== "all" ? "Current month" : "All time"}</small>
-          </div>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="loader-container"><div className="spinner"></div><p>Loading...</p></div>
-      ) : invoices.length === 0 ? (
-        <div className="no-records"><h3>No invoices found</h3></div>
-      ) : (
-        <>
-          <div className="sold-table-wrapper">
-            <table className="sold-table">
-              <thead>
-                <tr>
-                  <th>Invoice No.</th>
-                  <th>Patient</th>
-                  <th>Date & Time</th>
-                  <th>Items</th>
-                  <th>Total</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoices.map((inv) => (
-                  <tr key={inv._id}>
-                    <td><strong>{inv.invoiceNumber}</strong></td>
-                    <td>{inv.patientName}</td>
-                    <td>{format(new Date(inv.soldAt), "dd MMM yyyy • hh:mm a")}</td>
-                    <td>{inv.items.length} item{inv.items.length > 1 ? "s" : ""}</td>
-                    <td className="highlight-total">PKR {Number(inv.totalRevenue).toFixed(2)}</td>
-                    <td>
-  <div className="invoice-actions">
-    <button onClick={() => handleReprint(inv._id)} className="invoice-btn print-btn">
-      Re-Print
-    </button>
-    <button 
-      onClick={() => handleDeleteInvoice(inv._id, inv.invoiceNumber)} 
-      className="invoice-btn delete-btn"  
-      title="Delete invoice"
-    >
-      Delete 
-    </button>
-  </div>
-</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {totalPages > 1 && (
-            <div className="pagination">
-              <button onClick={() => goToPage(page - 1)} disabled={page === 1} className="pagination-btn prev-next">←</button>
-              <div className="page-numbers">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  const p = page <= 3 ? i + 1 : page >= totalPages - 2 ? totalPages - 4 + i : page - 2 + i;
-                  if (p < 1 || p > totalPages) return null;
-                  return (
-                    <button key={p} onClick={() => goToPage(p)} className={`page-number ${p === page ? "active" : ""}`}>
-                      {p}
-                    </button>
-                  );
-                })}
-              </div>
-              <button onClick={() => goToPage(page + 1)} disabled={page === totalPages} className="pagination-btn prev-next">→</button>
-            </div>
-          )}
-        </>
-      )}
     </div>
-  );
+
+    <div className="invoice-summary-cards">
+      <div className="invoice-summary-card highlight">
+        <div className="invoice-summary-icon" style={{ color: "#27ae60" }}>
+          <MdAttachMoney />
+        </div>
+        <div className="invoice-summary-content">
+          <h3>
+            {search || month !== "all" ? "Filtered Revenue" : "Total Revenue"}
+          </h3>
+          <p className="invoice-big-value">
+            PKR{" "}
+            {totalRevenue.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+            })}
+          </p>
+          <small className="invoice-summary-subtitle">
+            {search
+              ? `Search: "${search}"`
+              : month !== "all"
+              ? "Current month"
+              : "All time"}
+          </small>
+        </div>
+      </div>
+    </div>
+
+    {loading ? (
+      <div className="invoice-loader-container">
+        <div className="invoice-spinner"></div>
+        <p>Loading...</p>
+      </div>
+    ) : invoices.length === 0 ? (
+      <div className="invoice-no-records">
+        <h3>No invoices found</h3>
+      </div>
+    ) : (
+      <>
+        <div className="invoice-table-wrapper">
+          <table className="invoice-table">
+            <thead>
+              <tr>
+                <th>Invoice No.</th>
+                <th>Patient</th>
+                <th>Date & Time</th>
+                <th>Items</th>
+                <th>Total</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {invoices.map((inv) => (
+                <tr key={inv._id}>
+                  <td>
+                    <strong>{inv.invoiceNumber}</strong>
+                  </td>
+                  <td>{inv.patientName}</td>
+                  <td>
+                    {format(new Date(inv.soldAt), "dd MMM yyyy • hh:mm a")}
+                  </td>
+                  <td>
+                    {inv.items.length} item{inv.items.length > 1 ? "s" : ""}
+                  </td>
+                  <td className="invoice-highlight-total">
+                    PKR {Number(inv.totalRevenue).toFixed(2)}
+                  </td>
+                  <td>
+                    <div className="invoice-actions">
+                      <button
+                        onClick={() => handleReprint(inv._id)}
+                        className="invoice-btn invoice-print-btn"
+                      >
+                        Re-Print
+                      </button>
+                      <button
+                        onClick={() =>
+                          handleDeleteInvoice(inv._id, inv.invoiceNumber)
+                        }
+                        className="invoice-btn invoice-delete-btn"
+                        title="Delete invoice"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {totalPages > 1 && (
+          <div className="invoice-pagination">
+            <button
+              onClick={() => goToPage(page - 1)}
+              disabled={page === 1}
+              className="invoice-pagination-btn prev-next"
+            >
+              ←
+            </button>
+            <div className="invoice-page-numbers">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const p =
+                  page <= 3
+                    ? i + 1
+                    : page >= totalPages - 2
+                    ? totalPages - 4 + i
+                    : page - 2 + i;
+                if (p < 1 || p > totalPages) return null;
+                return (
+                  <button
+                    key={p}
+                    onClick={() => goToPage(p)}
+                    className={`invoice-page-number ${
+                      p === page ? "active" : ""
+                    }`}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => goToPage(page + 1)}
+              disabled={page === totalPages}
+              className="invoice-pagination-btn prev-next"
+            >
+              →
+            </button>
+          </div>
+        )}
+      </>
+    )}
+  </div>
+);
+
 }
