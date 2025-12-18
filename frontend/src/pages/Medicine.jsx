@@ -200,6 +200,11 @@ const finalPatientAge =
       soldAt: new Date().toISOString(),
       soldBy: "Staff",
     };
+const invoiceWindow = window.open("", "_blank", "width=1000,height=900");
+if (!invoiceWindow) {
+  toast.error("Please allow popups for invoice printing");
+  return;
+}
 
     await printInvoice(saleData, {
   name: finalPatientName,
@@ -208,14 +213,14 @@ const finalPatientAge =
   phoneNumber: finalPatientPhone,
   cnic: finalPatientCNIC,
   age: finalPatientAge,
-});
+},invoiceWindow);
 
 
     toast.success(`Sold ${items.length} items & invoice generated!`);
     setShowBulkSellPopup(false);
     setBulkSellData({});
     fetchMedicines(currentPage);
-    navigate("/sold");
+    // navigate("/sold");
 
   } catch (error) {
     toast.error(error.message || "Bulk sale failed");
@@ -787,6 +792,11 @@ const finalPatientAge =
         return;
       }
     }
+const invoiceWindow = window.open("", "_blank", "width=1000,height=900");
+if (!invoiceWindow) {
+  toast.error("Please allow popups for invoice printing");
+  return;
+}
 
     await sellMedicine(currentMedicine._id, quantity, quantityType);
 
@@ -809,7 +819,7 @@ const finalPatientAge =
   phoneNumber: finalPatientPhone,
   cnic: finalPatientCNIC,
   age: finalPatientAge,
-});
+},invoiceWindow);
 
 
     toast.success("Sold & invoice generated!");
@@ -817,7 +827,7 @@ const finalPatientAge =
     setSellQuantity("");
     setQuantityType("packages");
     fetchMedicines(currentPage);
-    navigate("/sold");
+    // navigate("/sold");
 
   } catch (error) {
     toast.error(error.response?.data?.message || "Sale failed");

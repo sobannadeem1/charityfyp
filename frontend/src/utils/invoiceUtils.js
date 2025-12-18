@@ -10,7 +10,7 @@ const getUnitsPerPackage = (packSize) => {
 };
 
 // NOW ACCEPTS FULL PATIENT DETAILS OBJECT
-export const printInvoice = async (saleData, patientDetails = {}) => {
+export const printInvoice = async (saleData, patientDetails = {},win) => {
   const {
     name = "Walk-in Patient",
     gender = "",
@@ -45,6 +45,13 @@ export const printInvoice = async (saleData, patientDetails = {}) => {
 
       return type === "units" ? sum + qty * (price / units) : sum + qty * price;
     }, 0);
+    const targetWin = win || window.open("", "_blank", "width=1000,height=900");
+if (!targetWin) {
+  toast.error("Please allow popups for invoice printing");
+  return;
+}
+
+ 
 
   let savedInvoice = null;
 try {
@@ -250,10 +257,9 @@ try {
 </body>
 </html>`;
 
-    const win = window.open("", "_blank", "width=1000,height=900");
-    win.document.write(html);
-    win.document.close();
-    win.focus();
+  targetWin.document.write(html);
+targetWin.document.close();
+targetWin.focus();
 
     toast.success(`Invoice generated for ${nameToUse}`);
   } catch (error) {

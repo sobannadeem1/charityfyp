@@ -194,38 +194,41 @@ const totalPackages = activeMedicines.reduce((sum, m) => {
   };
 
   const chartOptions = {
-    responsive: true,
-    plugins: {
-      title: {
-        display: true,
-        text: "Top 5 Medicines by Stock",
-        font: { size: 18, weight: "bold" },
-        color: "#1f2937",
-      },
-      tooltip: {
-        callbacks: {
-          label: function (context) {
-            const item = top5[context.dataIndex];
-            if (item.type === "Bottles") {
-              return `${item.value} Bottles (${item.packages} × ${
-                item.originalUnits / item.packages
-              }ml each)`;
-            }
-            return `${item.value.toLocaleString()} Units (${
-              item.packages
-            } Packages)`;
-          },
+  responsive: true,
+  plugins: {
+    title: {
+      display: true,
+      text: "Top 5 Medicines by Stock",
+      font: { size: 18, weight: "bold" },
+      color: "#1f2937",
+    },
+    tooltip: {
+      callbacks: {
+        label: function (context) {
+          const item = top5[context.dataIndex];
+          if (item.type === "Bottles") {
+            return `${item.value} Bottles (${item.packages} × ${item.originalUnits / item.packages}ml each)`;
+          }
+          return `${item.value.toLocaleString()} Units (${item.packages} Packages)`;
         },
       },
-      legend: { display: false },
     },
-    scales: {
-      y: {
-        beginAtZero: true,
-        ticks: { stepSize: 1 },
+    legend: { display: false },
+  },
+  scales: {
+    y: {
+      beginAtZero: true,
+      ticks: {
+        autoSkip: true,
+        maxTicksLimit: 8,
+        callback: function(value) {
+          return value.toLocaleString();
+        },
       },
     },
-  };
+  },
+};
+
 
   return (
     <main className="dashboard">
@@ -250,13 +253,7 @@ const totalPackages = activeMedicines.reduce((sum, m) => {
             onClick={() => navigate("/expiring-soon")}
           />
 
-          {/* <HoverRollCard
-            title="Available Medicines"
-            value={readyForDistribution} // ← number
-            color="linear-gradient(135deg,#43e97b,#38f9d7)"
-            icon={<FaHandsHelping />}
-            onClick={() => navigate("/medicines")}
-          /> */}
+          
 
           <HoverRollCard
             title="Total Active Units"
