@@ -6,7 +6,8 @@ import router from "./routes/adminRoutes.js";
 import cookieParser from "cookie-parser";
 import medicineRouter from "./routes/medicineRoutes.js";
 import invoiceRouter from "./routes/invoiceRoutes.js";
-import Donation from "./routes/donationRoutes.js";
+import donationRoutes from "./routes/donationRoutes.js";
+import reportRoutes from "./routes/reportRoutes.js";
 
 dotenv.config();
 const app = express();
@@ -31,7 +32,8 @@ connectDB();
 app.use("/admin", router);
 app.use("/medicines", medicineRouter);
 app.use("/invoices", invoiceRouter);
-app.use("/donations", Donation); 
+app.use("/donations", donationRoutes); 
+app.use("/reports",reportRoutes ); 
 
 app.get("/", (req, res) => {
   res.send("✅ API is running fine...");

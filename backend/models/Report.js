@@ -1,32 +1,40 @@
+// models/Report.js
 import mongoose from "mongoose";
 
 const reportSchema = new mongoose.Schema(
   {
-    reportTitle: {
+    title: {
       type: String,
       required: true,
       trim: true,
     },
-    totalMedicines: {
-      type: Number,
-      default: 0,
+    type: {
+      type: String,
+      enum: [
+        "all_medicines",
+        "specific_medicine",
+        "expiry",
+        "low_stock",
+        "stock_summary",
+        "movement"
+      ],
+      required: true,
     },
-    soldMedicines: {
-      type: Number,
-      default: 0,
+    filters: {
+      type: mongoose.Schema.Types.Mixed,  // flexible – date range, medicine name, etc.
+      default: {},
     },
-    totalDonations: {
-      type: Number,
-      default: 0,
-    },
-    expiredMedicines: {
-      type: Number,
-      default: 0,
+    summary: {
+      type: mongoose.Schema.Types.Mixed,  // calculated numbers jaise totalValue, counts etc.
+      default: {},
     },
     generatedBy: {
-      type: String,
-      default: "Admin",
-    },
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Admin",
+  required: false,          
+},
+    // Optional extra fields
+    filePath: String,         // agar PDF/Excel server pe save kar rahe ho
     remarks: {
       type: String,
       trim: true,
