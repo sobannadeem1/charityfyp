@@ -59,7 +59,7 @@ export default function Header({ isAdmin, setIsAdmin }) {
           </div>
 
           <NavLink to="/donations">Donations</NavLink>
-          <NavLink to="/reports">Reports</NavLink>
+          {isAdmin && <NavLink to="/reports">Reports</NavLink>}
         </nav>
 
         {/* 🔹 Header Controls */}

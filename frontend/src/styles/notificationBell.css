@@ -20,8 +20,8 @@
 }
 
 .bell-icon:hover {
-  background-color: #f0f0f0;
-  color: #007bff;
+  background-color: rgba(255,255,255,0.15);
+  color: #4da3ff;
 }
 
 .notification-badge {
@@ -55,7 +55,32 @@
   overflow: hidden;
   margin-top: 0.625rem; /* 10px */
 }
+.notification-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
 
+.mark-all-read {
+  background: none;
+  border: none;
+  color: #007bff;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  transition: all 0.2s ease;
+}
+
+.mark-all-read:hover {
+  background: #f0f8ff;
+  color: #0056b3;
+}
+
+.mark-all-read:active {
+  transform: scale(0.96);
+}
 .notification-header {
   display: flex;
   justify-content: space-between;
@@ -77,8 +102,15 @@
   border: none;
   cursor: pointer;
   color: #666;
-  padding: 0.3125rem; /* 5px */
-  font-size: 1rem; /* 16px */
+  padding: 0.3125rem;
+  font-size: 1rem;
+  border-radius: 0.375rem;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background: #f0f0f0;
+  color: #333;
 }
 
 .notification-list {

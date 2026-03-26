@@ -11,10 +11,29 @@ export default function NotificationBell() {
     markAsRead,
     markAllAsRead,
     clearNotification,
+    checkExpiringMedicines,  
   } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
+const formatTime = (timestamp) => {
+  const date = new Date(timestamp);
+  return date.toLocaleString("en-PK", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+useEffect(() => {
+  const handleEscape = (e) => {
+    if (e.key === "Escape") {
+      setIsOpen(false);
+    }
+  };
 
+  document.addEventListener("keydown", handleEscape);
+  return () => document.removeEventListener("keydown", handleEscape);
+}, []);
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -27,13 +46,12 @@ export default function NotificationBell() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleBellClick = () => {
-    setIsOpen(!isOpen);
-    if (unreadCount > 0 && !isOpen) {
-      markAllAsRead();
-    }
-  };
-
+const handleBellClick = () => {
+  setIsOpen(!isOpen);
+  if (!isOpen) {
+    checkExpiringMedicines(); // refresh notifications
+  }
+};
   const getUrgencyColor = (daysLeft) => {
     if (daysLeft <= 3) return "#ff4444";
     if (daysLeft <= 7) return "#ffaa00";
@@ -60,11 +78,23 @@ export default function NotificationBell() {
       {isOpen && (
         <div className="notification-dropdown">
           <div className="notification-header">
-            <h3>Notifications</h3>
-            <button onClick={() => setIsOpen(false)} className="close-btn">
-              <FaTimes />
-            </button>
-          </div>
+  <h3>Notifications</h3>
+
+  <div className="notification-actions">
+    {unreadCount > 0 && (
+      <button
+        className="mark-all-read"
+        onClick={markAllAsRead}
+      >
+        Mark all read
+      </button>
+    )}
+
+    <button onClick={() => setIsOpen(false)} className="close-btn">
+      <FaTimes />
+    </button>
+  </div>
+</div>
 
           <div className="notification-list">
             {notifications.length === 0 ? (
@@ -79,7 +109,10 @@ export default function NotificationBell() {
                   className={`notification-item ${
                     notification.read ? "read" : "unread"
                   }`}
-                  onClick={() => markAsRead(notification.id)}
+                  onClick={(e) => {
+  e.stopPropagation();
+  markAsRead(notification.id);
+}}
                 >
                   <div className="notification-content">
                     <div className="notification-title">
@@ -100,10 +133,10 @@ export default function NotificationBell() {
                     <div className="notification-message">
                       {notification.message}
                     </div>
-                    <div className="notification-time">
-                      {new Date(notification.timestamp).toLocaleDateString()} •
-                      {new Date(notification.timestamp).toLocaleTimeString()}
-                    </div>
+                    
+                 <div className="notification-time">
+  {formatTime(notification.timestamp)}
+</div>
                   </div>
                   <button
                     className="delete-notification"

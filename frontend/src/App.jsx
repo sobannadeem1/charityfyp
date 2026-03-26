@@ -1,26 +1,33 @@
-// App.jsx — FINAL FIXED VERSION
+// App.jsx — FINAL PRODUCTION VERSION
 import React, { useState, useEffect, lazy, Suspense } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+
 import Medicines from "./pages/Medicine";
 import Donations from "./pages/Donation";
 import Reports from "./pages/Report";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
-import { NotificationProvider } from "./context/NotificationContext"; // ← ADD THIS
+
+import { NotificationProvider } from "./context/NotificationContext";
 import { getCurrentAdmin } from "./api/medicineapi";
-const InvoiceHistory = lazy(() => import("./pages/InvoiceHistory"));
+
 import "./index.css";
 import "./App.css";
 
 // Lazy load heavy pages
 const SoldMedicines = lazy(() => import("./pages/SoldMedicine"));
 const ExpiringSoon = lazy(() => import("./pages/ExpiringSoon"));
+const InvoiceHistory = lazy(() => import("./pages/InvoiceHistory"));
 
 const App = () => {
-  const [isAdmin, setIsAdmin] = useState(null); // ← null = loading, not false!
+  const [isAdmin, setIsAdmin] = useState(null);
 
+  // ────────────────────────────────────────────────
+  // Check Authentication
+  // ────────────────────────────────────────────────
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -30,10 +37,13 @@ const App = () => {
         setIsAdmin(false);
       }
     };
+
     checkAuth();
   }, []);
 
-  // Show nothing or a loader until we know auth status
+  // ────────────────────────────────────────────────
+  // Loading Screen
+  // ────────────────────────────────────────────────
   if (isAdmin === null) {
     return (
       <div className="loader-container">
@@ -44,8 +54,6 @@ const App = () => {
 
   return (
     <NotificationProvider>
-      {" "}
-      {/* ← ALWAYS MOUNTED */}
       <Router>
         <div className="app-container">
           <Header isAdmin={isAdmin} setIsAdmin={setIsAdmin} />
@@ -59,25 +67,49 @@ const App = () => {
               }
             >
               <Routes>
+                
+                {/* Public Routes */}
                 <Route path="/" element={<Home />} />
+
                 <Route
                   path="/medicines"
                   element={<Medicines isAdmin={isAdmin} />}
                 />
+
                 <Route
                   path="/donations"
                   element={<Donations isAdmin={isAdmin} />}
                 />
-                <Route path="/reports" element={<Reports />} />
+
                 <Route
                   path="/login"
                   element={<Login setIsAdmin={setIsAdmin} />}
                 />
 
-                {/* These pages use notifications → must be inside NotificationProvider */}
                 <Route path="/expiring-soon" element={<ExpiringSoon />} />
-                {isAdmin && <Route path="/invoices" element={<InvoiceHistory />} />}
-                {isAdmin && <Route path="/sold" element={<SoldMedicines />} />}
+
+                {/* ──────────────────────────────────────────────── */}
+                {/* Admin Protected Routes */}
+                {/* ──────────────────────────────────────────────── */}
+
+                <Route
+                  path="/reports"
+                  element={isAdmin ? <Reports /> : <Navigate to="/login" />}
+                />
+
+                <Route
+                  path="/invoices"
+                  element={isAdmin ? <InvoiceHistory /> : <Navigate to="/login" />}
+                />
+
+                <Route
+                  path="/sold"
+                  element={isAdmin ? <SoldMedicines /> : <Navigate to="/login" />}
+                />
+
+                {/* 404 fallback */}
+                <Route path="*" element={<Navigate to="/" />} />
+
               </Routes>
             </Suspense>
           </main>

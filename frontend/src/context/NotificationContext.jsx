@@ -45,61 +45,61 @@ export const NotificationProvider = ({ children }) => {
     setUnreadCount(unread);
   }, [notifications]);
 
-  // Check for expiring medicines - BUT respect existing notifications
   const checkExpiringMedicines = async () => {
-    try {
-      console.log("🔍 Checking expiring medicines...");
-      const res = await getAllMedicines();
-      const medicines = Array.isArray(res) ? res : res.data || [];
+  try {
+    console.log("🔍 Checking expiring medicines...");
+    const res = await getAllMedicines();
+    const medicines = Array.isArray(res) ? res : res.data || [];
 
-      const today = new Date();
-      const expiringSoon = medicines.filter((med) => {
-        if (!med.expiry) return false;
-        const expiryDate = new Date(med.expiry);
-        const daysLeft = Math.ceil(
-          (expiryDate - today) / (1000 * 60 * 60 * 24)
-        );
-        return daysLeft <= 7 && daysLeft >= 0;
-      });
+    const today = new Date();
 
-      console.log("🔍 Found expiring medicines:", expiringSoon.length);
+    const expiringSoon = medicines.filter((med) => {
+      if (!med.expiry) return false;
 
-      let newNotificationsCount = 0;
+      const expiryDate = new Date(med.expiry);
+      const daysLeft = Math.ceil(
+        (expiryDate - today) / (1000 * 60 * 60 * 24)
+      );
 
-      // Create notifications ONLY for NEW expiring medicines
-      expiringSoon.forEach((med) => {
-        const expiryDate = new Date(med.expiry);
-        const daysLeft = Math.ceil(
-          (expiryDate - today) / (1000 * 60 * 60 * 24)
-        );
+      return daysLeft <= 7 && daysLeft >= 0;
+    });
 
-        // ✅ Check if notification already exists
-        const notificationExists = notifications.some(
+    console.log("🔍 Found expiring medicines:", expiringSoon.length);
+
+    expiringSoon.forEach((med) => {
+      const expiryDate = new Date(med.expiry);
+
+      const daysLeft = Math.ceil(
+        (expiryDate - today) / (1000 * 60 * 60 * 24)
+      );
+
+      setNotifications((prev) => {
+        const exists = prev.some(
           (n) => n.medicineId === med._id && n.type === "expiry"
         );
 
-        if (!notificationExists) {
-          console.log("➕ Adding new notification for:", med.name);
-          addNotification({
-            type: "expiry",
-            title: "Medicine Expiring Soon",
-            message: `${
-              med.name
-            } expires in ${daysLeft} days (${expiryDate.toLocaleDateString()})`,
-            medicineId: med._id,
-            expiryDate: med.expiry,
-            daysLeft,
-            read: false,
-          });
-          newNotificationsCount++;
-        }
-      });
+        if (exists) return prev;
 
-      console.log(`✅ Added ${newNotificationsCount} new notifications`);
-    } catch (error) {
-      console.error("Error checking expiring medicines:", error);
-    }
-  };
+        const newNotification = {
+          id: Date.now() + Math.random(),
+          type: "expiry",
+          title: "Medicine Expiring Soon",
+          message: `${med.name} expires in ${daysLeft} days (${expiryDate.toLocaleDateString()})`,
+          medicineId: med._id,
+          expiryDate: med.expiry,
+          daysLeft,
+          read: false,
+          timestamp: new Date(),
+        };
+
+        return [newNotification, ...prev];
+      });
+    });
+
+  } catch (error) {
+    console.error("Error checking expiring medicines:", error);
+  }
+};
 
   // Run on component mount - but only once
   useEffect(() => {
