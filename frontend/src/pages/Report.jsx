@@ -31,9 +31,7 @@ export default function Report() {
   const abortControllerRef = useRef(null);
   const tableSectionRef = useRef(null);
 
-  // ────────────────────────────────────────────────
-  // Date preset auto-fill
-  // ────────────────────────────────────────────────
+  
   useEffect(() => {
     const today = new Date();
     let start = "";
@@ -54,9 +52,13 @@ export default function Report() {
       setFromDate(start);
       setToDate(new Date().toISOString().split("T")[0]);
     } else if (datePreset === "this-month") {
-      start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
-      setFromDate(start);
-      setToDate(new Date().toISOString().split("T")[0]);
+     const start = new Date();
+start.setDate(1);
+start.setHours(0, 0, 0, 0);
+
+setFromDate(start.toISOString().split("T")[0]);
+setToDate(new Date().toISOString().split("T")[0]);
+      
     } else if (datePreset === "last-month") {
       const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
       const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
@@ -79,20 +81,28 @@ export default function Report() {
     setReportData(null);
 
     try {
-      let response;
+    let response;
+    const cleanSearch = search.trim();
 
-      if (reportType === "all") {
-        response = await getAllStockReport({
-          search: search.trim() || undefined,
-          category: category || undefined,
-          status: statusFilter || undefined,
-         fromDate: fromDate || undefined, 
-  toDate: toDate || undefined,   
-          signal: abortControllerRef.current.signal,
-        });
-      } else if (reportType === "specific" && search.trim()) {
-        response = await getSpecificMedicineReport(search.trim());
-      } else if (reportType === "expiry") {
+    if (reportType === "all") {
+      response = await getAllStockReport({
+        search: cleanSearch || undefined,
+        category: category || undefined,
+        status: statusFilter || undefined,
+        fromDate: fromDate || undefined, 
+        toDate: toDate || undefined,   
+        signal: abortControllerRef.current.signal,
+      });
+    } 
+    else if (reportType === "specific") {
+  if (!cleanSearch) {
+    setError("Please enter a Medicine Name/ID");
+    setLoading(false);
+    return;
+  }
+
+  response = await getSpecificMedicineReport(cleanSearch);
+}else if (reportType === "expiry") {
         response = await getExpiryReport(90);
       } else if (reportType === "low-stock") {
         response = await getLowStockReport(50);
@@ -107,10 +117,14 @@ export default function Report() {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
+useEffect(() => {
+  const timer = setTimeout(() => {
     fetchReport();
-  }, [reportType, search, category, statusFilter, fromDate, toDate]);
+  }, 400);
+
+  return () => clearTimeout(timer);
+}, [reportType, search, category, statusFilter, fromDate, toDate]);
+ 
 
   // ────────────────────────────────────────────────
   // PDF Export
@@ -326,11 +340,17 @@ export default function Report() {
         </tr>
       ));
     }
-
-    if (rows.length === 0) {
-      return <div className="rn-no-data">No matching records found</div>;
-    }
-
+if (rows.length === 0) {
+  return (
+    <div className="rn-no-data">
+      <div className="rn-no-data-card">
+        <div className="rn-no-data-icon">📦</div>
+        <h3>No Data Found</h3>
+        <p>Try adjusting your filters or search criteria</p>
+      </div>
+    </div>
+  );
+}
     return (
       <div className="rn-table-wrapper">
         <table className="rn-data-table">
@@ -436,6 +456,7 @@ export default function Report() {
           <button className="rn-btn rn-btn-excel" onClick={exportExcel} disabled={loading || !reportData}>
             Export Excel
           </button>
+         
         </div>
       </div>
 

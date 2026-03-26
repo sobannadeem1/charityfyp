@@ -46,56 +46,57 @@ export const getAllStockReport = async (req, res) => {
       query.category = category;
     }
 
-    // 🔥 DATE RANGE FILTER (yeh missing tha)
-    if (fromDate || toDate) {
-      query.updatedAt = {};
+  if (fromDate || toDate) {
+  query.createdAt = {};
 
-      if (fromDate) {
-        const start = new Date(fromDate);
-        start.setHours(0, 0, 0, 0);
-        query.updatedAt.$gte = start;
-      }
+  if (fromDate) {
+    const start = new Date(fromDate);
+    start.setHours(0, 0, 0, 0);
+    query.createdAt.$gte = start;
+  }
 
-      if (toDate) {
-        const end = new Date(toDate);
-        end.setHours(23, 59, 59, 999);   // full day tak
-        query.updatedAt.$lte = end;
-      }
-    }
-
+  if (toDate) {
+    const end = new Date(toDate);
+    end.setHours(23, 59, 59, 999);
+    query.createdAt.$lte = end;
+  }
+}
     const medicines = await Medicine.find(query)
-      .select("name category packSize strength expiry unitsAvailable unitsPerPackage purchasePrice salePrice updatedAt")
+      .select("name category packSize strength expiry unitsAvailable unitsPerPackage purchasePrice salePrice")
       .sort({ name: 1 })
       .skip((Number(page) - 1) * Number(limit))
       .limit(Number(limit))
       .lean();
 
     // Enrich data
-    const enrichedMedicines = medicines.map((med) => ({
+    let enrichedMedicines = medicines.map((med) => ({
       ...med,
       status: getMedicineStatus(med),
       totalValue: med.unitsAvailable * med.salePrice,
       expiryFormatted: med.expiry ? new Date(med.expiry).toLocaleDateString() : "-",
     }));
+   if (status && status !== "") {
+  enrichedMedicines = enrichedMedicines.filter(
+    (m) => m.status === status
+  );
+}
 
-    const totalStockValue = enrichedMedicines.reduce((sum, m) => sum + m.totalValue, 0);
 
-    const summary = {
-      totalMedicines: enrichedMedicines.length,
-      totalStockValue: Math.round(totalStockValue),
-      lowStockCount: enrichedMedicines.filter(m => m.status === "Low Stock").length,
-      nearExpiryCount: enrichedMedicines.filter(m => m.status === "Near Expiry").length,
-      expiredCount: enrichedMedicines.filter(m => m.status === "Expired").length,
-      outOfStockCount: enrichedMedicines.filter(m => m.status === "Out of Stock").length,
-    };
+   const summary = {
+  totalMedicines: enrichedMedicines.length,
+  totalStockValue: enrichedMedicines.reduce((sum, m) => sum + m.totalValue, 0),
+  lowStockCount: enrichedMedicines.filter(m => m.status === "Low Stock").length,
+  nearExpiryCount: enrichedMedicines.filter(m => m.status === "Near Expiry").length,
+  expiredCount: enrichedMedicines.filter(m => m.status === "Expired").length,
+};
 
     // Save report
     const savedReport = await new Report({
-      title: `Stock Report ${fromDate ? `(${fromDate} to ${toDate})` : ""}`,
+      title: `All Medicines Stock Report ${new Date().toLocaleDateString()}`,
       type: "all_medicines",
-      filters: { search, category, status, fromDate, toDate, page, limit },
+      filters: { search, category, page, limit },
       summary,
-      generatedBy: req.admin?._id,
+      generatedBy: req.admin._id,
     }).save();
 
     return res.status(200).json({
@@ -106,7 +107,7 @@ export const getAllStockReport = async (req, res) => {
       pagination: {
         page: Number(page),
         limit: Number(limit),
-        total: await Medicine.countDocuments(query),
+      total: enrichedMedicines.length
       },
     });
   } catch (error) {
@@ -126,7 +127,9 @@ export const getSpecificMedicineReport = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const medicine = await Medicine.findById(id);
+    const medicine = await Medicine.findOne({
+  name: { $regex: id, $options: "i" }
+});
 
     if (!medicine) {
       return res.status(404).json({
