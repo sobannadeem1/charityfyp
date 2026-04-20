@@ -181,23 +181,48 @@ const handleReprint = async (invoiceId) => {
       return;
     }
 
+    const isCountableCategory = (category) => {
+      const countable = ["Tablet", "Capsule", "Injection"];
+      return countable.includes((category || "").trim());
+    };
+
+    const getUnitsPerPackage = (packSize) => {
+      if (!packSize) return 1;
+      const match = packSize.toString().match(/\b(\d+)\b/);
+      return match ? parseInt(match[1]) : 1;
+    };
+
     const itemsRows = invoice.items
       .map((item) => {
-        const unitsPerPackage = item.packSize ? (item.packSize.toString().match(/\b(\d+)\b/)?.[1] || 1) : 1;
-        const isUnits = item.sellType === "units";
-        const displayQty = isUnits
-          ? `${item.quantitySold} units`
-          : `${item.quantitySold} package${item.quantitySold > 1 ? "s" : ""}`;
-        const subText = isUnits
-          ? `≈ ${(item.quantitySold / unitsPerPackage).toFixed(1)} packages`
-          : item.quantitySold * unitsPerPackage > 1
-          ? `= ${item.quantitySold * unitsPerPackage} units`
-          : "";
+        const unitsPerPackage = getUnitsPerPackage(item.packSize);
+
+        // Robust sellType check
+        const sellType = (item.originalSellType || item.sellType || "packages").toLowerCase();
+        const isUnits = sellType === "units";
+        const isCountable = isCountableCategory(item.category);
+
+        let qtyHtml = "";
+
+        if (isCountable) {
+          if (isUnits) {
+            qtyHtml = `
+              <div class="qty-main">${item.quantitySold} units</div>
+              <small class="qty-sub blue">≈ ${(item.quantitySold / unitsPerPackage).toFixed(1)} packages</small>`;
+          } else {
+            qtyHtml = `
+              <div class="qty-main">${item.quantitySold} packages</div>
+              <small class="qty-sub green">= ${item.quantitySold * unitsPerPackage} units</small>`;
+          }
+        } else {
+          qtyHtml = `
+            <div class="qty-main">${item.quantitySold} packages</div>
+            <small class="qty-sub">${item.packSize || "Standard Pack"}</small>`;
+        }
+
         const unitPrice = isUnits
           ? (item.salePrice / unitsPerPackage).toFixed(2)
           : item.salePrice.toFixed(2);
 
-        // USE SAVED TOTAL — NO RECALCULATION!
         const total = Number(item.totalAmount || 0).toFixed(2);
 
         return `
@@ -207,8 +232,7 @@ const handleReprint = async (invoiceId) => {
               <div class="item-pack">${item.packSize || "Standard Pack"}${item.strength ? ` • ${item.strength}` : ""}</div>
             </td>
             <td class="item-qty">
-              <div class="qty-main">${displayQty}</div>
-              ${subText ? `<small class="qty-sub ${isUnits ? 'blue' : 'green'}">(${subText})</small>` : ""}
+              ${qtyHtml}
             </td>
             <td class="item-unit">
               PKR ${unitPrice}
@@ -219,7 +243,6 @@ const handleReprint = async (invoiceId) => {
       })
       .join("");
 
-    // USE SAVED TOTAL FROM DB — FINAL TRUTH
     const grandTotal = Number(invoice.totalRevenue || 0).toFixed(2);
 
     const printHTML = `<!DOCTYPE html>
@@ -239,8 +262,7 @@ const handleReprint = async (invoiceId) => {
     .header h1 { font-size: 2.2rem; font-weight: 700; }
     .header h2 { font-size: 1.3rem; opacity: 0.95; }
     .invoice-id { margin-top: 1rem; background: rgba(255,255,255,0.25); border-radius: 2rem; padding: 0.6rem 1.5rem; font-size: 1rem; display: inline-block; font-weight: 600; }
-    .info { display: grid; grid-template-columns: repeat(3, 1fr);
- gap: 2rem; background: #f0f8ff; padding: 2rem 2.5rem; }
+    .info { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; background: #f0f8ff; padding: 2rem 2.5rem; }
     .info-box { background: var(--white); border-left: 0.4rem solid var(--primary); border-radius: 1rem; padding: 1.4rem; box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.1); }
     .info-box strong { display: block; font-size: 0.8rem; color: var(--text-light); text-transform: uppercase; margin-bottom: 0.4rem; }
     .info-box div { font-size: 1rem; font-weight: 600; }
@@ -251,6 +273,8 @@ const handleReprint = async (invoiceId) => {
     th:nth-child(2), td:nth-child(2) { text-align: center; width: 25%; }
     th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4) { text-align: right; width: 20%; }
     td:first-child { width: 35%; }
+    .qty-sub.blue { color: #2563eb; }
+    .qty-sub.green { color: #16a34a; }
     .total-row td { background: linear-gradient(135deg, var(--success), var(--success-light)); color: white; padding: 2rem 1.2rem !important; font-size: 1.5rem !important; font-weight: 700; text-align: right; }
     .print-area { text-align: center; padding: 2.5rem; background: #f8f9fa; }
     .print-btn { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: var(--white); border: none; padding: 1rem 3rem; font-size: 1.1rem; border-radius: 2rem; cursor: pointer; font-weight: 600; }
@@ -261,52 +285,26 @@ const handleReprint = async (invoiceId) => {
 <body>
   <div class="container">
     <div class="header">
-  <img src="${charityLogo}" alt="Noor Sardar HealthCare Logo" 
-       style="height: 85px; max-width: 220px; object-fit: contain; background: white; padding: 0.5rem; border-radius: 0.8rem;" />
-  <h1>Noor Sardar HealthCare Center</h1>
-  <h2>MEDICINE SALES INVOICE</h2>
-  <div class="invoice-id">Invoice #${invoice.invoiceNumber}</div>
-</div>
-
-<div class="info">
-  <div class="info-box">
-    <strong>Patient Name</strong>
-    <div class="patient-name">${invoice.patientName || "Walk-in Patient"}</div>
-  </div>
-  <div class="info-box">
-    <strong>Gender</strong>
-    <div>${invoice.patientGender || "Not Specified"}</div>
-  </div>
-  <div class="info-box">
-    <strong>Address</strong>
-    <div>${invoice.patientAddress || "Not Provided"}</div>
-  </div>
-  <div class="info-box">
-  <strong>Phone Number</strong>
-  <div>${invoice.phoneNumber || "Not Provided"}</div>
-</div>
-<div class="info-box">
-  <strong>CNIC</strong>
-  <div>${invoice.cnic || "Not Provided"}</div>
-</div>
-<div class="info-box">
-  <strong>Age</strong>
-  <div>${invoice.age !== undefined ? invoice.age : "Not Provided"}</div>
-</div>
-
-  <div class="info-box">
-    <strong>Sale Date & Time</strong>
-    <div>
-      ${new Date(invoice.soldAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}<br>
-      ${new Date(invoice.soldAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}
+      <img src="${charityLogo}" alt="Noor Sardar HealthCare Logo" 
+           style="height: 85px; max-width: 220px; object-fit: contain; background: white; padding: 0.5rem; border-radius: 0.8rem;" />
+      <h1>Noor Sardar HealthCare Center</h1>
+      <h2>MEDICINE SALES INVOICE</h2>
+      <div class="invoice-id">Invoice #${invoice.invoiceNumber}</div>
     </div>
-  </div>
-  <div class="info-box">
-    <strong>Served By</strong>
-    <div>${invoice.soldBy || "Admin"}</div>
-  </div>
-</div>
 
+    <div class="info">
+      <div class="info-box"><strong>Patient Name</strong><div class="patient-name">${invoice.patientName || "Walk-in Patient"}</div></div>
+      <div class="info-box"><strong>Gender</strong><div>${invoice.patientGender || "Not Specified"}</div></div>
+      <div class="info-box"><strong>Address</strong><div>${invoice.patientAddress || "Not Provided"}</div></div>
+      <div class="info-box"><strong>Phone Number</strong><div>${invoice.phoneNumber || "Not Provided"}</div></div>
+      <div class="info-box"><strong>CNIC</strong><div>${invoice.cnic || "Not Provided"}</div></div>
+      <div class="info-box"><strong>Age</strong><div>${invoice.age !== undefined ? invoice.age : "Not Provided"}</div></div>
+      <div class="info-box"><strong>Sale Date & Time</strong>
+        <div>${new Date(invoice.soldAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}<br>
+        ${new Date(invoice.soldAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}</div>
+      </div>
+      <div class="info-box"><strong>Served By</strong><div>${invoice.soldBy || "Admin"}</div></div>
+    </div>
 
     <table>
       <thead>
@@ -320,10 +318,7 @@ const handleReprint = async (invoiceId) => {
       <tbody>
         ${itemsRows}
         <tr class="total-row">
-          <td colspan="3">
-            GRAND TOTAL
-            ${invoice.items.length > 1 ? `<div class="items-note">(${invoice.items.length} items)</div>` : ""}
-          </td>
+          <td colspan="3">GRAND TOTAL ${invoice.items.length > 1 ? `(${invoice.items.length} items)` : ""}</td>
           <td>PKR ${grandTotal}</td>
         </tr>
       </tbody>

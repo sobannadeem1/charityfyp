@@ -21,34 +21,37 @@ export const createInvoice = async (req, res) => {
       });
     }
 
-    // Process items
-    const processedItems = items.map(item => {
-      let totalAmount = Number(item.totalAmount || 0);
+  // Process items
+const processedItems = items.map(item => {
+  let totalAmount = Number(item.totalAmount || 0);
 
-      if (!totalAmount || totalAmount <= 0) {
-        const unitsPerPack = item.packSize
-          ? (item.packSize.toString().match(/\b(\d+)\b/)?.[1] || 1)
-          : 1;
-        const isUnits =
-          (item.originalSellType || item.sellType || "packages") === "units";
-        totalAmount = isUnits
-          ? (item.salePrice / unitsPerPack) * item.quantitySold
-          : item.salePrice * item.quantitySold;
-      }
+  const rawSellType = item.originalSellType || item.sellType || "packages";
+  const isUnits = rawSellType === "units";
 
-      return {
-        medicine: item.medicine || null,
-        name: item.name || "Unknown Medicine",
-        category: item.category || "",
-        manufacturer: item.manufacturer || "",
-        strength: item.strength || "",
-        packSize: item.packSize || "Standard",
-        sellType: item.originalSellType || item.sellType || "packages",
-        quantitySold: Number(item.quantitySold || 0),
-        salePrice: Number(item.salePrice || 0),
-        totalAmount: Number(totalAmount.toFixed(2)),
-      };
-    });
+  if (!totalAmount || totalAmount <= 0) {
+    const unitsPerPack = item.packSize
+      ? (item.packSize.toString().match(/\b(\d+)\b/)?.[1] || 1)
+      : 1;
+
+    totalAmount = isUnits
+      ? (item.salePrice / unitsPerPack) * Number(item.quantitySold || 0)
+      : item.salePrice * Number(item.quantitySold || 0);
+  }
+
+  return {
+    medicine: item.medicine || null,
+    name: item.name || "Unknown Medicine",
+    category: item.category || "",
+    manufacturer: item.manufacturer || "",
+    strength: item.strength || "",
+    packSize: item.packSize || "Standard",
+    sellType: isUnits ? "units" : "packages",           // Force clean value
+    originalSellType: rawSellType,                     // Save original too
+    quantitySold: Number(item.quantitySold || 0),
+    salePrice: Number(item.salePrice || 0),
+    totalAmount: Number(totalAmount.toFixed(2)),
+  };
+});
 
     const totalRevenue = processedItems.reduce((sum, i) => sum + i.totalAmount, 0);
 

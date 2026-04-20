@@ -1,27 +1,91 @@
-// controllers/reportsController.js
+
 
 import Medicine from "../models/Medicine.js";
 import Report from "../models/Report.js";
 
-// Helper function to calculate medicine status
+
+// === EXACT SAME HELPER AS IN MEDICINE CONTROLLER ===
+const extractUnitsFromPackSize = (packSize) => {
+  if (!packSize || packSize === "") {
+    return 1;
+  }
+
+  const packSizeStr = packSize.toString().trim().toLowerCase();
+
+  if (/^\d+$/.test(packSizeStr)) {
+    return parseInt(packSizeStr);
+  }
+
+  const unitPatterns = [
+    { pattern: /(\d+)\s*tablets?/ },
+    { pattern: /(\d+)\s*capsules?/ },
+    { pattern: /(\d+)\s*pills?/ },
+    { pattern: /(\d+)\s*strips?/ },
+    { pattern: /(\d+)\s*ml/ },
+    { pattern: /(\d+)\s*vials?/ },
+    { pattern: /(\d+)\s*bottles?/ },
+    { pattern: /(\d+)\s*sachets?/ },
+    { pattern: /(\d+)\s*tubes?/ },
+    { pattern: /(\d+)\s*pieces?/ },
+    { pattern: /(\d+)\s*units?/ },
+    { pattern: /(\d+)\s*ct/ },
+    { pattern: /(\d+)\s*count/ },
+    { pattern: /(\d+)\s*pk/ },
+    { pattern: /(\d+)\s*pack/ },
+    { pattern: /(\d+)x\d+/ },
+    { pattern: /(\d+)\s*mg/ },
+    { pattern: /(\d+)\s*g/ },
+  ];
+
+  for (const unitPattern of unitPatterns) {
+    const match = packSizeStr.match(unitPattern.pattern);
+    if (match && match[1]) {
+      return parseInt(match[1]);
+    }
+  }
+
+  const fallbackMatch = packSizeStr.match(/(\d+)/);
+  if (fallbackMatch && fallbackMatch[1]) {
+    return parseInt(fallbackMatch[1]);
+  }
+
+  return 1;
+};
+
+// === SAME PACKAGES CALCULATION AS sellMedicine & updateMedicine ===
+const calculatePackagesAvailable = (unitsAvailable, unitsPerPackage) => {
+  return Math.ceil(Number(unitsAvailable) / Number(unitsPerPackage || 1));
+};
+
+// === CONSISTENT STATUS ===
 const getMedicineStatus = (medicine) => {
-  if (medicine.unitsAvailable === 0) return "Out of Stock";
-  if (medicine.unitsAvailable < 50) return "Low Stock";
+  if (!medicine) return "Unknown";
 
-  const expiryDate = new Date(medicine.expiry);
+  const unitsAvailable = Number(medicine.unitsAvailable || 0);
+
+  if (unitsAvailable <= 0) return "Out of Stock";
+
   const today = new Date();
-  const nearExpiryThreshold = new Date(today);
-  nearExpiryThreshold.setDate(today.getDate() + 90); // 90 days warning
+  today.setHours(0, 0, 0, 0);
 
-  if (expiryDate < today) return "Expired";
-  if (expiryDate <= nearExpiryThreshold) return "Near Expiry";
+  const expiryDate = medicine.expiry ? new Date(medicine.expiry) : null;
+  if (expiryDate) expiryDate.setHours(0, 0, 0, 0);
+
+  if (expiryDate && expiryDate < today) return "Expired";
+
+  if (unitsAvailable < 50) return "Low Stock";
+
+  if (expiryDate) {
+    const nearExpiryThreshold = new Date(today);
+    nearExpiryThreshold.setDate(today.getDate() + 90);
+    if (expiryDate <= nearExpiryThreshold) return "Near Expiry";
+  }
 
   return "Good";
 };
 
 // ────────────────────────────────────────────────
-// 1. All Medicines Stock Report (with Date Range)
-// GET /api/reports/stock
+// UPDATED: getAllStockReport (Only this function changed)
 export const getAllStockReport = async (req, res) => {
   try {
     const { 
@@ -36,31 +100,28 @@ export const getAllStockReport = async (req, res) => {
 
     let query = {};
 
-    // Search by name
     if (search) {
       query.name = { $regex: search.trim(), $options: "i" };
     }
 
-    // Category filter
     if (category && category !== "All") {
       query.category = category;
     }
 
-  if (fromDate || toDate) {
-  query.createdAt = {};
+    if (fromDate || toDate) {
+      query.createdAt = {};
+      if (fromDate) {
+        const start = new Date(fromDate);
+        start.setHours(0, 0, 0, 0);
+        query.createdAt.$gte = start;
+      }
+      if (toDate) {
+        const end = new Date(toDate);
+        end.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = end;
+      }
+    }
 
-  if (fromDate) {
-    const start = new Date(fromDate);
-    start.setHours(0, 0, 0, 0);
-    query.createdAt.$gte = start;
-  }
-
-  if (toDate) {
-    const end = new Date(toDate);
-    end.setHours(23, 59, 59, 999);
-    query.createdAt.$lte = end;
-  }
-}
     const medicines = await Medicine.find(query)
       .select("name category packSize strength expiry unitsAvailable unitsPerPackage purchasePrice salePrice")
       .sort({ name: 1 })
@@ -68,29 +129,34 @@ export const getAllStockReport = async (req, res) => {
       .limit(Number(limit))
       .lean();
 
-    // Enrich data
-    let enrichedMedicines = medicines.map((med) => ({
-      ...med,
-      status: getMedicineStatus(med),
-      totalValue: med.unitsAvailable * med.salePrice,
-      expiryFormatted: med.expiry ? new Date(med.expiry).toLocaleDateString() : "-",
-    }));
-   if (status && status !== "") {
-  enrichedMedicines = enrichedMedicines.filter(
-    (m) => m.status === status
-  );
-}
+        // === FIXED ENRICHMENT - Use packagesAvailable properly ===
+    let enrichedMedicines = medicines.map((med) => {
+      const unitsPerPackage = med.unitsPerPackage || extractUnitsFromPackSize(med.packSize);
+      const packagesAvailable = calculatePackagesAvailable(med.unitsAvailable, unitsPerPackage);
 
+      return {
+        ...med,
+        unitsPerPackage,
+        packagesAvailable,          
+        quantity: packagesAvailable, 
+        status: getMedicineStatus(med),
+        totalValue: Number(med.unitsAvailable || 0) * Number(med.salePrice || 0),
+        expiryFormatted: med.expiry ? new Date(med.expiry).toLocaleDateString() : "-",
+      };
+    });
 
-   const summary = {
-  totalMedicines: enrichedMedicines.length,
-  totalStockValue: enrichedMedicines.reduce((sum, m) => sum + m.totalValue, 0),
-  lowStockCount: enrichedMedicines.filter(m => m.status === "Low Stock").length,
-  nearExpiryCount: enrichedMedicines.filter(m => m.status === "Near Expiry").length,
-  expiredCount: enrichedMedicines.filter(m => m.status === "Expired").length,
-};
+    if (status && status !== "") {
+      enrichedMedicines = enrichedMedicines.filter((m) => m.status === status);
+    }
 
-    // Save report
+    const summary = {
+      totalMedicines: enrichedMedicines.length,
+      totalStockValue: enrichedMedicines.reduce((sum, m) => sum + m.totalValue, 0),
+      lowStockCount: enrichedMedicines.filter(m => m.status === "Low Stock").length,
+      nearExpiryCount: enrichedMedicines.filter(m => m.status === "Near Expiry").length,
+      expiredCount: enrichedMedicines.filter(m => m.status === "Expired").length,
+    };
+
     const savedReport = await new Report({
       title: `All Medicines Stock Report ${new Date().toLocaleDateString()}`,
       type: "all_medicines",
@@ -107,7 +173,7 @@ export const getAllStockReport = async (req, res) => {
       pagination: {
         page: Number(page),
         limit: Number(limit),
-      total: enrichedMedicines.length
+        total: enrichedMedicines.length
       },
     });
   } catch (error) {
@@ -119,7 +185,6 @@ export const getAllStockReport = async (req, res) => {
     });
   }
 };
-
 // ────────────────────────────────────────────────
 // 2. Specific Medicine Detailed Report
 // GET /api/reports/medicine/:id
@@ -177,9 +242,7 @@ export const getSpecificMedicineReport = async (req, res) => {
   }
 };
 
-// ────────────────────────────────────────────────
-// 3. Expiry Report (Near Expiry + Expired)
-// GET /api/reports/expiry
+
 export const getExpiryReport = async (req, res) => {
   try {
     const { days = 90 } = req.query; // Near expiry threshold in days

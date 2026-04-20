@@ -200,6 +200,11 @@ export default function SoldMedicines() {
       setCurrentPage(page);
     }
   };
+  // Add this function
+const isCountableCategory = (category) => {
+  const countable = ["Tablet", "Capsule", "Injection"];
+  return countable.includes(category || "");
+};
 
   const summaryData = useMemo(() => {
     const isFiltered = search.trim() !== "" || filterMonth !== "all";
@@ -431,24 +436,34 @@ export default function SoldMedicines() {
                               </td>
 
                               {/* Quantity - Glass Display */}
-                              <td className="sold-med-td-quantity-glass">
-                                <div className="sold-med-quantity-glass-display">
-                                  <div className="sold-med-quantity-main-glass">
-                                    {info.displayText}
-                                  </div>
-                                  {info.type === "units" && (
-                                    <div className="sold-med-quantity-sub-glass">
-                                      ≈ {info.packagesEquivalent} packages
-                                    </div>
-                                  )}
-                                  {info.type === "packages" &&
-                                    info.totalUnits && (
-                                      <div className="sold-med-quantity-sub-glass">
-                                        = {info.totalUnits} units
-                                      </div>
-                                    )}
-                                </div>
-                              </td>
+                             {/* Quantity - Glass Display */}
+<td className="sold-med-td-quantity-glass">
+  <div className="sold-med-quantity-glass-display">
+    <div className="sold-med-quantity-main-glass">
+      {info.displayText}
+    </div>
+
+    {/* Smart display: Show units only for countable categories */}
+    {isCountableCategory(item.category) ? (
+      <>
+        {info.type === "units" ? (
+          <div className="sold-med-quantity-sub-glass">
+            ≈ {info.packagesEquivalent} packages
+          </div>
+        ) : (
+          <div className="sold-med-quantity-sub-glass">
+            = {(item.quantitySold * getUnitsPerPackage(item.packSize))} units
+          </div>
+        )}
+      </>
+    ) : (
+      /* For Syrup, Ointment, Cream, etc. → Just show pack size */
+      <div className="sold-med-quantity-sub-glass" style={{ color: "#6b7280", fontSize: "0.92em" }}>
+        {item.packSize || "Standard Pack"}
+      </div>
+    )}
+  </div>
+</td>
 
                               {/* Price - Glass Card */}
                               <td className="sold-med-td-price-glass">

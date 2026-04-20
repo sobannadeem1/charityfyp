@@ -30,7 +30,73 @@ export default function Report() {
 
   const abortControllerRef = useRef(null);
   const tableSectionRef = useRef(null);
+// Replace your existing 3 helpers with these (after state declarations)
 
+const extractUnitsFromPackSize = (packSize) => {
+  if (!packSize || packSize === "") return 1;
+
+  const packSizeStr = packSize.toString().trim().toLowerCase();
+
+  if (/^\d+$/.test(packSizeStr)) {
+    return parseInt(packSizeStr);
+  }
+
+  const unitPatterns = [
+    { pattern: /(\d+)\s*tablets?/ }, { pattern: /(\d+)\s*capsules?/ },
+    { pattern: /(\d+)\s*pills?/ }, { pattern: /(\d+)\s*strips?/ },
+    { pattern: /(\d+)\s*ml/ }, { pattern: /(\d+)\s*vials?/ },
+    { pattern: /(\d+)\s*bottles?/ }, { pattern: /(\d+)\s*sachets?/ },
+    { pattern: /(\d+)\s*tubes?/ }, { pattern: /(\d+)\s*pieces?/ },
+    { pattern: /(\d+)\s*units?/ }, { pattern: /(\d+)\s*ct/ },
+    { pattern: /(\d+)\s*count/ }, { pattern: /(\d+)\s*pk/ },
+    { pattern: /(\d+)\s*pack/ }, { pattern: /(\d+)x\d+/ },
+    { pattern: /(\d+)\s*mg/ }, { pattern: /(\d+)\s*g/ },
+  ];
+
+  for (const { pattern } of unitPatterns) {
+    const match = packSizeStr.match(pattern);
+    if (match && match[1]) return parseInt(match[1]);
+  }
+
+  const fallback = packSizeStr.match(/(\d+)/);
+  return fallback ? parseInt(fallback[1]) : 1;
+};
+
+const getActualUnits = (medicine) => {
+  return Number(medicine?.unitsAvailable || 0);
+};
+
+const isCountableCategory = (category) => {
+  const countable = ["Tablet", "Capsule", "Injection"];
+  return countable.includes(category);
+};
+
+const calculatePackagesAvailable = (medicine) => {
+  const unitsPerPackage = medicine?.unitsPerPackage || extractUnitsFromPackSize(medicine?.packSize);
+  return Math.ceil(getActualUnits(medicine) / unitsPerPackage);
+};
+
+const getMedicineStatus = (medicine) => {
+  if (!medicine) return "Unknown";
+  const units = getActualUnits(medicine);
+  if (units <= 0) return "Out of Stock";
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const expiryDate = medicine.expiry ? new Date(medicine.expiry) : null;
+  if (expiryDate) expiryDate.setHours(0, 0, 0, 0);
+
+  if (expiryDate && expiryDate < today) return "Expired";
+  if (units < 50) return "Low Stock";
+
+  if (expiryDate) {
+    const nearExpiry = new Date(today);
+    nearExpiry.setDate(today.getDate() + 90);
+    if (expiryDate <= nearExpiry) return "Near Expiry";
+  }
+  return "Good";
+};
   
   useEffect(() => {
     const today = new Date();
@@ -164,17 +230,70 @@ useEffect(() => {
 
     let data = [];
     let sheetName = "Report";
+        if (reportType === "all" && reportData.medicines?.length > 0) {
+      headers = ["Name", "Category", "Stock", "Expiry", "Status", "Value (PKR)"];
+      
+      rows = reportData.medicines.map((item, i) => {
+        const status = getMedicineStatus(item);
+        const totalValue = getActualUnits(item) * (item.salePrice || 0);
 
-    if (reportType === "all" && reportData?.medicines) {
-      data = reportData.medicines.map((m) => ({
-        Name: m.name,
-        Category: m.category || "-",
-        "Units Available": m.unitsAvailable || 0,
-        Expiry: m.expiry ? new Date(m.expiry).toLocaleDateString() : "-",
-        Status: m.status || "-",
-        "Total Value (PKR)": m.totalValue || 0,
-      }));
-    } else if (reportType === "specific" && reportData?.medicine) {
+        return (
+          <tr key={i}>
+            <td>{item.name}</td>
+            <td>{item.category || "-"}</td>
+            
+            {/* === SAME STOCK DISPLAY AS medicine.jsx === */}
+            <td className={`quantity-cell ${getActualUnits(item) <= 5 && getActualUnits(item) > 0 ? "low-stock" : ""}`}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <div style={{ fontWeight: "700", fontSize: "1.1em", color: "#111827" }}>
+                  {Math.floor(item.quantity || 0)} package{Math.floor(item.quantity || 0) > 1 ? "s" : ""}
+                </div>
+                
+                {isCountableCategory(item.category) ? (
+                  <div style={{
+                    fontSize: "0.95em",
+                    color: getActualUnits(item) <= 5 ? "#dc2626" : "#059669",
+                    fontWeight: "600"
+                  }}>
+                    ({getActualUnits(item)} units available)
+                  </div>
+                ) : (
+                  <div style={{ fontSize: "0.9em", color: "#6b7280" }}>
+                    {item.packSize || "Standard Pack"}
+                  </div>
+                )}
+
+                {getActualUnits(item) <= 5 && getActualUnits(item) > 0 && isCountableCategory(item.category) && (
+                  <div style={{
+                    background: "#fee2e2",
+                    color: "#991b1b",
+                    padding: "4px 10px",
+                    borderRadius: "6px",
+                    fontSize: "0.8em",
+                    fontWeight: "600",
+                    alignSelf: "flex-start"
+                  }}>
+                    Low Stock
+                  </div>
+                )}
+              </div>
+            </td>
+
+            <td>{item.expiry ? new Date(item.expiry).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            }) : "N/A"}</td>
+            
+            <td className={`rn-status rn-status-${status.toLowerCase().replace(/ /g, "-")}`}>
+              {status}
+            </td>
+            
+            <td>PKR {totalValue.toLocaleString()}</td>
+          </tr>
+        );
+      });
+    }else if (reportType === "specific" && reportData?.medicine) {
       const m = reportData.medicine;
       data = [{
         Name: m.name,
@@ -266,7 +385,7 @@ useEffect(() => {
     );
   };
 
-  // ────────────────────────────────────────────────
+    // ────────────────────────────────────────────────
   // Render table (adapt columns/data per type)
   // ────────────────────────────────────────────────
   const renderTableContent = () => {
@@ -276,40 +395,90 @@ useEffect(() => {
     let headers = [];
 
     if (reportType === "all" && reportData.medicines?.length > 0) {
-      headers = ["Name", "Category", "Units", "Expiry", "Status", "Value (PKR)"];
-      rows = reportData.medicines.map((item, i) => (
-        <tr key={i}>
-          <td>{item.name}</td>
-          <td>{item.category || "-"}</td>
-          <td className={item.unitsAvailable < 50 ? "rn-low-value" : ""}>
-            {item.unitsAvailable || 0}
-          </td>
-          <td>{item.expiry ? new Date(item.expiry).toLocaleDateString() : "-"}</td>
-          <td className={`rn-status rn-status-${(item.status || "").toLowerCase().replace(" ", "-")}`}>
-            {item.status || "-"}
-          </td>
-          <td>PKR {(item.totalValue || 0).toLocaleString()}</td>
-        </tr>
-      ));
-    } else if (reportType === "specific" && reportData.medicine) {
+      headers = ["Name", "Category", "Stock", "Expiry", "Status", "Value (PKR)"];
+      
+      rows = reportData.medicines.map((item, i) => {
+        const status = getMedicineStatus(item);
+        const totalValue = getActualUnits(item) * (item.salePrice || 0);
+
+        return (
+          <tr key={i}>
+            <td>{item.name}</td>
+            <td>{item.category || "-"}</td>
+            
+            {/* RICH STOCK DISPLAY - Same as medicine.jsx */}
+            <td className={`quantity-cell ${getActualUnits(item) <= 5 && getActualUnits(item) > 0 ? "low-stock" : ""}`}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <div style={{ fontWeight: "700", fontSize: "1.1em", color: "#111827" }}>
+                  {Math.floor(item.quantity || 0)} package{Math.floor(item.quantity || 0) > 1 ? "s" : ""}
+                </div>
+                
+                {isCountableCategory(item.category) ? (
+                  <div style={{
+                    fontSize: "0.95em",
+                    color: getActualUnits(item) <= 5 ? "#dc2626" : "#059669",
+                    fontWeight: "600"
+                  }}>
+                    ({getActualUnits(item)} units available)
+                  </div>
+                ) : (
+                  <div style={{ fontSize: "0.9em", color: "#6b7280" }}>
+                    {item.packSize || "Standard Pack"}
+                  </div>
+                )}
+
+                {getActualUnits(item) <= 5 && getActualUnits(item) > 0 && isCountableCategory(item.category) && (
+                  <div style={{
+                    background: "#fee2e2",
+                    color: "#991b1b",
+                    padding: "4px 10px",
+                    borderRadius: "6px",
+                    fontSize: "0.8em",
+                    fontWeight: "600",
+                    alignSelf: "flex-start"
+                  }}>
+                    Low Stock
+                  </div>
+                )}
+              </div>
+            </td>
+
+            <td>{item.expiry ? new Date(item.expiry).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            }) : "N/A"}</td>
+            
+            <td className={`rn-status rn-status-${status.toLowerCase().replace(/ /g, "-")}`}>
+              {status}
+            </td>
+            
+            <td>PKR {totalValue.toLocaleString()}</td>
+          </tr>
+        );
+      });
+    } 
+    else if (reportType === "specific" && reportData.medicine) {
       const m = reportData.medicine;
-      headers = ["Name", "Category", "Units", "Expiry", "Status", "Value (PKR)"];
+      const status = getMedicineStatus(m);
+      headers = ["Name", "Category", "Stock", "Expiry", "Status", "Value (PKR)"];
       rows = [(
         <tr key="single">
           <td>{m.name}</td>
           <td>{m.category || "-"}</td>
-          <td>{m.unitsAvailable || 0}</td>
+          <td>{m.unitsAvailable || 0} units</td>
           <td>{m.expiry ? new Date(m.expiry).toLocaleDateString() : "-"}</td>
-          <td className={`rn-status rn-status-${(m.status || "").toLowerCase().replace(" ", "-")}`}>
-            {m.status || "-"}
+          <td className={`rn-status rn-status-${status.toLowerCase().replace(/ /g, "-")}`}>
+            {status}
           </td>
           <td>PKR {(m.totalValue || 0).toLocaleString()}</td>
         </tr>
       )];
-    } else if (reportType === "expiry" && (reportData.nearExpiry?.length || reportData.expired?.length)) {
+    } 
+    else if (reportType === "expiry" && (reportData.nearExpiry?.length || reportData.expired?.length)) {
       headers = ["Name", "Expiry", "Units", "Loss/Potential (PKR)", "Status"];
       rows = [
-        ... (reportData.nearExpiry || []).map((item, i) => (
+        ...(reportData.nearExpiry || []).map((item, i) => (
           <tr key={`near-${i}`}>
             <td>{item.name}</td>
             <td>{new Date(item.expiry).toLocaleDateString()}</td>
@@ -318,7 +487,7 @@ useEffect(() => {
             <td className="rn-status-near">Near Expiry</td>
           </tr>
         )),
-        ... (reportData.expired || []).map((item, i) => (
+        ...(reportData.expired || []).map((item, i) => (
           <tr key={`exp-${i}`}>
             <td>{item.name}</td>
             <td>{new Date(item.expiry).toLocaleDateString()}</td>
@@ -328,7 +497,8 @@ useEffect(() => {
           </tr>
         )),
       ];
-    } else if (reportType === "low-stock" && reportData.lowStockItems?.length > 0) {
+    } 
+    else if (reportType === "low-stock" && reportData.lowStockItems?.length > 0) {
       headers = ["Name", "Category", "Units Available", "Total Value (PKR)", "Status"];
       rows = reportData.lowStockItems.map((item, i) => (
         <tr key={i}>
@@ -340,17 +510,19 @@ useEffect(() => {
         </tr>
       ));
     }
-if (rows.length === 0) {
-  return (
-    <div className="rn-no-data">
-      <div className="rn-no-data-card">
-        <div className="rn-no-data-icon">📦</div>
-        <h3>No Data Found</h3>
-        <p>Try adjusting your filters or search criteria</p>
-      </div>
-    </div>
-  );
-}
+
+    if (rows.length === 0) {
+      return (
+        <div className="rn-no-data">
+          <div className="rn-no-data-card">
+            <div className="rn-no-data-icon">📦</div>
+            <h3>No Data Found</h3>
+            <p>Try adjusting your filters or search criteria</p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="rn-table-wrapper">
         <table className="rn-data-table">
