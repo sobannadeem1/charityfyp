@@ -13,7 +13,7 @@ const createDonation = asyncHandler(async (req, res) => {
     donorPhone,
     donationType,
     donatedItem,
-    quantity,
+    amount,
     unit,
     expiryDate,
     estimatedValue,
@@ -21,26 +21,22 @@ const createDonation = asyncHandler(async (req, res) => {
   } = req.body;
 
   // Basic validation (Mongoose already does most, but we add safety)
-  if (!donorName || !donationType || quantity == null) {
-    res.status(400);
-    throw new Error("Please fill all required fields");
-  }
-
-  const donation = await Donation.create({
-    donorName,
-    donorEmail: donorEmail || undefined,
-    donorPhone: donorPhone || undefined,
-    donationType,
-    donatedItem: donationType !== "cash" ? donatedItem : undefined,
-    quantity,
-    unit: unit || (donationType === "cash" ? "dollars" : "packages"),
-    expiryDate: donationType === "medicine" ? expiryDate : undefined,
-    estimatedValue: estimatedValue || 0,
-    notes: notes || undefined,
-    status: "pending",
-    receivedBy: undefined,
-    medicine: null,
-  });
+ if (!donorName || !donationType) {
+  res.status(400);
+  throw new Error("Please fill all required fields");
+}
+const donation = await Donation.create({
+  donorName,
+  donorEmail: donorEmail || undefined,
+  donorPhone: donorPhone || undefined,
+  donationType,
+  donatedItem: donationType !== "cash" ? donatedItem : undefined,
+  amount: donationType === "cash" ? amount : estimatedValue || 0,
+  unit,
+  expiryDate: donationType === "medicine" ? expiryDate : undefined,
+  notes,
+  status: "pending",
+});
 
   res.status(201).json({
     success: true,

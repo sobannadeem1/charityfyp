@@ -16,17 +16,16 @@ export default function Donations({ isAdmin }) {
   const [totalPages, setTotalPages] = useState(1);
 
   const [formData, setFormData] = useState({
-    donorName: "",
-    donorEmail: "",
-    donorPhone: "",
-    donationType: "medicine",
-    donatedItem: "",
-    quantity: "",
-    unit: "packages",
-    expiryDate: "",
-    estimatedValue: "",
-    notes: "",
-  });
+  donorName: "",
+  donorEmail: "",
+  donorPhone: "",
+  donationType: "medicine",
+  donatedItem: "",
+  unit: "packages",
+  expiryDate: "",
+  estimatedValue: "",
+  notes: "",
+});
 
   const fetchDonations = async () => {
     setLoading(true);
@@ -56,7 +55,6 @@ export default function Donations({ isAdmin }) {
     // For cash → use estimatedValue as amount
     const dataToSend = {
       ...formData,
-      quantity: formData.donationType === "cash" ? 1 : formData.quantity,
       unit: formData.donationType === "cash" ? "dollars" : formData.unit,
       estimatedValue:
         formData.donationType === "cash"
@@ -69,18 +67,17 @@ export default function Donations({ isAdmin }) {
       success: () => {
         setShowForm(false);
         fetchDonations();
-        setFormData({
-          donorName: "",
-          donorEmail: "",
-          donorPhone: "",
-          donationType: "medicine",
-          donatedItem: "",
-          quantity: "",
-          unit: "packages",
-          expiryDate: "",
-          estimatedValue: "",
-          notes: "",
-        });
+       setFormData({
+  donorName: "",
+  donorEmail: "",
+  donorPhone: "",
+  donationType: "medicine",
+  donatedItem: "",
+  unit: "packages",
+  expiryDate: "",
+  estimatedValue: "",
+  notes: "",
+});
         return "Donation recorded successfully!";
       },
       error: (err) => err?.message || "Failed to add donation",
@@ -179,7 +176,7 @@ export default function Donations({ isAdmin }) {
               <th>Donor</th>
               <th>Type</th>
               <th>Item / Amount</th>
-              <th>Qty</th>
+              <th>Unit</th>
               <th>Expiry</th>
               <th>Status</th>
               {/* Actions column header only for admin */}
@@ -197,12 +194,15 @@ export default function Donations({ isAdmin }) {
                 </td>
                 <td>
                   {d.donationType === "cash"
-                    ? `PKR ${d.estimatedValue || d.quantity}`
+                    ? `PKR ${d.estimatedValue}`
                     : d.donatedItem || "N/A"}
                 </td>
-                <td>
-                  {d.quantity} {d.unit}
-                </td>
+               <td>
+  {d.donationType === "cash"
+    ? "-"
+    : d.unit || "-"
+  }
+</td>
                 <td>
                   {d.expiryDate
                     ? new Date(d.expiryDate).toLocaleDateString()
@@ -328,50 +328,42 @@ export default function Donations({ isAdmin }) {
                   }
                 />
               ) : (
-                <>
-                  <input
-                    type="text"
-                    placeholder="Item Name *"
-                    required
-                    value={formData.donatedItem}
-                    onChange={(e) =>
-                      setFormData({ ...formData, donatedItem: e.target.value })
-                    }
-                  />
-                  <div className="row">
-                    <input
-                      type="number"
-                      placeholder="Quantity *"
-                      required
-                      min="1"
-                      value={formData.quantity}
-                      onChange={(e) =>
-                        setFormData({ ...formData, quantity: e.target.value })
-                      }
-                    />
-                    <select
-                      value={formData.unit}
-                      onChange={(e) =>
-                        setFormData({ ...formData, unit: e.target.value })
-                      }
-                    >
-                      <option value="packages">Packages</option>
-                      <option value="units">Units</option>
-                      <option value="tablets">Tablets</option>
-                      <option value="bottles">Bottles</option>
-                    </select>
-                  </div>
-                  {formData.donationType === "medicine" && (
-                    <input
-                      type="date"
-                      required
-                      value={formData.expiryDate}
-                      onChange={(e) =>
-                        setFormData({ ...formData, expiryDate: e.target.value })
-                      }
-                    />
-                  )}
-                </>
+               <>
+  <input
+    type="text"
+    placeholder="Item Name *"
+    required
+    value={formData.donatedItem}
+    onChange={(e) =>
+      setFormData({ ...formData, donatedItem: e.target.value })
+    }
+  />
+
+  <select
+    value={formData.unit}
+    onChange={(e) =>
+      setFormData({ ...formData, unit: e.target.value })
+    }
+  >
+    <option value="">Select Unit</option>
+    <option value="packages">Packages</option>
+    <option value="units">Units</option>
+    <option value="tablets">Tablets</option>
+    <option value="bottles">Bottles</option>
+    <option value="boxes">Boxes</option>
+  </select>
+
+  {formData.donationType === "medicine" && (
+    <input
+      type="date"
+      required
+      value={formData.expiryDate}
+      onChange={(e) =>
+        setFormData({ ...formData, expiryDate: e.target.value })
+      }
+    />
+  )}
+</>
               )}
 
               {formData.donationType !== "cash" && (

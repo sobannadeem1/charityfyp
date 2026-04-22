@@ -41,12 +41,10 @@ const donationSchema = new mongoose.Schema(
       maxlength: [100, "Item name too long"],
     },
 
-    quantity: {
-      type: Number,
-      required: [true, "Quantity is required"],
-      min: [0, "Quantity cannot be negative"],
-      default: 1,
-    },
+   amount: {
+  type: Number,
+  min: [0, "Amount cannot be negative"],
+},
 
     unit: {
       type: String,
