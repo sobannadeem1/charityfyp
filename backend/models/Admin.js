@@ -19,7 +19,6 @@ const adminSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-// ✅ Hash password before saving
 adminSchema.pre("save", function (next) {
   if (!this.isModified("password")) return next();
 

@@ -1,8 +1,7 @@
-// models/Invoice.js
-import mongoose from "mongoose";
-import { v4 as uuidv4 } from "uuid"; // Import UUID
 
-// Invoice Item Schema
+import mongoose from "mongoose";
+import { v4 as uuidv4 } from "uuid"; 
+
 const invoiceItemSchema = new mongoose.Schema({
   medicine: {
     type: mongoose.Schema.Types.ObjectId,
@@ -21,7 +20,6 @@ const invoiceItemSchema = new mongoose.Schema({
   totalAmount: { type: Number, required: true, min: 0 },
 });
 
-// Main Invoice Schema
 const invoiceSchema = new mongoose.Schema(
   {
     invoiceNumber: {
@@ -29,7 +27,6 @@ const invoiceSchema = new mongoose.Schema(
       unique: true,
     },
 
-    // Patient Details
     patientName: { type: String, required: true, trim: true, default: "Walk-in Patient" },
     patientGender: {
       type: String,
@@ -42,7 +39,6 @@ const invoiceSchema = new mongoose.Schema(
     phoneNumber: { type: String, default: "" },
     age: { type: Number, min: 0, default: null },
 
-    // Invoice Details
     items: [invoiceItemSchema],
     totalRevenue: { type: Number, required: true, min: 0 },
     discount: { type: Number, default: 0, min: 0 },
@@ -54,10 +50,9 @@ const invoiceSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Auto-generate UUID invoice number
 invoiceSchema.pre("validate", function (next) {
   if (this.isNew && !this.invoiceNumber) {
-    this.invoiceNumber = `INV-${uuidv4()}`; // e.g., INV-3fa85f64-5717-4562-b3fc-2c963f66afa6
+    this.invoiceNumber = `INV-${uuidv4()}`;
   }
   next();
 });

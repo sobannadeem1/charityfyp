@@ -4,20 +4,19 @@
 :root {
   --font-family: "PT Sans";
 
-  --bg: #e6f0fa; /* body background: light, soft blue */
-  --text: #111827; /* dark text */
-  --card-bg: #ffffff; /* card background */
+  --bg: #e6f0fa; 
+  --text: #111827; 
+  --card-bg: #ffffff; 
   --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   --radius: 10px;
 
-  --accent-1: #0077b6; /* blue */
-  --accent-2: #00b4d8; /* teal */
+  --accent-1: #0077b6; 
+  --accent-2: #00b4d8; 
 
-  --header-footer-bg: #0f172a; /* dark blue header/footer */
+  --header-footer-bg: #0f172a; 
   --header-footer-text: #ffffff;
 }
 
-/* Basic Reset */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -64,7 +63,6 @@ a {
   flex: 1;
   min-width: 0;
 }
-/* Loader Styles */
 .loader-container {
   display: flex;
   flex-direction: column;

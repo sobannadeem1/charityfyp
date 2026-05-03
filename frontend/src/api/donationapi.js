@@ -1,9 +1,7 @@
 import axios from "axios";
 import { BASE_URL } from "./medicineapi";
 
-/* ==============================
-   Donation APIs
-============================== */
+
 const BASE_DONATIONS = `${BASE_URL}/donations`;
 export const createDonation = async (donationData) => {
   try {

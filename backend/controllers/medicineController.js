@@ -19,7 +19,6 @@ export const addMedicine = async (req, res) => {
       storageCondition,
     } = req.body;
 
-    // Extract units per package
     const unitsPerPackage = extractUnitsFromPackSize(packSize);
     const unitsAvailable = quantity * unitsPerPackage;
 
@@ -53,7 +52,6 @@ export const addMedicine = async (req, res) => {
     });
   }
 };
-// Helper function to extract units from packSize - ULTRA ROBUST
 const extractUnitsFromPackSize = (packSize) => {
   console.log("=== EXTRACT UNITS DEBUG ===");
   console.log("Input packSize:", packSize);
@@ -65,14 +63,12 @@ const extractUnitsFromPackSize = (packSize) => {
 
   const packSizeStr = packSize.toString().trim().toLowerCase();
 
-  // Early return for simple numbers
   if (/^\d+$/.test(packSizeStr)) {
     const units = parseInt(packSizeStr);
     console.log("✅ Simple number format - Units:", units);
     return units;
   }
 
-  // Common medicine unit patterns
   const unitPatterns = [
     { pattern: /(\d+)\s*tablets?/, name: "tablets" },
     { pattern: /(\d+)\s*capsules?/, name: "capsules" },
@@ -103,7 +99,6 @@ const extractUnitsFromPackSize = (packSize) => {
     }
   }
 
-  // Fallback: Extract first number found
   const fallbackMatch = packSizeStr.match(/(\d+)/);
   if (fallbackMatch && fallbackMatch[1]) {
     const units = parseInt(fallbackMatch[1]);
@@ -142,7 +137,6 @@ export const sellMedicine = async (req, res) => {
     console.log("Requested:", quantitySold, sellType);
 
     if (sellType === "units") {
-      // Sell individual units - SIMPLE & ACCURATE
       if (quantitySold > medicine.unitsAvailable) {
         return res.status(400).json({
           success: false,
@@ -150,18 +144,15 @@ export const sellMedicine = async (req, res) => {
         });
       }
 
-      // Calculate unit price and total
       unitPrice = medicine.salePrice / medicine.unitsPerPackage;
       totalAmount = unitPrice * quantitySold;
       unitsSold = quantitySold;
 
-      // Update inventory - DEDUCT ACTUAL UNITS
       medicine.unitsAvailable -= quantitySold;
 
-      // Calculate packages used for reporting
       packagesUsed = Math.ceil(quantitySold / medicine.unitsPerPackage);
     } else {
-      // Sell complete packages
+      
       const packagesRequested = quantitySold;
       const unitsRequested = packagesRequested * medicine.unitsPerPackage;
 
@@ -179,11 +170,9 @@ export const sellMedicine = async (req, res) => {
       unitsSold = unitsRequested;
       packagesUsed = packagesRequested;
 
-      // Update inventory
       medicine.unitsAvailable -= unitsRequested;
     }
 
-    // Update physical package count (for display only)
     medicine.quantity = Math.ceil(
       medicine.unitsAvailable / medicine.unitsPerPackage
     );
@@ -193,17 +182,15 @@ export const sellMedicine = async (req, res) => {
     console.log("Physical Packages:", medicine.quantity);
     console.log("Packages Used:", packagesUsed);
 
-    // Auto mark as expired/inactive if needed
     if (medicine.unitsAvailable <= 0) medicine.isActive = false;
     if (new Date(medicine.expiry) < new Date()) medicine.isExpired = true;
 
-    // Save updated medicine
     await medicine.save();
 
     const sale = await Sale.create({
       medicine: medicine._id,
       medicineName: medicine.name,
-      quantitySold: quantitySold, // ← FIXED: use original input
+      quantitySold: quantitySold,
       packagesSold: packagesUsed,
       sellType: sellType,
       unitPrice: unitPrice,
@@ -258,10 +245,8 @@ export const getAllSales = async (req, res) => {
       query.soldAt = { $gte: startDate, $lt: endDate };
     }
 
-    // Sorting options for individuals (pre-group stable sort)
-    let preSort = { soldAt: -1 }; // Default stable sort by date newest
+    let preSort = { soldAt: -1 }; 
 
-    // Group-level sort
     let groupSort = { soldAt: -1 };
 
     switch (sortBy) {
@@ -287,11 +272,9 @@ export const getAllSales = async (req, res) => {
         groupSort = { soldAt: -1 };
     }
 
-    // ✅ MAIN AGGREGATION PIPELINE
     const grouped = await Sale.aggregate([
       { $match: query },
 
-      // 1️⃣ Join with medicines (so salePrice, packSize, etc. exist)
       {
         $lookup: {
           from: "medicines",
@@ -302,10 +285,8 @@ export const getAllSales = async (req, res) => {
       },
       { $unwind: { path: "$medicine", preserveNullAndEmptyArrays: true } },
 
-      // 2️⃣ Pre-sort for stable order (e.g., by date)
       { $sort: preSort },
 
-      // 3️⃣ Group by transaction
       {
         $group: {
           _id: { $ifNull: ["$transactionId", { $toString: "$_id" }] },
@@ -313,19 +294,16 @@ export const getAllSales = async (req, res) => {
           soldAt: { $first: "$soldAt" },
           soldBy: { $first: "$soldBy" },
           totalRevenue: { $sum: "$totalAmount" },
-          totalQuantity: { $sum: "$quantitySold" }, // Added for quantity sorting
+          totalQuantity: { $sum: "$quantitySold" }, 
         },
       },
 
-      // 4️⃣ Sort groups by the selected criteria
       { $sort: groupSort },
 
-      // 5️⃣ Paginate at group level
       { $skip: (page - 1) * limit },
       { $limit: limit },
     ]);
 
-    // Count total groups (for totalPages)
     const totalGroupsResult = await Sale.aggregate([
       { $match: query },
       {
@@ -382,7 +360,6 @@ salePrice: s.salePrice || s.medicine?.salePrice || s.unitPrice || 0,
   })),
 }));
 
-    // Total revenue across all filtered records
     const revenueAgg = await Sale.aggregate([
       { $match: query },
       { $group: { _id: null, totalRevenue: { $sum: "$totalAmount" } } },
@@ -421,20 +398,17 @@ export const getSalesByMedicine = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
-// controllers/saleController.js
 export const bulkSellMedicines = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const { items } = req.body; // [{ medicineId, quantity, type }]
+    const { items } = req.body; 
 
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, message: "No items provided" });
     }
 
-    // Generate unique transaction ID
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const todayCount = await Sale.countDocuments({
       transactionId: { $regex: `^TX-${today}` }
@@ -471,14 +445,12 @@ export const bulkSellMedicines = async (req, res) => {
         packagesUsed = qtyRequested;
       }
 
-      // Deduct stock
       medicine.unitsAvailable -= unitsSold;
       medicine.quantity = Math.ceil(medicine.unitsAvailable / medicine.unitsPerPackage);
       if (medicine.unitsAvailable <= 0) medicine.isActive = false;
 
       await medicine.save({ session });
 
-      // Create sale record
       const sale = await Sale.create([{
         medicine: medicine._id,
         medicineName: medicine.name,
@@ -489,7 +461,7 @@ export const bulkSellMedicines = async (req, res) => {
         originalQuantity: qtyRequested,
         originalSellType: type,
         unitsPerPackage: medicine.unitsPerPackage,
-        transactionId,  // ← This links all items together!
+        transactionId, 
       }], { session });
 
       createdSales.push(sale[0]);
@@ -529,16 +501,14 @@ export const getAllMedicines = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const search = (req.query.search || "").trim();
     const category = (req.query.category || "").trim();
-    const expiryMonth = (req.query.expiryMonth || "").trim(); // "2025-12"
-    const stockStatus = (req.query.stockStatus || "").trim(); // "low", "expired"
+    const expiryMonth = (req.query.expiryMonth || "").trim(); 
+    const stockStatus = (req.query.stockStatus || "").trim();
     const sortBy = req.query.sortBy || "date-newest";
 
     const skip = (page - 1) * limit;
 
-    // Build dynamic query
-    let query = { quantity: { $gt: 0 } }; // only show medicines with stock
+    let query = { quantity: { $gt: 0 } };
 
-    // SEARCH
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: "i" } },
@@ -548,12 +518,10 @@ export const getAllMedicines = async (req, res) => {
       ];
     }
 
-    // CATEGORY FILTER
     if (category && category !== "all") {
       query.category = { $regex: `^${category}$`, $options: "i" };
     }
 
-    // EXPIRY MONTH FILTER
     if (expiryMonth && expiryMonth !== "all") {
       const [year, month] = expiryMonth.split("-");
       const startDate = new Date(`${year}-${month}-01`);
@@ -562,15 +530,13 @@ export const getAllMedicines = async (req, res) => {
       query.expiry = { $gte: startDate, $lt: endDate };
     }
 
-    // STOCK STATUS FILTER
     if (stockStatus === "low") {
       query.quantity = { $lte: 5, $gt: 0 };
     } else if (stockStatus === "expired") {
       query.expiry = { $lt: new Date() };
     }
 
-    // SORTING
-    let sortOption = { createdAt: -1 }; // default newest
+    let sortOption = { createdAt: -1 }; 
     switch (sortBy) {
       case "name-asc": sortOption = { name: 1 }; break;
       case "name-desc": sortOption = { name: -1 }; break;
@@ -612,7 +578,6 @@ export const getAllMedicines = async (req, res) => {
   }
 };
 
-// ✅ Get single medicine
 export const getMedicineById = async (req, res) => {
   try {
     const medicine = await Medicine.findById(req.params.id);
@@ -631,7 +596,6 @@ export const getMedicineById = async (req, res) => {
   }
 };
 
-// ✅ Update medicine
 export const updateMedicine = async (req, res) => {
   try {
     const updates = req.body;
@@ -659,7 +623,6 @@ export const updateMedicine = async (req, res) => {
     medicine.history = medicine.history || [];
     const changes = {};
 
-    // Track if quantity or packSize changes (affects unitsAvailable)
     const shouldRecalculateUnits =
       updates.quantity !== undefined || updates.packSize !== undefined;
 
@@ -673,16 +636,13 @@ export const updateMedicine = async (req, res) => {
       }
     });
 
-    // ✅ CRITICAL FIX: Recalculate unitsAvailable when quantity or packSize changes
     if (shouldRecalculateUnits) {
       const oldUnitsAvailable = medicine.unitsAvailable;
 
-      // Re-extract units per package if packSize changed
       if (updates.packSize !== undefined) {
         medicine.unitsPerPackage = extractUnitsFromPackSize(medicine.packSize);
       }
 
-      // Recalculate total units available
       medicine.unitsAvailable = medicine.quantity * medicine.unitsPerPackage;
 
       console.log("🔄 UNITS RECALCULATION:", {
@@ -694,7 +654,6 @@ export const updateMedicine = async (req, res) => {
       });
     }
 
-    // Only add to history if there are actual changes
     if (Object.keys(changes).length > 0) {
       medicine.history.push({
         updatedAt: new Date(),
@@ -719,7 +678,6 @@ export const updateMedicine = async (req, res) => {
   }
 };
 
-// ✅ Delete medicine
 export const deleteMedicine = async (req, res) => {
   try {
     const medicine = await Medicine.findByIdAndDelete(req.params.id);

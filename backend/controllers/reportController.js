@@ -4,7 +4,6 @@ import Medicine from "../models/Medicine.js";
 import Report from "../models/Report.js";
 
 
-// === EXACT SAME HELPER AS IN MEDICINE CONTROLLER ===
 const extractUnitsFromPackSize = (packSize) => {
   if (!packSize || packSize === "") {
     return 1;
@@ -52,12 +51,10 @@ const extractUnitsFromPackSize = (packSize) => {
   return 1;
 };
 
-// === SAME PACKAGES CALCULATION AS sellMedicine & updateMedicine ===
 const calculatePackagesAvailable = (unitsAvailable, unitsPerPackage) => {
   return Math.ceil(Number(unitsAvailable) / Number(unitsPerPackage || 1));
 };
 
-// === CONSISTENT STATUS ===
 const getMedicineStatus = (medicine) => {
   if (!medicine) return "Unknown";
 
@@ -84,8 +81,6 @@ const getMedicineStatus = (medicine) => {
   return "Good";
 };
 
-// ────────────────────────────────────────────────
-// UPDATED: getAllStockReport (Only this function changed)
 export const getAllStockReport = async (req, res) => {
   try {
     const { 
@@ -129,7 +124,6 @@ export const getAllStockReport = async (req, res) => {
       .limit(Number(limit))
       .lean();
 
-        // === FIXED ENRICHMENT - Use packagesAvailable properly ===
     let enrichedMedicines = medicines.map((med) => {
       const unitsPerPackage = med.unitsPerPackage || extractUnitsFromPackSize(med.packSize);
       const packagesAvailable = calculatePackagesAvailable(med.unitsAvailable, unitsPerPackage);
@@ -185,9 +179,7 @@ export const getAllStockReport = async (req, res) => {
     });
   }
 };
-// ────────────────────────────────────────────────
-// 2. Specific Medicine Detailed Report
-// GET /api/reports/medicine/:id
+
 export const getSpecificMedicineReport = async (req, res) => {
   try {
     const { id } = req.params;
@@ -206,7 +198,6 @@ export const getSpecificMedicineReport = async (req, res) => {
     const status = getMedicineStatus(medicine);
     const totalValue = medicine.unitsAvailable * medicine.salePrice;
 
-    // Save report
     const savedReport = await new Report({
       title: `Detailed Report - ${medicine.name}`,
       type: "specific_medicine",
@@ -245,7 +236,7 @@ export const getSpecificMedicineReport = async (req, res) => {
 
 export const getExpiryReport = async (req, res) => {
   try {
-    const { days = 90 } = req.query; // Near expiry threshold in days
+    const { days = 90 } = req.query; 
 
     const today = new Date();
     const nearExpiryDate = new Date(today);
@@ -311,9 +302,7 @@ export const getExpiryReport = async (req, res) => {
   }
 };
 
-// ────────────────────────────────────────────────
-// 4. Low Stock Report
-// GET /api/reports/low-stock
+
 export const getLowStockReport = async (req, res) => {
   try {
     const { threshold = 50 } = req.query;
@@ -328,7 +317,7 @@ export const getLowStockReport = async (req, res) => {
     const enriched = lowStock.map((m) => ({
       ...m,
       totalValue: m.unitsAvailable * m.salePrice,
-      reorderSuggestion: Math.max(0, 100 - m.unitsAvailable), // example logic
+      reorderSuggestion: Math.max(0, 100 - m.unitsAvailable), 
     }));
 
     const summary = {
@@ -360,8 +349,6 @@ export const getLowStockReport = async (req, res) => {
   }
 };
 
-// Bonus: Get saved report by ID (for frontend to view old reports)
-// GET /api/reports/:id
 export const getSavedReport = async (req, res) => {
   try {
     const report = await Report.findById(req.params.id)

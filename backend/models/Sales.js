@@ -7,21 +7,21 @@ const saleSchema = new mongoose.Schema(
       ref: "Medicine",
       required: true,
     },
-    medicineName: { type: String, required: true }, // denormalized for quick view
+    medicineName: { type: String, required: true },
     quantitySold: { type: Number, required: true, min: 1 },
-    unitPrice: { type: Number, required: true, min: 0 }, // salePrice at time of sale
+    unitPrice: { type: Number, required: true, min: 0 }, 
     totalAmount: { type: Number, required: true, min: 0 },
-    soldBy: { type: String, default: "system" }, // optional: user who sold
+    soldBy: { type: String, default: "system" }, 
     note: { type: String, default: "" },
     soldAt: { type: Date, default: Date.now },
-    originalQuantity: { type: Number, required: true }, // What user entered
-    originalSellType: { type: String, required: true }, // "packages" or "units"
-    unitsPerPackage: { type: Number, required: true }, // For frontend calculations
-    // In your Sale model - add this field
+    originalQuantity: { type: Number, required: true }, 
+    originalSellType: { type: String, required: true }, 
+    unitsPerPackage: { type: Number, required: true }, 
+    
 transactionId: {
   type: String,
-  sparse: true, // allows null/undefined for old single sales
-  index: true   // for fast grouping in /sold page
+  sparse: true,
+  index: true  
 },
   },
   { timestamps: true }

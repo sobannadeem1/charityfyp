@@ -12,7 +12,6 @@ const router = express.Router();
 router.post("/register", registerAdmin);
 router.post("/login", loginAdmin);
 
-// Protected route (admin must be logged in)
 router.post("/logout", authMiddleware, logoutAdmin);
 router.get("/me", authMiddleware, (req, res) => {
   res.json({

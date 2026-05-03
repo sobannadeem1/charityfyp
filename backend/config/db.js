@@ -3,26 +3,19 @@ import mongoose from "mongoose";
 
 const connectDB = async () => {
   try {
-    // Remove deprecated options and use modern ones
     const conn = await mongoose.connect(process.env.MONGO_URL, {
-      serverSelectionTimeoutMS: 30000, // 30 seconds
-      socketTimeoutMS: 45000, // 45 seconds
-      // Remove these deprecated options:
-      // bufferCommands: false,
-      // bufferMaxEntries: 0,
-      // useNewUrlParser: true, // No longer needed in Mongoose 6+
-      // useUnifiedTopology: true, // No longer needed in Mongoose 6+
+      serverSelectionTimeoutMS: 30000, 
+      socketTimeoutMS: 45000, 
+    
 
-      // Add these modern options instead:
-      maxPoolSize: 10, // Maximum number of sockets in the connection pool
-      minPoolSize: 5, // Minimum number of sockets in the connection pool
-      maxIdleTimeMS: 30000, // How long a connection can be idle before being closed
-      waitQueueTimeoutMS: 10000, // How long to wait for a connection from the pool
+      maxPoolSize: 10,
+      minPoolSize: 5, 
+      maxIdleTimeMS: 30000, 
+      waitQueueTimeoutMS: 10000, 
     });
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
 
-    // Handle connection events
     mongoose.connection.on("error", (err) => {
       console.error("❌ MongoDB connection error:", err);
     });
@@ -41,7 +34,6 @@ const connectDB = async () => {
   } catch (error) {
     console.error("❌ MongoDB connection failed:", error.message);
 
-    // More specific error messages
     if (error.name === "MongoParseError") {
       console.error(
         "🔧 Configuration error: Check your connection string and options"

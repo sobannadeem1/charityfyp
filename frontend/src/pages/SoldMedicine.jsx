@@ -3,7 +3,7 @@ import {
   createInvoice,
   getSalesWithPagination,
   getSoldMedicines,
-} from "../api/medicineapi.js"; // You'll need to create this API function
+} from "../api/medicineapi.js";
 import "../styles/SoldMedicine.css";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -36,11 +36,9 @@ export default function SoldMedicines() {
       .catch(console.error);
   }, []);
 
-  // Add this ref at the top with your other useRefs
   const abortControllerRef = useRef(null);
   const searchTimeoutRef = useRef(null);
 
-  // ✅ Keep all your existing calculation functions (they're working fine)
   const getUnitsPerPackage = useCallback((packSize) => {
     if (!packSize) return 1;
     const packSizeStr = packSize.toString().toLowerCase();
@@ -56,29 +54,24 @@ export default function SoldMedicines() {
     [getUnitsPerPackage]
   );
   const calculateTotalAmount = useCallback((record) => {
-    // Primary source of truth: DB stored totalAmount
     if (record.totalAmount !== undefined && record.totalAmount !== null) {
       return Number(record.totalAmount);
     }
 
-    // Fallback for legacy records (optional)
     if (record.total !== undefined && record.total !== null) {
       return Number(record.total);
     }
 
-    // If somehow both are missing, return 0
     return 0;
   }, []);
 
   const getDisplayUnitPrice = useCallback((record) => {
     const sellType = record.originalSellType || record.sellType;
 
-    // IF unitPrice IS SAVED → USE IT DIRECTLY (DO NOT DIVIDE AGAIN!)
     if (record.unitPrice !== undefined && record.unitPrice > 0) {
       return Number(record.unitPrice);
     }
 
-    // ONLY IF NO unitPrice (very very old data), then calculate
     if (sellType === "units") {
       const unitsPerPackage =
         record.unitsPerPackage || getUnitsPerPackage(record.packSize);
@@ -134,7 +127,7 @@ export default function SoldMedicines() {
       });
 
       if (!controller.signal.aborted) {
-        setSoldRecords(response.data || []); // keep same name, but now already grouped
+        setSoldRecords(response.data || []); 
 
         setTotalRevenue(response.summary?.totalRevenue || 0);
         setTotalPages(response.pagination?.totalPages || 1);
@@ -148,7 +141,6 @@ export default function SoldMedicines() {
     }
   };
 
-  // FINAL & PERFECT: One useEffect to rule them all
   useEffect(() => {
     fetchSoldRecords(currentPage);
   }, [currentPage, search, filterMonth, sortSalesBy]);
@@ -158,23 +150,19 @@ export default function SoldMedicines() {
     setSearch(val);
     setCurrentPage(1);
 
-    // Cancel previous timeout & API call
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     if (abortControllerRef.current) abortControllerRef.current.abort();
 
-    // If search is cleared instantly → fetch immediately
     if (val.trim() === "") {
       fetchSoldRecords(1);
       return;
     }
 
-    // Debounce only when typing (not when clearing)
     searchTimeoutRef.current = setTimeout(() => {
       fetchSoldRecords(1);
     }, 400);
   };
 
-  // Also clear timeout when component unmounts
   useEffect(() => {
     return () => {
       if (searchTimeoutRef.current) {
@@ -188,19 +176,17 @@ export default function SoldMedicines() {
     setCurrentPage(1);
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     if (abortControllerRef.current) abortControllerRef.current.abort();
-    fetchSoldRecords(1); // Immediate fetch with empty search
+    fetchSoldRecords(1); 
   };
   useEffect(() => {
     setIsSearching(search.trim().length > 0);
   }, [search]);
 
-  // ✅ Pagination controls
   const goToPage = (page) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
   };
-  // Add this function
 const isCountableCategory = (category) => {
   const countable = ["Tablet", "Capsule", "Injection"];
   return countable.includes(category || "");
@@ -257,7 +243,7 @@ const isCountableCategory = (category) => {
         highlight: true,
       },
     ];
-  }, [totalRecords, totalRevenue, search, filterMonth]); // ← Yehi dependencies perfect hain
+  }, [totalRecords, totalRevenue, search, filterMonth]); 
 
   return (
     <div className="sold-med-container">
@@ -277,7 +263,7 @@ const isCountableCategory = (category) => {
               value={sortSalesBy}
               onChange={(e) => {
                 setSortSalesBy(e.target.value);
-                setCurrentPage(1); // ← ADD THIS LINE
+                setCurrentPage(1);
               }}
               className="sold-med-filter-select"
             >
@@ -292,12 +278,12 @@ const isCountableCategory = (category) => {
               value={filterMonth}
               onChange={(e) => {
                 setFilterMonth(e.target.value);
-                setCurrentPage(1); // ← ADD THIS LINE
+                setCurrentPage(1); 
               }}
               className="sold-med-filter-select"
             >
               <option value="all">All Months</option>
-              {/* Generate last 12 months */}
+             
               {Array.from({ length: 12 }, (_, i) => {
                 const d = new Date();
                 d.setMonth(d.getMonth() - i);
@@ -401,7 +387,6 @@ const isCountableCategory = (category) => {
                                 isBulk ? "sold-med-bulk-glass-item" : ""
                               } ${isLast ? "sold-med-last-glass-item" : ""}`}
                             >
-                              {/* Medicine - Glass Card */}
                               <td className="sold-med-td-medicine-glass">
                                 <div className="sold-med-medicine-glass-card">
                                   <div className="sold-med-medicine-icon-glass">
@@ -428,22 +413,18 @@ const isCountableCategory = (category) => {
                                 </div>
                               </td>
 
-                              {/* Package - Glass Badge */}
                               <td className="sold-med-td-package-glass">
                                 <div className="sold-med-package-glass-badge">
                                   {item.packSize || "Standard"}
                                 </div>
                               </td>
 
-                              {/* Quantity - Glass Display */}
-                             {/* Quantity - Glass Display */}
 <td className="sold-med-td-quantity-glass">
   <div className="sold-med-quantity-glass-display">
     <div className="sold-med-quantity-main-glass">
       {info.displayText}
     </div>
 
-    {/* Smart display: Show units only for countable categories */}
     {isCountableCategory(item.category) ? (
       <>
         {info.type === "units" ? (
@@ -457,7 +438,6 @@ const isCountableCategory = (category) => {
         )}
       </>
     ) : (
-      /* For Syrup, Ointment, Cream, etc. → Just show pack size */
       <div className="sold-med-quantity-sub-glass" style={{ color: "#6b7280", fontSize: "0.92em" }}>
         {item.packSize || "Standard Pack"}
       </div>
@@ -465,7 +445,6 @@ const isCountableCategory = (category) => {
   </div>
 </td>
 
-                              {/* Price - Glass Card */}
                               <td className="sold-med-td-price-glass">
                                 <div className="sold-med-price-glass-card">
                                   <div className="sold-med-price-main-glass">
@@ -536,7 +515,6 @@ const isCountableCategory = (category) => {
               </tbody>
             </table>
           </div>
-          {/* ✅ Number Pagination Controls */}
           {totalPages > 1 && (
             <div className="sold-med-pagination">
               <button
@@ -548,7 +526,6 @@ const isCountableCategory = (category) => {
               </button>
 
               <div className="sold-med-page-numbers">
-                {/* Show first page */}
                 {currentPage > 3 && (
                   <button
                     onClick={() => goToPage(1)}
@@ -558,12 +535,10 @@ const isCountableCategory = (category) => {
                   </button>
                 )}
 
-                {/* Show ellipsis if needed */}
                 {currentPage > 4 && (
                   <span className="sold-med-page-ellipsis">...</span>
                 )}
 
-                {/* Show pages around current page */}
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                   .filter((page) => {
                     return Math.abs(page - currentPage) <= 2;
@@ -580,12 +555,10 @@ const isCountableCategory = (category) => {
                     </button>
                   ))}
 
-                {/* Show ellipsis if needed */}
                 {currentPage < totalPages - 3 && (
                   <span className="sold-med-page-ellipsis">...</span>
                 )}
 
-                {/* Show last page */}
                 {currentPage < totalPages - 2 && (
                   <button
                     onClick={() => goToPage(totalPages)}

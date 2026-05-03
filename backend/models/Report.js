@@ -1,4 +1,4 @@
-// models/Report.js
+
 import mongoose from "mongoose";
 
 const reportSchema = new mongoose.Schema(
@@ -21,11 +21,11 @@ const reportSchema = new mongoose.Schema(
       required: true,
     },
     filters: {
-      type: mongoose.Schema.Types.Mixed,  // flexible – date range, medicine name, etc.
+      type: mongoose.Schema.Types.Mixed, 
       default: {},
     },
     summary: {
-      type: mongoose.Schema.Types.Mixed,  // calculated numbers jaise totalValue, counts etc.
+      type: mongoose.Schema.Types.Mixed, 
       default: {},
     },
     generatedBy: {
@@ -33,8 +33,8 @@ const reportSchema = new mongoose.Schema(
   ref: "Admin",
   required: false,          
 },
-    // Optional extra fields
-    filePath: String,         // agar PDF/Excel server pe save kar rahe ho
+    filePath: String,       
+    
     remarks: {
       type: String,
       trim: true,

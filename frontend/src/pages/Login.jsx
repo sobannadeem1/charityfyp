@@ -13,7 +13,6 @@ export default function Login({ setIsAdmin }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
-    // Clear error when user starts typing
     if (error) setError("");
   };
 
@@ -45,7 +44,6 @@ export default function Login({ setIsAdmin }) {
     <div className="login-page">
       <div className="login-container">
         <div className="login-card">
-          {/* Header Section */}
           <div className="login-header">
             <div className="clinic-logo">
               <span className="logo-icon">💊</span>
@@ -54,7 +52,6 @@ export default function Login({ setIsAdmin }) {
             <p className="login-subtitle">Admin Portal Access</p>
           </div>
 
-          {/* Login Form */}
           <form onSubmit={handleSubmit} className="login-form">
             <div className="form-group">
               <label htmlFor="email" className="form-label">
@@ -119,7 +116,6 @@ export default function Login({ setIsAdmin }) {
             </button>
           </form>
 
-          {/* Footer */}
           <div className="login-footer">
             <p className="security-note">🔒 Secure admin access only</p>
           </div>

@@ -77,14 +77,13 @@ const [bulkPatientAge, setBulkPatientAge] = useState("");
     supplier: "",
     storageCondition: "Room Temperature",
   });
-  // Fetch ALL medicines (not just current page) when opening bulk sell
 const [allMedicines, setAllMedicines] = useState([]);
 
 const fetchAllMedicinesForBulk = async () => {
   try {
     const response = await getMedicinesWithPagination({
       page: 1,
-      limit: 10000, // large number to get all
+      limit: 10000,
       search: "",
       category: "",
       expiryMonth: "",
@@ -106,7 +105,6 @@ const handleOpenBulkSell = async () => {
     await fetchAllMedicinesForBulk();
   }
 
-  // Reset popup filters to default every time
   setBulkSortOption("date-newest");
   setBulkFilterCategory("all");
   setBulkFilterExpiryMonth("all");
@@ -147,7 +145,6 @@ const handleOpenBulkSell = async () => {
     );
   };
 
-// BULK SALE
 const handleBulkSell = async () => {
   if (isSubmitting) return toast.info("Please wait...");
 
@@ -163,17 +160,14 @@ const handleBulkSell = async () => {
 
  const finalPatientName = bulkPatientName.trim() || "Walk-in Patient";
 
-// Only allow valid enum values, else send empty string
 const finalPatientGender = ["Male", "Female", "Other"].includes(bulkPatientGender)
   ? bulkPatientGender
   : "";
 
-// Fallbacks for other fields
 const finalPatientAddress = bulkPatientAddress.trim() || "Not Provided";
 const finalPatientPhone = bulkPatientPhone.trim() || "Not Provided";
 const finalPatientCNIC = bulkPatientCNIC.trim() || "Not Provided";
 
-// Age must be number or null
 const finalPatientAge =
   bulkPatientAge && !isNaN(Number(bulkPatientAge)) ? Number(bulkPatientAge) : null;
 
@@ -220,7 +214,7 @@ if (!invoiceWindow) {
     setShowBulkSellPopup(false);
     setBulkSellData({});
     fetchMedicines(currentPage);
-    // navigate("/sold");
+    
 
   } catch (error) {
     toast.error(error.message || "Bulk sale failed");
@@ -231,7 +225,6 @@ if (!invoiceWindow) {
 
 
 
-  // Click outside handlers (keep as is)
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (e.target.classList.contains("popup-overlay") && !isSubmitting) {
@@ -327,7 +320,6 @@ const resetFilters = () => {
   setCurrentPage(1);
   fetchMedicines(1);
 };
-  // === Get unique values for dropdowns ===
   const categories = [
     ...new Set(medicines.map((m) => m.category).filter(Boolean)),
   ];
@@ -344,11 +336,10 @@ const resetFilters = () => {
           )}`;
         })
     ),
-  ].sort((a, b) => b.localeCompare(a)); // newest first
+  ].sort((a, b) => b.localeCompare(a)); 
  const displayedMedicines = useMemo(() => {
   let list = [...medicines];
 
-  // Only keep client-side sorting (fast & safe)
   list.sort((a, b) => {
     switch (sortOption) {
       case "name-asc": return a.name.localeCompare(b.name);
@@ -382,7 +373,6 @@ useEffect(() => {
  const handleSearch = (e) => {
   const val = e.target.value;
   setSearchTerm(val);
-  // Remove timeout completely — let useEffect above handle it
 };
 
  const clearSearch = () => {
@@ -393,16 +383,13 @@ useEffect(() => {
   fetchMedicines(1);
 };
 
-  // ✅ Pagination controls
   const goToPage = (page) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
   };
-
-  // Keep all your existing helper functions (unchanged)
   const showConfirmation = (title, message, confirmCallback) => {
-    // ... keep existing implementation
+   
     const toastId = toast.custom(
       (t) => (
         <div
@@ -504,7 +491,7 @@ useEffect(() => {
           setIsSubmitting(true);
           await deleteMedicine(medicine._id);
           toast.success("Medicine deleted successfully 🗑️");
-          fetchMedicines(currentPage, searchTerm); // ✅ UPDATED: Refresh current page
+          fetchMedicines(currentPage, searchTerm); 
         } catch (error) {
           console.error("Error deleting medicine:", error);
           toast.error(
@@ -574,7 +561,6 @@ const handleAddMedicine = async (e) => {
       if (!formData[field]) return toast.error(`Please fill ${field}`);
     }
 
-    // Normalize function
     const normalize = (str) => (str || "").toString().trim().toLowerCase();
 
     // Check for EXACT duplicate
@@ -590,7 +576,6 @@ const handleAddMedicine = async (e) => {
     });
 
     if (existingMedicine) {
-      // Show informative message about editing instead
       toast.error(
         <div style={{ maxWidth: "400px" }}>
           <div style={{ fontWeight: "bold", marginBottom: "8px" }}>
@@ -611,7 +596,6 @@ const handleAddMedicine = async (e) => {
             <button
               onClick={() => {
                 toast.dismiss();
-                // Auto-fill edit form with existing medicine
                 handleEdit(existingMedicine);
                 setShowAddPopup(false);
               }}
@@ -643,7 +627,7 @@ const handleAddMedicine = async (e) => {
             </button>
           </div>
         </div>,
-        { duration: 10000 } // Longer duration for user to read
+        { duration: 10000 } 
       );
       setIsSubmitting(false);
       return;
@@ -665,7 +649,6 @@ const handleAddMedicine = async (e) => {
     setIsSubmitting(false);
   }
 };
-  // Edit medicine
   const handleEdit = (medicine) => {
     if (!medicine || !medicine._id) return;
 
@@ -699,7 +682,6 @@ const handleUpdateMedicine = async (e) => {
   try {
     setIsSubmitting(true);
 
-    // Check if update creates duplicate with ANOTHER medicine (not self)
     const normalizedName = (formData.name || "").toString().trim().toLowerCase();
     const isDuplicateWithOther = medicines.some(m => {
       if (m._id === selectedMedicine._id) return false; // Skip self
@@ -715,7 +697,6 @@ const handleUpdateMedicine = async (e) => {
     });
 
     if (isDuplicateWithOther) {
-      // Ask for confirmation instead of blocking
       const confirmed = window.confirm(
         "Warning: This update will create a duplicate medicine with identical details to another medicine. Do you want to continue?"
       );
@@ -744,7 +725,6 @@ const handleUpdateMedicine = async (e) => {
   }
 };
 
-  // Sell medicine
   const handleSell = (medicine) => {
     setCurrentMedicine(medicine);
     setSellQuantity("");
@@ -752,24 +732,21 @@ const handleUpdateMedicine = async (e) => {
     setShowSellPopup(true);
   };
 
-// SINGLE SALE
 const confirmSell = async () => {
   const quantity = parseInt(sellQuantity, 10);
 if (!quantity || quantity <= 0) return toast.error("Invalid quantity!");
 if (isSubmitting) return toast.info("Please wait...");
 
-// Cleaned, schema-safe patient data
 const finalPatientName = patientName.trim() || "Walk-in Patient";
 const finalPatientGender =
   ["Male", "Female", "Other"].includes(patientGender)
     ? patientGender
-    : ""; // send empty string if not valid — prevents enum error
+    : ""; 
 
 const finalPatientAddress = patientAddress.trim() || "Not Provided";
 const finalPatientPhone = patientPhone.trim() || "Not Provided";
 const finalPatientCNIC = patientCNIC.trim() || "Not Provided";
 
-// Convert age safely — must be number or null
 const finalPatientAge =
   patientAge && !isNaN(Number(patientAge)) ? Number(patientAge) : null;
 
@@ -901,7 +878,7 @@ const getActualUnits = (medicine) => {
 
       <div className="filter-sort-bar">
         <div className="filter-group">
-          {/* Sort */}
+         
           <select
             value={sortOption}
             onChange={(e) => setSortOption(e.target.value)}
@@ -917,7 +894,6 @@ const getActualUnits = (medicine) => {
             <option value="date-newest">Newest First</option>
           </select>
 
-          {/* Category */}
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
@@ -931,7 +907,6 @@ const getActualUnits = (medicine) => {
             ))}
           </select>
 
-          {/* Expiry Month */}
           <select
             value={filterExpiryMonth}
             onChange={(e) => setFilterExpiryMonth(e.target.value)}
@@ -951,7 +926,6 @@ const getActualUnits = (medicine) => {
             })}
           </select>
 
-          {/* Stock Status */}
           <select
             value={filterStockStatus}
             onChange={(e) => setFilterStockStatus(e.target.value)}
@@ -1063,7 +1037,6 @@ const getActualUnits = (medicine) => {
             newSet.delete(m._id);
           }
           setSelectedIds(newSet);
-          // Update selectAll if needed
           setSelectAll(newSet.size === displayedMedicines.length);
         }}
       />
@@ -1210,7 +1183,6 @@ const getActualUnits = (medicine) => {
             </table>
           </div>
 
-          {/* Pagination - Same beautiful style */}
           {totalPages > 1 && (
             <div className="pagination">
               <button
@@ -1279,7 +1251,6 @@ const getActualUnits = (medicine) => {
             border: "1px solid #e2e8f420",
           }}
         >
-          {/* Modern empty state icon */}
           <div
             style={{
               fontSize: "4.5rem",
@@ -1361,7 +1332,6 @@ const getActualUnits = (medicine) => {
         </div>
       )}
 
-      {/* Keep all your existing popup code exactly as is */}
       {(showAddPopup || showEditPopup) && (
         <div className="popup-overlay">
           <Draggable handle=".popup-header" nodeRef={popupRef}>
@@ -1459,7 +1429,6 @@ const getActualUnits = (medicine) => {
       style={{ flex: 1 }}
       min="0"
     />
-    {/* Live Difference Indicator */}
     {showEditPopup && selectedMedicine && formData.quantity !== "" && (
       <div
         style={{
@@ -1500,7 +1469,6 @@ const getActualUnits = (medicine) => {
     )}
   </div>
 
-  {/* Current stock hint below */}
   {showEditPopup && selectedMedicine && (
     <small className="form-hint" style={{ marginTop: "8px", display: "block" }}>
       Current stock: <strong>{selectedMedicine.quantity}</strong> packages
@@ -1590,7 +1558,6 @@ const getActualUnits = (medicine) => {
                     </button>
                   </div>
                 </form>
-                {/* EDIT HISTORY SECTION - ADD THIS BACK */}
                 {showEditPopup && selectedMedicine?.history?.length > 0 && (
                   <div className="edit-history">
                     <h4>Edit History</h4>
@@ -1616,7 +1583,6 @@ const getActualUnits = (medicine) => {
                               >
                                 {Object.entries(historyItem.changes || {}).map(
                                   ([field, change], changeIndex) => {
-                                    // Helper functions for formatting
                                     const formatFieldName = (field) => {
                                       const fieldNames = {
                                         name: "Medicine Name",
@@ -1660,7 +1626,6 @@ const getActualUnits = (medicine) => {
                                         }
                                       }
 
-                                      // Handle prices
                                       if (
                                         ["purchasePrice", "salePrice"].includes(
                                           fieldName
@@ -1671,7 +1636,6 @@ const getActualUnits = (medicine) => {
                                         ).toLocaleString()}`;
                                       }
 
-                                      // Handle numbers
                                       if (typeof value === "number") {
                                         return value.toLocaleString();
                                       }
@@ -1791,7 +1755,6 @@ const getActualUnits = (medicine) => {
           <div className="popup" ref={sellPopupRef}>
             <h2>Sell {currentMedicine?.name}</h2>
 
-            {/* Enhanced Package Information with Stock Change Awareness */}
             <div className="package-info">
               <p>
                 <strong>Package Contents:</strong>{" "}
@@ -1832,7 +1795,6 @@ const getActualUnits = (medicine) => {
 </div>
             </div>
 
-            {/* Conditional Quantity Type Selector */}
             {currentMedicine?.category === "Tablet" ||
             currentMedicine?.category === "Capsule" ||
             currentMedicine?.category === "Injection" ? (
@@ -1977,7 +1939,6 @@ const getActualUnits = (medicine) => {
   />
 </div>
 
-            {/* For the sell popup */}
             <div className="popup-buttons">
               <button 
   className="save-btn" 
@@ -2013,7 +1974,7 @@ const getActualUnits = (medicine) => {
     }}
   >
     <div className="bulk-sell-popup">
-      {/* Header */}
+      
       <div className="bulk-sell-header">
         <h2>Sell Multiple Medicines</h2>
         <button
@@ -2028,7 +1989,6 @@ const getActualUnits = (medicine) => {
         </button>
       </div>
 
-      {/* Search Bar */}
       <div className="bulk-search-bar">
         <input
           type="search"
@@ -2052,9 +2012,8 @@ const getActualUnits = (medicine) => {
         </select>
       </div>
 
-      {/* Scrollable Section */}
       <div className="bulk-content-scroll">
-        {/* Medicines List */}
+        
         <div className="bulk-medicines-list">
           {allMedicines
             .filter((medicine) => {
@@ -2110,7 +2069,6 @@ const getActualUnits = (medicine) => {
       {medicine.packSize && <small>({medicine.packSize})</small>}
     </div>
 
-    {/* ADD DATE ADDED HERE */}
     <div className="bulk-med-details-row" style={{
       display: "flex",
       justifyContent: "space-between",
@@ -2126,7 +2084,6 @@ const getActualUnits = (medicine) => {
         )}
       </div>
       
-      {/* DATE ADDED */}
       <div className="date-added" style={{
         background: "#f3f4f6",
         padding: "4px 10px",
@@ -2142,7 +2099,6 @@ const getActualUnits = (medicine) => {
           }) : "N/A"}
       </div>
     </div>
-    {/* END DATE ADDED SECTION */}
 
     {canSellUnits && (
       <div className="bulk-type-radio">
@@ -2212,7 +2168,6 @@ const getActualUnits = (medicine) => {
             })}
         </div>
 
-        {/* Patient Info Form */}
         <div className="patient-inputs">
           <label>Patient Name:</label>
           <input
@@ -2267,7 +2222,6 @@ const getActualUnits = (medicine) => {
         </div>
       </div>
 
-      {/* Grand Total */}
       {Object.values(bulkSellData).some((d) => d.quantity > 0) && (
         <div className="grand-total">
           Grand Total: PKR{" "}
@@ -2281,7 +2235,6 @@ const getActualUnits = (medicine) => {
         </div>
       )}
 
-      {/* Buttons */}
       <div className="bulk-buttons">
         <button
           className="confirm-btn"

@@ -26,9 +26,9 @@ const medicineSchema = new mongoose.Schema(
     packSize: { type: String, trim: true, default: "" },
     strength: { type: String, trim: true },
     expiry: { type: Date, required: true },
-    quantity: { type: Number, required: true, min: 0 }, // Physical packages count
-    unitsAvailable: { type: Number, required: true, min: 0 }, // Actual sellable units
-    unitsPerPackage: { type: Number, required: true, min: 1, default: 1 }, // Store units per package
+    quantity: { type: Number, required: true, min: 0 }, 
+    unitsAvailable: { type: Number, required: true, min: 0 }, 
+    unitsPerPackage: { type: Number, required: true, min: 1, default: 1 }, 
     purchasePrice: { type: Number, required: true, min: 0 },
     salePrice: { type: Number, required: true, min: 0 },
     manufacturer: { type: String, trim: true },
@@ -52,7 +52,6 @@ const medicineSchema = new mongoose.Schema(
   }
 );
 
-// Virtual for display purposes
 medicineSchema.virtual("totalPackagesDisplay").get(function () {
   return Math.ceil(this.unitsAvailable / this.unitsPerPackage);
 });

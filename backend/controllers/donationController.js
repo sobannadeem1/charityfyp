@@ -1,11 +1,9 @@
 // controllers/donationController.js
 import Donation from "../models/Donation.js";
-import Medicine from "../models/Medicine.js"; // We'll use this to add to stock
+import Medicine from "../models/Medicine.js"; 
 import asyncHandler from "express-async-handler";
 
-// @desc    Create new donation (manual entry)
-// @route   POST /api/donations
-// @access  Private (Admin only)
+
 const createDonation = asyncHandler(async (req, res) => {
   const {
     donorName,
@@ -20,7 +18,6 @@ const createDonation = asyncHandler(async (req, res) => {
     notes,
   } = req.body;
 
-  // Basic validation (Mongoose already does most, but we add safety)
  if (!donorName || !donationType) {
   res.status(400);
   throw new Error("Please fill all required fields");
@@ -45,13 +42,9 @@ const donation = await Donation.create({
   });
 });
 
-// @desc    Get all donations (with filters)
-// @route   GET /api/donations
-// @access  Private (Admin)
 const getAllDonations = asyncHandler(async (req, res) => {
   const { status, type, page = 1, limit = 10, search } = req.query;
 
-  // Build filter
   let filter = {};
   if (status) filter.status = status;
   if (type) filter.donationType = type;
@@ -81,9 +74,6 @@ const getAllDonations = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Get single donation by ID
-// @route   GET /api/donations/:id
-// @access  Private (Admin)
 const getDonationById = asyncHandler(async (req, res) => {
   const donation = await Donation.findById(req.params.id)
     .populate("receivedBy", "name")
@@ -100,9 +90,6 @@ const getDonationById = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Update donation status (pending → received/rejected)
-// @route   PUT /api/donations/:id/status
-// @access  Private (Admin only)
 const updateDonationStatus = asyncHandler(async (req, res) => {
   const { status, rejectedReason } = req.body;
 
@@ -122,7 +109,6 @@ const updateDonationStatus = asyncHandler(async (req, res) => {
     throw new Error("Donation already processed");
   }
 
-  // Update basic fields
   donation.status = status;
   donation.rejectedReason =
     status === "rejected"
@@ -134,10 +120,6 @@ const updateDonationStatus = asyncHandler(async (req, res) => {
     donation.receivedAt = new Date();
   }
 
-  // COMPLETELY DISABLE AUTO-STOCK (SAFE & RECOMMENDED)
-  // donation.medicine = ...
-  // donation.addedToStock = true;
-  // NO Medicine.create() or Medicine update → ZERO RISK
 
   await donation.save();
 
@@ -148,9 +130,6 @@ const updateDonationStatus = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Delete donation (only if pending)
-// @route   DELETE /api/donations/:id
-// @access  Private (Admin)
 const deleteDonation = asyncHandler(async (req, res) => {
   const donation = await Donation.findById(req.params.id);
 

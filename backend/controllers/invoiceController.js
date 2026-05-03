@@ -1,4 +1,4 @@
-// controllers/invoiceController.js
+
 import Invoice from "../models/Invoice.js";
 
 export const createInvoice = async (req, res) => {
@@ -21,7 +21,6 @@ export const createInvoice = async (req, res) => {
       });
     }
 
-  // Process items
 const processedItems = items.map(item => {
   let totalAmount = Number(item.totalAmount || 0);
 
@@ -45,8 +44,8 @@ const processedItems = items.map(item => {
     manufacturer: item.manufacturer || "",
     strength: item.strength || "",
     packSize: item.packSize || "Standard",
-    sellType: isUnits ? "units" : "packages",           // Force clean value
-    originalSellType: rawSellType,                     // Save original too
+    sellType: isUnits ? "units" : "packages",         
+    originalSellType: rawSellType,                    
     quantitySold: Number(item.quantitySold || 0),
     salePrice: Number(item.salePrice || 0),
     totalAmount: Number(totalAmount.toFixed(2)),
@@ -55,7 +54,6 @@ const processedItems = items.map(item => {
 
     const totalRevenue = processedItems.reduce((sum, i) => sum + i.totalAmount, 0);
 
-    // Create new invoice
     const newInvoice = new Invoice({
       patientName: (patientName || "Walk-in Patient").trim(),
       patientGender: patientGender
@@ -193,7 +191,6 @@ export const getInvoiceById = async (req, res) => {
   }
 };
 
-// Add this export in invoiceController.js
 export const deleteInvoice = async (req, res) => {
   try {
     const { id } = req.params;

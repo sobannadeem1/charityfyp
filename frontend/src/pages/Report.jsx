@@ -14,9 +14,7 @@ import { saveAs } from "file-saver";
 import "../styles/Report.css";
 
 export default function Report() {
-  // ────────────────────────────────────────────────
-  // State
-  // ────────────────────────────────────────────────
+  
   const [reportType, setReportType] = useState("all");
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -30,7 +28,6 @@ export default function Report() {
 
   const abortControllerRef = useRef(null);
   const tableSectionRef = useRef(null);
-// Replace your existing 3 helpers with these (after state declarations)
 
 const extractUnitsFromPackSize = (packSize) => {
   if (!packSize || packSize === "") return 1;
@@ -133,9 +130,6 @@ setToDate(new Date().toISOString().split("T")[0]);
     }
   }, [datePreset]);
 
-  // ────────────────────────────────────────────────
-  // Fetch logic
-  // ────────────────────────────────────────────────
   const fetchReport = async () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -192,9 +186,6 @@ useEffect(() => {
 }, [reportType, search, category, statusFilter, fromDate, toDate]);
  
 
-  // ────────────────────────────────────────────────
-  // PDF Export
-  // ────────────────────────────────────────────────
   const exportPDF = async () => {
     if (!tableSectionRef.current) return;
 
@@ -222,9 +213,6 @@ useEffect(() => {
     }
   };
 
-  // ────────────────────────────────────────────────
-  // Excel Export
-  // ────────────────────────────────────────────────
   const exportExcel = () => {
     if (!reportData) return;
 
@@ -242,7 +230,6 @@ useEffect(() => {
             <td>{item.name}</td>
             <td>{item.category || "-"}</td>
             
-            {/* === SAME STOCK DISPLAY AS medicine.jsx === */}
             <td className={`quantity-cell ${getActualUnits(item) <= 5 && getActualUnits(item) > 0 ? "low-stock" : ""}`}>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 <div style={{ fontWeight: "700", fontSize: "1.1em", color: "#111827" }}>
@@ -347,9 +334,7 @@ useEffect(() => {
     );
   };
 
-  // ────────────────────────────────────────────────
-  // Render summary cards
-  // ────────────────────────────────────────────────
+ 
   const renderSummary = () => {
     if (!reportData?.summary) return null;
 
@@ -385,9 +370,7 @@ useEffect(() => {
     );
   };
 
-    // ────────────────────────────────────────────────
-  // Render table (adapt columns/data per type)
-  // ────────────────────────────────────────────────
+  
   const renderTableContent = () => {
     if (!reportData) return null;
 
@@ -406,7 +389,6 @@ useEffect(() => {
             <td>{item.name}</td>
             <td>{item.category || "-"}</td>
             
-            {/* RICH STOCK DISPLAY - Same as medicine.jsx */}
             <td className={`quantity-cell ${getActualUnits(item) <= 5 && getActualUnits(item) > 0 ? "low-stock" : ""}`}>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 <div style={{ fontWeight: "700", fontSize: "1.1em", color: "#111827" }}>
@@ -537,16 +519,13 @@ useEffect(() => {
     );
   };
 
-  // ────────────────────────────────────────────────
-  // JSX Return
-  // ────────────────────────────────────────────────
+
   return (
     <div className="rn-reports-container">
       <header className="rn-header">
         <h1>Inventory Reports</h1>
       </header>
 
-      {/* FILTERS */}
       <div className="rn-filter-panel">
         <div className="rn-filter-row">
           <div className="rn-filter-field">
@@ -632,14 +611,11 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* LOADING / ERROR */}
       {loading && <div className="rn-loading-spinner">Loading report...</div>}
       {error && <div className="rn-error-box">{error}</div>}
 
-      {/* SUMMARY CARDS */}
       {renderSummary()}
 
-      {/* TABLE SECTION (for PDF capture) */}
       <div className="rn-report-content" ref={tableSectionRef}>
         {reportData && renderTableContent()}
         {!loading && !reportData && !error && (

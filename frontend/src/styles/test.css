@@ -1,14 +1,4 @@
-/* Color palette:
-   - Header blue: #0077c2 to #1e90ff
-   - Background: #f5faff
-   - Card white: #ffffff
-   - Border blue: #d0e6f8
-   - Green: #2ecc71
-   - Text dark: #222
-   - Muted gray: #666
-*/
 
-/* Main table wrapper */
 .sold-table-wrapper {
   width: 100%;
   overflow-x: auto;
@@ -18,7 +8,6 @@
   box-shadow: 0 2px 8px rgba(0, 119, 194, 0.08);
 }
 
-/* Table styling */
 .sold-table {
   width: 100%;
   border-collapse: separate;
@@ -44,7 +33,6 @@
   border-bottom: 3px solid rgba(255, 255, 255, 0.2);
 }
 
-/* Bulk indicator row */
 .bulk-indicator-row {
   background: transparent;
 }
@@ -94,7 +82,6 @@
   margin-left: 8px;
 }
 
-/* Row styling */
 .glass-item-row {
   transition: all 0.3s ease;
   border-bottom: 1px solid #d0e6f8;
@@ -119,7 +106,6 @@
   vertical-align: middle;
 }
 
-/* Medicine cell */
 .td-medicine-glass {
   min-width: 250px;
 }
@@ -174,7 +160,6 @@
   width: fit-content;
 }
 
-/* Package cell */
 .td-package-glass {
   min-width: 120px;
 }
@@ -195,7 +180,6 @@
   justify-content: center;
 }
 
-/* Quantity cell */
 .td-quantity-glass {
   min-width: 140px;
 }
@@ -227,7 +211,6 @@
   text-align: center;
 }
 
-/* Price cell */
 .td-price-glass {
   min-width: 130px;
 }
@@ -261,7 +244,6 @@
   letter-spacing: 0.5px;
 }
 
-/* Total cell */
 .td-total-glass {
   min-width: 140px;
   text-align: center;
@@ -294,7 +276,6 @@
   letter-spacing: 0.5px;
 }
 
-/* Date cell */
 .td-date-glass {
   min-width: 140px;
   text-align: center;
@@ -329,7 +310,6 @@
   font-weight: 500;
 }
 
-/* Invoice cell */
 .td-invoice-glass {
   text-align: center;
   vertical-align: middle;
@@ -372,7 +352,6 @@
   font-weight: 700;
 }
 
-/* Responsive design */
 @media (max-width: 1200px) {
   .sold-table {
     font-size: 13px;

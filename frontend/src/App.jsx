@@ -1,4 +1,4 @@
-// App.jsx — FINAL PRODUCTION VERSION
+
 import React, { useState, useEffect, lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
@@ -17,7 +17,6 @@ import { getCurrentAdmin } from "./api/medicineapi";
 import "./index.css";
 import "./App.css";
 
-// Lazy load heavy pages
 const SoldMedicines = lazy(() => import("./pages/SoldMedicine"));
 const ExpiringSoon = lazy(() => import("./pages/ExpiringSoon"));
 const InvoiceHistory = lazy(() => import("./pages/InvoiceHistory"));
@@ -25,9 +24,7 @@ const InvoiceHistory = lazy(() => import("./pages/InvoiceHistory"));
 const App = () => {
   const [isAdmin, setIsAdmin] = useState(null);
 
-  // ────────────────────────────────────────────────
-  // Check Authentication
-  // ────────────────────────────────────────────────
+  
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -41,9 +38,6 @@ const App = () => {
     checkAuth();
   }, []);
 
-  // ────────────────────────────────────────────────
-  // Loading Screen
-  // ────────────────────────────────────────────────
   if (isAdmin === null) {
     return (
       <div className="loader-container">
@@ -68,7 +62,6 @@ const App = () => {
             >
               <Routes>
                 
-                {/* Public Routes */}
                 <Route path="/" element={<Home />} />
 
                 <Route
@@ -88,9 +81,7 @@ const App = () => {
 
                 <Route path="/expiring-soon" element={<ExpiringSoon />} />
 
-                {/* ──────────────────────────────────────────────── */}
-                {/* Admin Protected Routes */}
-                {/* ──────────────────────────────────────────────── */}
+               
 
                 <Route
                   path="/reports"
@@ -107,7 +98,6 @@ const App = () => {
                   element={isAdmin ? <SoldMedicines /> : <Navigate to="/login" />}
                 />
 
-                {/* 404 fallback */}
                 <Route path="*" element={<Navigate to="/" />} />
 
               </Routes>

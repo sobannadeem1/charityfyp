@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 
 const donationSchema = new mongoose.Schema(
   {
-    // === Donor Information ===
     donorName: {
       type: String,
       required: [true, "Donor name is required"],
@@ -13,8 +12,8 @@ const donationSchema = new mongoose.Schema(
       type: String,
       trim: true,
       lowercase: true,
-      sparse: true, // allows multiple nulls but unique when present
-      index: true, // ← ONLY THIS ONE (removes duplicate warning)
+      sparse: true, 
+      index: true, 
       match: [/^\S+@\S+\.\S+$/, "Please enter a valid email"],
     },
     donorPhone: {
@@ -23,13 +22,12 @@ const donationSchema = new mongoose.Schema(
       match: [/^\+?\d{10,15}$/, "Please enter a valid phone number"],
     },
 
-    // === Donation Details ===
     donationType: {
       type: String,
       enum: ["medicine", "cash", "other"],
       default: "medicine",
       required: true,
-      index: true, // for fast filtering by type
+      index: true, 
     },
 
     donatedItem: {
@@ -59,7 +57,7 @@ const donationSchema = new mongoose.Schema(
       required: function () {
         return this.donationType === "medicine";
       },
-      index: true, // for sorting upcoming expiries
+      index: true, 
       validate: {
         validator: function (value) {
           return this.donationType !== "medicine" || value > new Date();
@@ -80,12 +78,11 @@ const donationSchema = new mongoose.Schema(
       maxlength: [500, "Notes too long (max 500 chars)"],
     },
 
-    // === Workflow & Audit ===
     status: {
       type: String,
       enum: ["pending", "received", "rejected"],
       default: "pending",
-      index: true, // very common filter
+      index: true, 
     },
 
     receivedBy: {
@@ -122,12 +119,9 @@ const donationSchema = new mongoose.Schema(
   }
 );
 
-// === Compound & Single Indexes (clean & no duplicates) ===
-donationSchema.index({ donationType: 1, createdAt: -1 }); // most common sort
-donationSchema.index({ status: 1, createdAt: -1 }); // admin dashboard
-// We already have single indexes on donorEmail, expiryDate, status, medicine via field options
+donationSchema.index({ donationType: 1, createdAt: -1 }); 
+donationSchema.index({ status: 1, createdAt: -1 }); 
 
-// Pre-save: auto-set receivedAt when status becomes "received"
 donationSchema.pre("save", function (next) {
   if (
     this.status === "received" &&
